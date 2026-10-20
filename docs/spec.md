@@ -63,7 +63,7 @@ In the proxy:
 
 **"Auto-picked to the best"** means the proxy sends a ranked list of free models (best first, then fallbacks), taken from the latest benchmark results. If the top one is down or rate limited, OpenRouter falls back to the next. We update the list when the benchmark is re-run. This replaces OpenRouter's `openrouter/free` router, which picks at random.
 
-**Limits to plan around** (secondary sources, Oct 2026, to confirm in OpenRouter docs): free models allow about 20 requests per minute. The daily cap is **per OpenRouter account, so every visitor shares it**: 50 requests a day if the account has never bought credits, 1,000 a day after a lifetime purchase of $10 or more. One document is one or two requests. When the shared cap runs out, the app says so and offers the other modes.
+**Limits to plan around** (secondary sources, Oct 2026, to confirm in OpenRouter docs): free models allow about 20 requests per minute. The daily cap is **per OpenRouter account, so every visitor shares it**: 50 requests a day if the account has never bought credits, 1,000 a day after a lifetime purchase of $10 or more. The project uses the owner's existing OpenRouter account, which is past that threshold, so the shared cap is 1,000 a day. One document is one or two requests. When the shared cap runs out, the app says so and offers the other modes.
 
 ### 4.2 Sign in with ChatGPT
 
@@ -356,6 +356,10 @@ All reading happens in the browser. One or several files can be dropped at once,
 | Visio (VSDX) | Like PowerPoint: page text and shape list, plus embedded pictures |
 | Excel (XLSX), CSV | Sheets as plain tables, useful for step lists, car counts and track lengths |
 | Old .ppt, .doc, .vsd, HEIC photos | Not read in the browser. The app asks the person to save as the newer format, PDF or JPG |
+| CAD files (DWG, DXF) | Not accepted. The app asks for a PDF export of the drawing |
+| Hand-drawn sketches | Not supported. Plans should be printed or digital; a scan of a printed plan is the roughest input the import is built for |
+
+Scanned PDFs and images go straight to the vision model, which reads the text itself. There's no separate OCR step and no extra cost: a scanned page costs the same as any other page image, and nothing on the free models.
 
 Reading the shape list from PowerPoint or Visio is lighter than the vector pipeline in section 8.4. We don't build a track graph from geometry; we only describe the shapes in text and let the model interpret them, with questions where it's unsure.
 
@@ -370,7 +374,7 @@ The benchmark is a side study with one practical purpose: pick the free model th
   - Tier 2, two customers or a run-around move (5 plans).
   - Tier 3, a small yard with several tracks and customers (5 plans). These join the benchmark once layout handles tier 3, since layout draws the fixtures.
 - For each plan, the ground truth PlanReading is written first, and layout draws it. Code then renders it as PPTX, PDF, clean PNG, a "scanned" PNG (slight rotation, blur, noise), and a "photo of a slide" PNG (perspective, glare). The answers are exact by construction.
-- Known weakness: these drawings come from our own layout code, so they're tidier than real ones. Four or five plans are also redrawn by hand in PowerPoint in a messier, real-world style (still synthetic, no proprietary content) and reported separately.
+- Known weakness: these drawings come from our own layout code, so they're tidier than real ones. So four or five extra plans are drafted directly in PowerPoint in a messier, real-world style (odd fonts, overlapping shapes, arrows, step lists in text boxes), still made up and with no proprietary content, and reported separately.
 
 ### 8.2 Scores (each 0 to 1)
 
@@ -405,7 +409,7 @@ Each run also records input and output tokens, cost in USD (from the provider's 
 | Cheap hosted, open | Qwen3-VL 32B, Gemma 4 31B, Qwen3-VL 235B-A22B | OpenRouter |
 | Ceiling, closed | Claude Opus 5.5 | OpenRouter, reference only |
 
-The first benchmark runs the import (page images, plus shape lists for PowerPoint) on every render. The result table lists every model with mean overall, usable rate, cost per document and time per document, separately for synthetic and hand-drawn fixtures. The recommendation, and the proxy's ranked free model list, is the cheapest setup whose usable rate is within a few points of the best.
+The first benchmark runs the import (page images, plus shape lists for PowerPoint) on every render. The result table lists every model with mean overall, usable rate, cost per document and time per document, separately for the layout-drawn and the messy PowerPoint fixtures. The recommendation, and the proxy's ranked free model list, is the cheapest setup whose usable rate is within a few points of the best.
 
 ### 8.4 Second study: reading vectors directly
 
@@ -414,13 +418,13 @@ Two more pipelines stay in the research plan as a second study, done only if the
 - **A. Vector first.** Read lines, shapes and text from the PPTX or PDF directly, build the track graph with geometry code, and use a model only to interpret labels and steps.
 - **C. Hybrid.** Build the track graph with geometry code first, then give the model the page image plus that graph, and have it answer by element id.
 
-Both need the hardest code in the project (PPTX shape geometry, pdf.js vector paths), and on our own synthetic fixtures they would mostly be parsing our own output, which proves little. So this study only runs on the hand-drawn fixtures, and only if the import needs the help. Prior work on P&ID and circuit diagrams suggests hybrids help (see `docs/research/prior-art.md`); the study would test whether that holds here.
+Both need the hardest code in the project (PPTX shape geometry, pdf.js vector paths), and on our own synthetic fixtures they would mostly be parsing our own output, which proves little. So this study only runs on the messy PowerPoint fixtures, and only if the import needs the help. Prior work on P&ID and circuit diagrams suggests hybrids help (see `docs/research/prior-art.md`); the study would test whether that holds here.
 
 ## 9. Cost estimate and budget
 
 Rough sizes per document: page image about 1,500 to 3,000 tokens, instructions and schema about 2,000, output about 2,000. At hosted open-model prices seen in Aug to Sep 2026 (about $0.10 to $0.26 per million input tokens and $0.34 to $1.04 per million output; secondary trackers), that is roughly $0.001 to $0.003 per document.
 
-Full first run: about 15 plans (10 synthetic in tiers 1 and 2, plus 4 or 5 hand-drawn) x 5 renders x 3 hosted open models is a couple of hundred calls, well under $3. The Opus 5.5 ceiling costs more per call; its estimate gets worked out from current OpenRouter pricing before that run. **Proposed cap: $15 for the first benchmark, and nothing is spent without a go-ahead and a per-run estimate.** Free-tier runs cost nothing but share the daily cap in section 4.1: a free group of about 4 models over 75 documents is about 300 requests, more than the 50 a day an account gets without credits. So the free group either runs over several days or, if the $10 credit is bought, in a day. Either way it runs at quiet times so it doesn't use up the public import's quota.
+Full first run: about 15 plans (10 drawn by layout in tiers 1 and 2, plus 4 or 5 messy PowerPoint ones) x 5 renders x 3 hosted open models is a couple of hundred calls, well under $3. The Opus 5.5 ceiling costs more per call; its estimate gets worked out from current OpenRouter pricing before that run. **Proposed cap: $15 for the first benchmark, and nothing is spent without a go-ahead and a per-run estimate.** Free-tier runs cost nothing but share the daily cap in section 4.1: a free group of about 4 models over 75 documents is about 300 requests, The project's OpenRouter account already has well over $10 of lifetime credit purchases, so it gets the 1,000 a day cap, and the free group fits in a day. It still runs at quiet times so it doesn't use up the public import's quota.
 
 ## 10. Canvas and animation
 
@@ -463,7 +467,7 @@ Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT,
 | P1 Engine and player | Schema v1 and migration, engine, validate, layout (tier 1), render, player; deployed | The demo reading plays the 7 steps on the live site and the engine reports its fit check |
 | P2 Editor and sharing | Canvas editor with undo, share link, standalone HTML, SVG, JSON import and export; tier 2 layout | Someone who uses PowerPoint but not CAD can build the demo plan from the "Single spur" template in under 10 minutes without help, and share it by link, with no AI |
 | P3 Import | Ingest for the section 7.1 files, adapter, clarifying questions checklist, proxy with Turnstile and limits, Sign in with OpenRouter | A PowerPoint slide of a tier 1 plan becomes a draft plus questions; after answering them it plays on the live site, on the free mode |
-| P4 Benchmark | Fixtures (synthetic and hand-drawn), bench CLI, outcome-based scoring, results page; proxy model list set from results | Results table published in `docs/results/` |
+| P4 Benchmark | Fixtures (layout-drawn and messy PowerPoint), bench CLI, outcome-based scoring, results page; proxy model list set from results | Results table published in `docs/results/` |
 | P5 Portfolio | Three pre-run examples, plan metrics, portfolio branch line | Portfolio links to a live plan under Industrial Development (2020 to 2023) |
 
 ### 12.3 After the first release, ranked by impact against effort
@@ -493,7 +497,7 @@ Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT,
 | The engine's switching rules are harder than they look (power end, facing versus trailing, runarounds) | Write them once in the engine with tests and property tests; nothing else re-implements them |
 | Layout breaks on branches off branches, rejoining sidings or crowded sides | Lane assignment from the start; tier 3 yards stay out of the first release |
 | Saved plans and share links break when the schema changes | Version tag on every file and link; a `migrate` function per version from day one |
-| Synthetic fixtures flatter the model | Hand-drawn fixtures, reported separately |
+| Synthetic fixtures flatter the model | Messy PowerPoint fixtures, reported separately |
 | Free models change provider, ignore JSON schema or refuse images | Validate locally; record the exact model and provider on every plan and show it in the UI |
 | Shared free quota used up by a few heavy users or bots | Turnstile verified server side, per-visitor daily limit, payload cap, images downscaled; the app falls back to the other modes |
 | Project key abused | Key never reaches the browser; $0 credit limit and a guardrail model allowlist at OpenRouter |
@@ -506,6 +510,8 @@ Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT,
 Decided (2026-10-20):
 - Accuracy ceiling: Claude Opus 5.5, called through OpenRouter, as a reference point only.
 - No local models and no Ollama.
+- The project key lives on the owner's existing OpenRouter account, which already qualifies for the 1,000 requests a day free cap. No credit purchase needed.
+- The import does not accept CAD files (DWG, DXF) or hand-drawn sketches. Scans of printed plans are supported; there's no separate OCR cost.
 - Default mode uses a project OpenRouter key behind a proxy, limited to free models, with the best free model picked from benchmark results.
 - Sign in with ChatGPT is planned for later, after applying for a client ID.
 - Public demo hosting: GitHub Pages, live once the repo goes public.
@@ -528,9 +534,8 @@ Decided (2026-10-20):
 
 Open:
 1. Licence when the repo goes public: MIT or Apache 2.0 (recommended).
-2. Buy $10 of OpenRouter credits once, to lift the shared free cap from 50 to 1,000 requests a day? The review recommends it as the cheapest capacity in the project. Your call; it's a spend.
-3. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
-4. Proxy host: Cloudflare Workers (recommended, free plan) or a Supabase Edge Function, if we end up using Supabase for anything else.
+2. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
+3. Proxy host: Cloudflare Workers (recommended, free plan) or a Supabase Edge Function, if we end up using Supabase for anything else.
 
 ## 16. Related docs
 
