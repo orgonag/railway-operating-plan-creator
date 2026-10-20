@@ -5,11 +5,11 @@ Owner: Orgo Nag, P.Eng
 
 ## 1. Problem
 
-When a railway serves a customer, someone writes down how the train will do the work. Where does it arrive, which turnout does it take, where do the cars get spotted, when do the empties get pulled? That operating plan usually lives in a PowerPoint slide, a PDF drawing or a marked-up screenshot of a track schematic.
+Operating plans already exist, and they're painful to work with. They live in PowerPoint slides, or as a list of steps on a single PDF. You can't watch the moves happen, you can't try a different order without redrawing, and anyone who wasn't in the room struggles to follow them.
 
-Those documents are hard to reuse. You can't animate them, check them or edit them without redrawing, and every new customer or change means starting over in a drawing tool. I hand-built one animated version for my portfolio ("How a Train Services a Customer", 7 steps). It explained the plan far better than the static slide, but it took hours of hand-tuned coordinates.
+I'm building a tool that animates simple operating plans. You lay out the plan, play around with the steps the cars will take, watch the train do the work, and then export it to share.
 
-This project asks a narrow question: **can a cheap, open model turn an existing operating plan document into a structured plan that a person then corrects, animates and shares, faster than drawing it by hand?**
+You don't have to start from a blank page. Upload the slide or PDF you already have, and an AI reads it into a first draft that you fix and finish.
 
 ## 2. Goals and non-goals
 
@@ -25,7 +25,7 @@ This project asks a narrow question: **can a cheap, open model turn an existing 
 ### Non-goals (for now)
 
 - Surveyed geometry or CAD accuracy. Track lengths are to scale, but the layout is a clean schematic, not a map.
-- Signals, interlocking, speed restrictions, timetables or multi-train conflict checks.
+- Signals, interlocking, speed restrictions, timetables or multi-train conflict checks. A step can still include a stop with a callout that explains it, for example "stop clear of S1 and wait for the signal".
 - Accounts, a backend database or server-side storage.
 - Any proprietary railway data. All fixtures are synthetic and drawn for this project.
 
@@ -33,25 +33,45 @@ This project asks a narrow question: **can a cheap, open model turn an existing 
 
 First version: a portfolio research piece. It should show clear problem framing, an honest model evaluation and a working pipeline. A practitioner in industrial development or customer service should be able to try it in a browser at no cost, but polish for daily production use is out of scope for v1.
 
-## 4. How people use it (three modes)
+## 4. How people use it
 
-The app is a static web page with no backend. Nothing is stored on a server. All model access goes through OpenRouter, and the user signs in with their own OpenRouter account.
-
-**Sign in with OpenRouter.** OpenRouter supports an OAuth PKCE flow that runs entirely in the browser. The app sends the user to OpenRouter, they approve it, and the app receives a key tied to their own account. There's nothing to copy or paste, the project never holds a key, and usage bills to the user's own OpenRouter credits (zero on free models). Pasting a key by hand stays available as a fallback.
+The app is a static web page on GitHub Pages. There's one small exception to "no backend": a proxy that holds the project's own OpenRouter key so anyone can use a free model without signing up for anything (section 4.1).
 
 | Mode | What happens | Cost to the user | Cost to the project |
 |---|---|---|---|
-| Free (default) | OpenRouter's Free Models Router (`openrouter/free`) picks a free model that supports image input and structured output; the user can also pin a specific `:free` model | Free, within OpenRouter's free rate limits | Free |
-| Pick a model | The user picks any OpenRouter model, open or closed, for better results | Usually well under a cent per document on open models (estimate, see section 9) | Free |
-| No model | Draw or fix the plan by hand on the canvas | Free | Free |
+| **Free (default)** | The app calls the project's proxy, which uses the project's OpenRouter key and the best free model from our benchmark, with fallbacks | Free, no sign-up | Free (shared daily limit, see 4.1) |
+| **Your OpenRouter account** | Sign in with OpenRouter (OAuth PKCE, runs in the browser). Pick any model, free or paid. The user's key stays in their browser | Free on free models; usually well under a cent per document on cheap paid ones | Free |
+| **Your ChatGPT plan** (later) | Sign in with ChatGPT and use the user's Plus or Pro plan for the AI step (see 4.2) | Counts against their plan | Free |
+| **No model** | Draw or fix the plan by hand | Free | Free |
 
-"Flip it" means the user can switch between free and paid models from a dropdown at any time, and the app records which model produced each plan.
+The user can switch modes and models from a dropdown at any time, and the app records which model produced each plan. The public demo also ships with pre-run examples.
 
-Free model limits (secondary sources, Oct 2026, to confirm in OpenRouter docs): about 20 requests per minute, and 50 requests per day for accounts that have never bought credits or 1,000 per day after a lifetime purchase of $10 or more. One document is one or two requests, so free is plenty for trying the tool. The free router picks at random among eligible models, so results can vary from run to run; the benchmark also tests pinned free models for repeatable numbers.
+### 4.1 The shared free key
 
-**Not supported: ChatGPT or Claude subscriptions.** Anthropic's terms say Claude Free, Pro and Max sign-in is only for Claude Code and Claude.ai and may not be used by other apps (reported Feb 2026). OpenAI's "Sign in with ChatGPT" is reported as an identity feature that doesn't let a third-party app spend the user's plan. Both providers' models are still reachable through OpenRouter with the user's own credits.
+A key placed in browser code is public, so the project key never goes to the browser. It lives in a small proxy (a Cloudflare Worker on the free plan is the likely host), and the proxy is locked down on both sides.
 
-The public demo ships with pre-run examples so a visitor sees the full flow without signing in.
+At OpenRouter:
+- **The key has a $0 credit limit.** Even if it leaked, it couldn't spend money.
+- **A guardrail allows only the chosen free models.** Any other model returns 403, and OpenRouter enforces this, not our code.
+
+In the proxy:
+- **Only the app's own site** can call it.
+- **A Cloudflare Turnstile check** blocks bots.
+- **A per-visitor daily limit**, for example 10 documents.
+- **A cap on request size.**
+- **The model list is fixed server-side.** The browser can't choose a model.
+
+**"Auto-picked to the best"** means the proxy sends a ranked list of free models (best first, then fallbacks), taken from the latest benchmark results. If the top one is down or rate limited, OpenRouter falls back to the next. We update the list when the benchmark is re-run. This replaces OpenRouter's `openrouter/free` router, which picks at random.
+
+**Limits to plan around** (secondary sources, Oct 2026, to confirm in OpenRouter docs): free models allow about 20 requests per minute. The daily cap is **per OpenRouter account, so every visitor shares it**: 50 requests a day if the account has never bought credits, 1,000 a day after a lifetime purchase of $10 or more. One document is one or two requests. When the shared cap runs out, the app says so and offers the other modes.
+
+### 4.2 Sign in with ChatGPT
+
+OpenAI now lets apps use a user's ChatGPT plan (Plus or Pro) for AI requests through "Sign in with ChatGPT" (OAuth 2.0 with PKCE). Images are supported when the chosen model accepts them, and the user sets a weekly cap for each app.
+
+There's a catch for us. The self-serve flow in OpenAI's developer docs is for open-source tools that run on the user's own machine (callback on `127.0.0.1` only). A hosted website needs a client ID from OpenAI, which is currently a limited trial you request through a form. So this mode is planned for later, once we've applied and been approved. It would likely also need the proxy for the token exchange.
+
+Claude subscriptions stay out: Anthropic's terms say Claude Free, Pro and Max sign-in is only for Claude Code and Claude.ai (reported Feb 2026). Claude models are still available through OpenRouter.
 
 ## 5. Architecture
 
@@ -68,7 +88,8 @@ upload ─> ingest ─> extract ─> adapter ─> PlanReading ─> validate ─>
 | `schema` | PlanReading and CanvasPlan types, JSON Schemas, versions | nothing |
 | `ingest` | Turn a file into pages: page image (PNG), plus vector primitives and text with coordinates when the file has them. PDF via pdf.js, PPTX by reading the slide XML directly, images as is | pdf.js, a zip reader |
 | `extract` | Turn primitives into a candidate track graph: snap line ends, find junctions, guess switches, attach text labels to nearest features | `schema`, `ingest` output |
-| `adapters` | One interface, `read(doc, options) -> { reading, usage, warnings }`. Implementations: `none` and `openrouter` (OAuth PKCE sign-in, free router or a chosen model) | `schema` |
+| `adapters` | One interface, `read(doc, options) -> { reading, usage, warnings }`. Implementations: `none`, `proxy` (shared free key), `openrouter` (user signs in), and later `chatgpt` | `schema` |
+| `proxy` | Cloudflare Worker: holds the project key, checks origin and Turnstile, enforces per-visitor limits and the ranked free model list | OpenRouter |
 | `validate` | JSON Schema check, then topology, length and work-sequence checks on the PlanReading (section 6.4) | `schema` |
 | `layout` | Turn a PlanReading into a CanvasPlan: draw the main line, place switches and branch tracks, scale lengths, place facilities and cars, and convert each work step into motion actions (section 6.3) | `schema` |
 | `render` | Draw a CanvasPlan as SVG in the demo's visual language | `schema` |
@@ -152,10 +173,13 @@ Names follow OpenStreetMap railway tagging where it fits (track roles, switch si
 | railroad | `runaround` | Get the power to the other end of its cars |
 | railroad | `set_out` | Leave cars on a track |
 | railroad | `pick_up` | Collect cars from a track |
+| railroad | `stop` | Stop and hold, with a callout saying why (signal, derail, crew, customer gate) |
 | customer | `load` / `unload` | The customer loads or unloads cars where they sit |
 | customer | `move_cars` | The customer moves cars with their own equipment |
 
 Each step has `cars` (cut ids), `to` (a track or facility), optional `via` (switches, in order) and a plain-language `text`, which becomes the step caption.
+
+Any step can also carry a **`callout`**: `{ text, at? }`, where `at` is a switch, track or facility id. The canvas pins it to that spot during the step, for example "Stop clear of S1. Wait for the signal before entering the main." A `stop` step needs a callout.
 
 ### 6.3 Layout: from reading to canvas
 
@@ -166,7 +190,8 @@ The `layout` module draws a clean schematic in the demo's style. It never tries 
 3. A branch on the arriving train's left goes up, and one on its right goes down. It leaves at a fixed angle, then runs parallel to the main. Facing switches diverge forward and trailing switches diverge back toward the arrival end.
 4. One scale (feet to pixels) fits the longest track to the canvas width, and every track is drawn to that scale. Tracks with no length get a default and a visible "length needed" marker.
 5. Facilities sit along their track at `startFt`, or at the far end, and spots are laid out at 66 ft per car (or the overrides).
-6. Each work step becomes motion actions (`arrive`, `move`, `couple`, `uncouple`, `set_state`, `depart`): routes come from a shortest path over the track graph, and stop positions come from car lengths and spot positions.
+6. Callouts are drawn as a labelled marker at their `at` feature, kept clear of the track, and shown only during their step.
+7. Each work step becomes motion actions (`arrive`, `move`, `couple`, `uncouple`, `set_state`, `depart`): routes come from a shortest path over the track graph, and stop positions come from car lengths and spot positions.
 
 ### 6.4 Validation
 
@@ -214,7 +239,7 @@ Scoring compares the model's PlanReading with the true one. No coordinates are i
 | `sequence` | Arrival direction and power position; 1 minus normalized edit distance over the work steps as (actor, do, cars, to); departure direction and cars |
 | `overall` | 0.35 topology + 0.15 facilities + 0.15 consist + 0.35 sequence, and 0 if not valid |
 
-**Usable** means `valid` and `overall` of at least 0.8: good enough that fixing it in the editor beats drawing from scratch. This threshold is a starting guess; we'll check it by timing a few real fix-ups.
+**Usable** means `valid` and `overall` of at least 0.8: a first draft the user only needs to touch up. This threshold is a starting guess; we'll check it by timing a few real fix-ups.
 
 Each run also records input and output tokens, cost in USD (from the provider's usage response), wall time and repair count.
 
@@ -277,6 +302,8 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 | OpenRouter providers differ in schema enforcement | Always validate locally; record provider per run |
 | PPTX shapes are grouped, rotated or use connectors | Flatten group transforms in `ingest`; test with all three |
 | Licences change (Gemma, Qwen, tldraw) | Record the licence per model in results; re-check before going public |
+| Shared free quota used up by a few heavy users or bots | Turnstile, per-visitor daily limit, request size cap; the app falls back to the other modes |
+| Project key abused | Key never reaches the browser; $0 credit limit and a guardrail model allowlist at OpenRouter |
 | Free models change or vanish without notice | Record the exact model id per run; re-run the free group before publishing results |
 | Free endpoints may log or train on prompts | Say so in the app before a free run; fixtures are synthetic, so the benchmark exposes nothing |
 
@@ -284,7 +311,10 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 
 Decided (2026-10-20):
 - Accuracy ceiling: Claude Opus 5.5, called through OpenRouter. It's a reference point only, not part of the "open" result.
-- No local models and no Ollama. Everything goes through OpenRouter.
+- No local models and no Ollama.
+- Default mode uses a project OpenRouter key behind a proxy, limited to free models, with the best free model picked from benchmark results.
+- Sign in with ChatGPT is planned for later, after applying for a client ID.
+- Stops and callouts are in; signals and interlocking logic stay out.
 - Public demo hosting: GitHub Pages. Pages on a private repo needs a paid GitHub plan, so the live demo goes up when the repo goes public.
 - Clean auto-layout from the track connections. The AI sends no coordinates.
 - One plan per arrival direction. Sections: arrival, spotting and yard work, departure, with optional customer steps anywhere.
@@ -294,7 +324,9 @@ Decided (2026-10-20):
 Open:
 1. Licence when the repo goes public: MIT or Apache 2.0.
 2. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
-3. Default loco length for layout when the document doesn't give one.
+3. Buy $10 of OpenRouter credits once, to lift the shared free cap from 50 to 1,000 requests a day? (Your call; it's a spend.)
+4. Proxy host: Cloudflare Workers (recommended, free plan) or another option?
+5. Default loco length for layout when the document doesn't give one.
 
 ## 16. Related docs
 
