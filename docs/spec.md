@@ -165,14 +165,15 @@ The people using this are railroaders, customer service and industrial developme
 - **Right-click any track** to rename it, set it as main, siding or spur, set its length, or delete it.
 
 **Making the steps (like PowerPoint slides with Morph)**
-1. Add the train: the loco and the cuts of cars, with a count and loaded or empty for each cut.
-2. **Step 1 is the arrival.** The train stands on the main as it arrives.
-3. **"New step" copies the previous step**, the way duplicating a slide does.
-4. **In the new step, drag the train or a cut to where it should end up.** It slides along the track, so it can't be dropped off it.
-5. **The tool works out the move.** Power behind the cars is a shove, power in front is a pull, a loco on its own is running light. It writes the caption ("Shove 5 loads to the unloading racks"), which you can edit.
-6. **Small buttons on the train** do the rest: scissors between two cars or the loco to cut off, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main").
-7. **The engine looks over each step as you make it.** If something looks off, a small note icon appears on the step with the reason in plain words. The step still works and still plays.
-8. **Play** animates from step to step, like Morph. Steps can be reordered by dragging them in the strip, and the engine looks over the whole plan again.
+1. Set the arrival: which way the train is heading (north, south, east or west) and which side of the drawing it comes in from (left or right).
+2. Add the train: the loco and the cuts of cars, with a count and loaded or empty for each cut.
+3. **Step 1 is the arrival.** The train stands on the main as it arrives.
+4. **"New step" copies the previous step**, the way duplicating a slide does.
+5. **In the new step, drag the train or a cut to where it should end up.** It slides along the track, so it can't be dropped off it.
+6. **The tool works out the move.** Power behind the cars is a shove, power in front is a pull, a loco on its own is running light. It writes the caption ("Shove 5 loads to the unloading racks"), which you can edit.
+7. **Small buttons on the train** do the rest: scissors between two cars or the loco to cut off, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main").
+8. **The engine looks over each step as you make it.** If something looks off, a small note icon appears on the step with the reason in plain words. The step still works and still plays.
+9. **Play** animates from step to step, like Morph. Steps can be reordered by dragging them in the strip, and the engine looks over the whole plan again.
 
 **One step, one animation.** Each step does exactly one thing: one move, one cut-off, one couple, one load or unload, or one stop. That keeps every step easy to follow on screen and gives the engine one change to check at a time. If someone tries a second thing in the same step (for example dragging a second cut after the first), the tool puts it in a new step and says so; Undo puts it back.
 
@@ -207,7 +208,7 @@ A plan follows the order a railroader thinks in:
 PlanReading
   schemaVersion  "0.2"
   title, description?
-  arrival        direction (eastbound | westbound | northbound | southbound), on (main track id), locos (head | rear), text
+  arrival        direction (eastbound | westbound | northbound | southbound), enters (left | right), on (main track id), locos (head | rear), text
   carLength      ft (default 60), allowancePct (default 10)
   tracks[]       id, role (main | siding | spur | yard | lead), name?, lengthFt?, end? (buffer_stop | continues | rejoins)
   switches[]     id, on (track), to (diverging track), side (left | right), approach (facing | trailing), order?, distanceFt?
@@ -255,8 +256,8 @@ Any step can also carry a **`callout`**: `{ text, at? }`, where `at` is a switch
 
 The `layout` module draws a clean schematic in the demo's style. It never tries to copy the original drawing's positions.
 
-1. The main line is horizontal on lane 0, and the arriving train always enters from the left. Compass directions stay as labels.
-2. Lanes: a branch on the arriving train's left goes on a lane above, and one on its right goes on a lane below. A branch off a branch takes the next lane out in the same direction. Two branches on the same side get separate lanes so they never overlap.
+1. The main line is horizontal on lane 0. The arriving train enters from the **left or the right**, as the plan says (`arrival.enters`), so the drawing can match how people picture the location. The heading is labelled clearly: each end of the main shows its compass point (for an eastbound train entering from the left, "West" on the left end and "East" on the right), with a small arrow and "Eastbound" by the arriving train. Everything else is drawn relative to that.
+2. Lanes: "left" and "right" for switches mean the arriving train's left and right. For a train entering from the left, its left is up the page; for a train entering from the right, its left is down the page. A branch on the train's left goes on a lane on that side, and one on its right on the other side. A branch off a branch takes the next lane out in the same direction. Two branches on the same side get separate lanes so they never overlap.
 3. Switches go on their track in `order`, spaced by `distanceFt` when given, otherwise evenly. The approach before the first switch isn't read from the document: layout makes it long enough for the whole arriving train to stand on the main, to scale, plus a margin.
 4. A branch leaves at a fixed angle, then runs parallel to its parent. Facing switches diverge forward and trailing switches diverge back toward the arrival end. A siding that `rejoins` closes back onto its parent at its second switch.
 5. One scale (feet to pixels) fits the longest lane to the canvas width, and every track is drawn to that scale. Tracks with no length get a default and a visible "length needed" marker.
@@ -471,6 +472,7 @@ Decided (2026-10-20):
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
 - Each step shows one animation (one move, cut-off, couple, load or unload, or stop). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
 - Nothing is blocked. The engine's findings are notes the person can ignore; unclear moves still play; any number of steps, including static ones, is fine.
+- The train can arrive from the left or the right of the drawing, with the compass heading labelled at the ends of the main and by the train; everything else is drawn relative to that.
 - The editor feels like PowerPoint: automatic, to-scale drawing, track built by dragging turnout blocks and stretching track ends, steps made like slides by dragging the train to where it ends up (section 5.6).
 - The person does most of the work. Canvas editing is the main tool and is in the first release. AI is one optional import button that accepts most common files and asks a clarifying question for every assumption. No chat editing or AI explanations.
 

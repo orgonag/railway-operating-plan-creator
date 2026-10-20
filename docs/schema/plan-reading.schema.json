@@ -31,6 +31,7 @@
       "type": "object",
       "required": [
         "direction",
+        "enters",
         "on",
         "locos",
         "text"
@@ -39,6 +40,13 @@
       "properties": {
         "direction": {
           "$ref": "#/$defs/direction"
+        },
+        "enters": {
+          "description": "Which side of the drawing the arriving train comes in from. Switch sides (left, right) are relative to the arriving train.",
+          "enum": [
+            "left",
+            "right"
+          ]
         },
         "on": {
           "description": "The main track the train arrives on.",

@@ -4,6 +4,7 @@
   "description": "The portfolio demo as the AI would send it. Track and facility lengths are illustrative; the original drawing has none.",
   "arrival": {
     "direction": "eastbound",
+    "enters": "left",
     "on": "MAIN",
     "locos": "rear",
     "text": "A local train arrives on the main line with the customer's loaded cars."
