@@ -162,7 +162,11 @@ The people using this are railroaders, customer service and industrial developme
 7. **The engine checks each step as you make it.** A step that can't work turns red in the strip, with the reason in plain words.
 8. **Play** animates from step to step, like Morph. Steps can be reordered by dragging them in the strip, and the engine re-checks the whole plan.
 
-Under the hood, each step is still saved as the verbs in section 6.2, so a step made by dragging and a step from the import are the same thing.
+**One step, one animation.** Each step does exactly one thing: one move, one cut-off, one couple, one load or unload, or one stop. That keeps every step easy to follow on screen and gives the engine one change to check at a time. If someone tries a second thing in the same step (for example dragging a second cut after the first), the tool offers to put it in a new step instead.
+
+**Following the path the user took.** While a cut is being dragged, the engine follows the drag along the track. At each turnout, the way the pointer goes decides which route the cars take, so dragging up into the spur takes the spur and dragging along the main stays on the main. The engine records that route, so Play shows the same path the person drew, not just the shortest one. If the drag would change direction partway (pull out past a switch, then shove back into another track), that is two moves, so the tool splits it into two steps and says so. If there's no way for the cars to get there along the track, it shows where they stopped and why.
+
+Under the hood, each step is still saved as the verbs in section 6.2, with the route in `via`, so a step made by dragging and a step from the import are the same thing.
 
 ## 6. Data: the PlanReading format
 
@@ -226,7 +230,7 @@ Names follow OpenStreetMap railway tagging where it fits (track roles, switch si
 | customer | `load` / `unload` | The customer loads or unloads cars where they sit |
 | customer | `move_cars` | The customer moves cars with their own equipment |
 
-Each step has `cars` (cut ids), `to` (a track or facility), optional `via` (switches, in order) and a plain-language `text`, which becomes the step caption.
+Each step has exactly one `do`, `cars` (cut ids), `to` (a track or facility), optional `via` (switches, in order) and a plain-language `text`, which becomes the step caption. A move never changes direction within a step; a reversal is two steps.
 
 Any step can also carry a **`callout`**: `{ text, at? }`, where `at` is a switch, track or facility id. The canvas pins it to that spot during the step, for example "Stop clear of S1. Wait for the signal before entering the main." A `stop` step needs a callout.
 
@@ -263,7 +267,8 @@ Feasibility, from the engine (this is the headline feature):
 7. **Buffer stops.** Nothing is shoved past the end of a track.
 8. **Power on the right end.** A `pull` needs the power on the far side of the cut from where it's going; a `shove` needs it behind. A trailing-point spur needs a runaround (or a different plan) to be served as drawn.
 9. **Runaround.** A runaround needs a siding with two switches and room for the power.
-10. **Work sequence.** The power is attached before it moves a cut; `cut_off` leaves cars where they are; customer `unload` needs loaded cars at a facility; `departure.cars` are on the train at the end.
+10. **One thing per step.** Each step has one action, and a move keeps one direction from start to finish.
+11. **Work sequence.** The power is attached before it moves a cut; `cut_off` leaves cars where they are; customer `unload` needs loaded cars at a facility; `departure.cars` are on the train at the end.
 
 Errors and warnings show in one list in the editor. A plan with errors can still be exported and shared, with a visible "Draft, 2 errors" banner, so a user can send a work in progress to a colleague.
 
@@ -449,6 +454,7 @@ Decided (2026-10-20):
 - Track lengths to scale in feet. Cars default to 60 ft plus an always-shown 10% allowance (66 ft), overridable.
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
+- Each step shows one animation (one move, cut-off, couple, load or unload, or stop). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
 - The editor feels like PowerPoint: automatic, to-scale drawing, track built by dragging turnout blocks and stretching track ends, steps made like slides by dragging the train to where it ends up (section 5.6).
 - The person does most of the work. Canvas editing is the main tool and is in the first release. AI is one optional import button that accepts most common files and asks a clarifying question for every assumption. No chat editing or AI explanations.
 
