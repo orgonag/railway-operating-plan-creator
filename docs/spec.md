@@ -26,7 +26,7 @@ You build the plan yourself, on the canvas, and the tool checks every move as yo
 
 - Surveyed geometry or CAD accuracy. Track lengths are to scale, but the layout is a clean schematic, not a map.
 - Signals, interlocking, speed restrictions, timetables or multi-train conflict checks. A step can still include a stop with a callout that explains it, for example "stop clear of S1 and wait for the signal".
-- Accounts, a backend database or server-side storage.
+- Accounts, a backend database or server-side storage, in the first release. If a real need comes up, Supabase is available to connect (section 4.3).
 - Any proprietary railway data. All fixtures are synthetic and drawn for this project.
 
 ## 3. Who it is for
@@ -72,6 +72,17 @@ OpenAI now lets apps use a user's ChatGPT plan (Plus or Pro) for AI requests thr
 There's a catch for us. The self-serve flow in OpenAI's developer docs is for open-source tools that run on the user's own machine (callback on `127.0.0.1` only). A hosted website needs a client ID from OpenAI, which is currently a limited trial you request through a form. So this mode is planned for later, once we've applied and been approved. It would likely also need the proxy for the token exchange.
 
 Claude subscriptions stay out: Anthropic's terms say Claude Free, Pro and Max sign-in is only for Claude Code and Claude.ai (reported Feb 2026). Claude models are still available through OpenRouter.
+
+### 4.3 Supabase, only if needed
+
+The first release needs no database: plans live in the browser and in share links. Supabase is available to connect if a real need appears. Likely uses, in rough order:
+
+- **Short share links** for plans too big to fit in a URL comfortably.
+- **The proxy,** as a Supabase Edge Function instead of a Cloudflare Worker, if Supabase is already in use.
+- **A public gallery** of example plans, later.
+- **Saving plans to an account,** later, if people ask for it.
+
+Before adding it, check the free plan's limits at the time (for example, free projects can be paused when idle) and agree any spend first.
 
 ## 5. Architecture
 
@@ -377,7 +388,7 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 ## 11. Publish and export
 
 - **PlanReading JSON:** the source of truth, re-importable. Older versions are migrated on import.
-- **Share link:** the plan, compressed into the URL fragment and tagged with its schema version. The fragment is never sent to a server, so a static host can serve it.
+- **Share link:** the plan, compressed into the URL fragment and tagged with its schema version. The fragment is never sent to a server, so a static host can serve it. If big plans make links too long to paste into an email, Supabase can store the plan and give a short link instead (section 4.3).
 - **Standalone HTML:** one file with the plan and the player code embedded, in the demo's style. This is what goes on the portfolio.
 - **SVG:** a still for each step.
 - **Later:** an embeddable player (one script tag), a crew briefing page, WebM video.
@@ -469,7 +480,7 @@ Open:
 3. How should a plan say the power leaves the drawing and comes back later (demo steps 3 and 5)? Options: `run_light` to a special `offstage` target, or two new verbs such as `leave` and `return`.
 4. Default switch clearance distance and default loco length, when the document doesn't give them.
 5. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
-6. Proxy host: Cloudflare Workers (recommended, free plan) or another option?
+6. Proxy host: Cloudflare Workers (recommended, free plan) or a Supabase Edge Function, if we end up using Supabase for anything else.
 
 ## 16. Related docs
 
