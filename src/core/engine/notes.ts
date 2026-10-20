@@ -31,7 +31,7 @@ export const UNCLEAR_ROUTE_TEXT = "The tool couldn't follow the route for this m
 export const DEPARTURE_LEFT_BEHIND_TEXT = "Some cars listed for departure are not on the train.";
 
 export function notesFor(sim: Simulation, plan: PlanReading, g: TrackGraph): Note[] {
-  const ctx = new Context(sim, plan, g);
+  const ctx = new Context(plan, g);
   const notes: Note[] = [];
   sim.steps.forEach((step, i) => {
     const after = sim.states[i];
@@ -57,7 +57,6 @@ class Context {
   private readonly steps = new Map<Id, WorkStep>();
 
   constructor(
-    readonly sim: Simulation,
     readonly plan: PlanReading,
     readonly g: TrackGraph
   ) {
@@ -130,9 +129,10 @@ function fitNotes(ctx: Context, step: StepResult, saved: WorkStep | undefined, a
   const locos = groupsWithCars.flatMap((group) => group.filter((id) => ctx.isLoco(id) && onRange(id)));
 
   const required = [...cars, ...locos].reduce((sum, id) => sum + ctx.lengthOf(id), 0);
-  const withSlack = required * (1 + ctx.allowancePct / 100);
+  // Exact for whole-foot lengths and whole percentages; compared as rounded, like the text shows, so the two never disagree.
+  const withSlack = (required * (100 + ctx.allowancePct)) / 100;
   const available = endFt - startFt;
-  const level: NoteLevel = withSlack <= available ? "info" : "heads_up";
+  const level: NoteLevel = roundFt(withSlack) <= roundFt(available) ? "info" : "heads_up";
   const label = facilityLabel(ctx.facilityName(facility.id));
   const allGeneral = locos.length === 0 && cars.every((id) => ctx.lengthOf(id) === ctx.carLengthFt);
 
@@ -210,7 +210,7 @@ function sequenceAndRunaroundNotes(ctx: Context, step: StepResult, saved: WorkSt
 
   if (step.stepId === "departure") {
     const named = ctx.expand(ctx.plan.departure.cars ?? []);
-    const stayed = named.filter((id) => "occupies" in (after.places[id] ?? { occupies: [] }));
+    const stayed = named.filter((id) => occupied(after, id).length > 0);
     if (stayed.length > 0) return [heads(DEPARTURE_LEFT_BEHIND_TEXT)];
   }
 
@@ -247,9 +247,14 @@ function lastTrack(path: Segment[] | null): Id | undefined {
   return last?.track;
 }
 
+/** Feet to one decimal: the value the text shows and the fit level compares. */
+function roundFt(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
 /** Whole feet when whole, else one decimal. */
 function ft(n: number): string {
-  const rounded = Math.round(n * 10) / 10;
+  const rounded = roundFt(n);
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 

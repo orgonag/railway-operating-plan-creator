@@ -144,6 +144,24 @@ describe("notes: fit", () => {
     expect(notes.length).toBe(1);
   });
 
+  test("six 60 ft cars on a 396 ft facility fit exactly: info, and the text agrees with the level", () => {
+    // RACKS becomes 694 to 1090; the lead at 1054 stands the six cars on it and leaves the loco short of it.
+    const edited = demoShoveTo(1054);
+    edited.facilities[0]!.lengthFt = 396;
+    const loads = edited.consist.cuts[0]!;
+    loads.cars = 6;
+    loads.list!.push({ id: "C6" });
+    expect(notesOf(edited).filter((x) => x.kind === "fit")).toEqual([
+      {
+        stepId: "W1",
+        kind: "fit",
+        level: "info",
+        at: "RACKS",
+        text: "6 cars at 60 ft = 360 ft, plus 10% for slack = 396 ft; the racks have 396 ft."
+      }
+    ]);
+  });
+
   test("fit counts cars already on site", () => {
     const edited = cloneJson(demo);
     edited.consist.onSite = [{ id: "EMPTIES", cars: 1, state: "empty", at: "RACKS", list: [{ id: "E1" }] }];
