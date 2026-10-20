@@ -27,7 +27,7 @@ You build the plan yourself, on the canvas, and the tool looks over every move a
 - Surveyed geometry or CAD accuracy. Track lengths are to scale, but the layout is a clean schematic, not a map.
 - Signals, interlocking, speed restrictions, timetables or multi-train conflict checks. A step can still include a stop with a callout that explains it, for example "stop clear of S1 and wait for the signal".
 - Accounts, a backend database or server-side storage, in the first release. If a real need comes up, Supabase is available to connect (section 4.3).
-- Any proprietary railway data. All fixtures are synthetic and drawn for this project.
+- Any proprietary railway data in the repo or anything published. All public fixtures are synthetic and drawn for this project; real plans are used only privately for testing (section 8.1).
 
 ## 3. Who it is for
 
@@ -378,6 +378,7 @@ The benchmark is a side study with one practical purpose: pick the free model th
   - Tier 3, a small yard with several tracks and customers (5 plans). These join the benchmark once layout handles tier 3, since layout draws the fixtures.
 - For each plan, the ground truth PlanReading is written first, and layout draws it. Code then renders it as PPTX, PDF, clean PNG, a "scanned" PNG (slight rotation, blur, noise), and a "photo of a slide" PNG (perspective, glare). The answers are exact by construction.
 - Known weakness: these drawings come from our own layout code, so they're tidier than real ones. So four or five extra plans are drafted directly in PowerPoint in a messier, real-world style (odd fonts, overlapping shapes, arrows, step lists in text boxes), still made up and with no proprietary content, and reported separately.
+- **Private test set.** Real op plans found online, checked by the owner for being genuine, are used only as a private test set. They live outside the repo (the `private-fixtures/` folder is git-ignored), are never committed, shared or published, and only aggregate scores from them are reported, with no file names, customers or locations. The public benchmark stays fully synthetic.
 
 ### 8.2 Scores (each 0 to 1)
 
@@ -516,6 +517,7 @@ Decided (2026-10-20):
 - Accuracy ceiling: Claude Opus 5.5, called through OpenRouter, as a reference point only.
 - No local models and no Ollama.
 - The project key lives on the owner's existing OpenRouter account, which already qualifies for the 1,000 requests a day free cap. No credit purchase needed.
+- Real op plans found online form a private test set only: never committed or published, aggregate scores only. The public benchmark is synthetic.
 - The import does not accept CAD files (DWG, DXF) or hand-drawn sketches. Scans of printed plans are supported; there's no separate OCR cost.
 - Default mode uses a project OpenRouter key behind a proxy, limited to free models, with the best free model picked from benchmark results.
 - Sign in with ChatGPT is planned for later, after applying for a client ID.
