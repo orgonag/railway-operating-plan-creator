@@ -216,7 +216,8 @@ PlanReading
   schemaVersion  "0.3"
   title, description?
   arrival        direction (eastbound | westbound | northbound | southbound), enters (left | right), on (main track id), locos (head | rear), text
-  carLength      ft (default 60), allowancePct (default 10)
+  carLength      ft (default 60), allowancePct (always at least 10)
+  locoLength     ft (default 80)
   tracks[]       id, role (main | siding | spur | yard | lead), name?, lengthFt?, end? (buffer_stop | continues | rejoins)
   switches[]     id, on (track), to (diverging track), side (left | right), approach (facing | trailing), order?, distanceFt?
   facilities[]   id, name, kind, track, lengthFt?, startFt?, spots?
@@ -233,7 +234,7 @@ PlanReading
 The terms are chosen to match how a railroader would describe the plan:
 - `side` and `approach` are relative to the **arriving** train. "The spur leaves on the left, facing point" is how you'd say it, and it's why a plan is tied to one direction.
 - **Cars can be counted or listed.** "5 loads for the racks" is a cut with a count, which is how most plans and most imports describe them. When specific cars matter, the cut's `list` names each one, with type, reporting mark and number, and its spot. A step's `cars` can name whole cuts or single cars, and `spot` says which numbered spot at the facility the first car goes to.
-- **Lengths are in feet and to scale.** Cars default to 60 ft. The **10% allowance is always shown** on top, so each car plans as 66 ft. Users can override the default length and the allowance for the plan, or the length for one cut. Lengths the document doesn't give are left out and the editor asks for them.
+- **Lengths are in feet and to scale, kept general on purpose.** Every car defaults to 60 ft and every loco to 80 ft, whatever its type. A **10% slack factor is always added** on top as a safety margin, so a car plans as 66 ft and a loco as 88 ft. The factor can be raised but never goes below 10%. A length can still be changed for one car or one cut when someone knows better. Lengths the document doesn't give are left out and the editor asks for them.
 - **`questions`** appear only on an import draft. They make every AI guess visible and put the decision with the person (section 5.5). Once answered, they are removed from the saved plan. A field path is `collection.id.field`, for example `tracks.SPUR1.lengthFt`.
 
 Names follow OpenStreetMap railway tagging where it fits (track roles, switch side). Concepts follow railML and RailTopoModel, but we don't copy railML's schema because of its licence (CC BY-NC-ND, see research notes).
@@ -270,7 +271,7 @@ The `layout` module draws a clean schematic in the demo's style. It never tries 
 3. Switches go on their track in `order`, spaced by `distanceFt` when given, otherwise evenly. The approach before the first switch isn't read from the document: layout makes it long enough for the whole arriving train to stand on the main, to scale, plus a margin.
 4. A turnout is drawn to scale at about 240 ft from the points to where the branch runs parallel. A branch leaves at a fixed angle, then runs parallel to its parent. Facing switches diverge forward and trailing switches diverge back toward the arrival end. A siding that `rejoins` closes back onto its parent at its second switch.
 5. One scale (feet to pixels) fits the longest lane to the canvas width, and every track is drawn to that scale. Tracks with no length get a default and a visible "length needed" marker.
-6. Facilities sit along their track at `startFt`, or at the far end. Spots are numbered and laid out by each car's length plus the allowance (66 ft for a default car).
+6. Facilities sit along their track at `startFt`, or at the far end. Spots are numbered and laid out by each car's length plus the 10% slack (66 ft for a default car).
 7. **Cars and locos are drawn in side view**, as realistic silhouettes of their type, to scale along the track (section 6.5). To make room for them, the gap between parallel tracks is stretched beyond scale; lengths along the track stay true. On the angled part of a turnout, cars tilt to follow the track.
 8. Callouts are drawn as a labelled marker at their `at` feature, kept clear of the track, and shown only during their step.
 9. Unit positions for each step come from the engine's world states, not from layout's own reasoning.
@@ -288,7 +289,7 @@ Two kinds of checks, and only the first kind ever stops anything.
 4. Every `via` switch is on a real path between where the move starts and its `to`.
 
 **Notes from the engine** apply to everything, and never block a step, a Play or an export. The engine can't foresee every situation, so these are things to look at, not rules:
-5. **Fit.** Every cut fits where it's sent. Cars × (car length + allowance) must be no longer than the facility or track, with the numbers shown, e.g. "5 × 66 ft = 330 ft of 360 ft at the racks: fits".
+5. **Fit.** Every cut fits where it's sent. Cars × (car length + 10% slack) must be no longer than the facility or track, with the numbers shown, e.g. "5 × 66 ft = 330 ft of 360 ft at the racks: fits".
 6. **Clear of switches.** Kept simple on purpose. Turnouts are drawn to scale at about 240 ft, so people can see when cars are sitting in a switch. If cars stop within about 290 ft of a switch they aren't using (the 240 ft switch plus about 50 ft to get clear), a note says it looks like they may be fouling it. It still shows and plays exactly as placed. The exact clear point really depends on the switch type and track spacing, so this is a rule of thumb, not a calculation.
 7. **Buffer stops.** Nothing is shoved past the end of a track.
 8. **Power on the right end.** A `pull` needs the power on the far side of the cut from where it's going; a `shove` needs it behind. A trailing-point spur needs a runaround (or a different plan) to be served as drawn.
@@ -302,11 +303,12 @@ Notes show on their steps and in one list the person can open or ignore. Exports
 
 ### 6.5 Car and locomotive types
 
-Each type has a default length and a side-view silhouette drawn to that length. Defaults are length over couplers, rounded to the foot, from car builder, lessor and reference sources (`docs/research/car-lengths.md`). The 10% allowance goes on top, as for every car. Every length can be overridden for one car, for all cars of a type in the plan, or for the plan's generic car.
+**Planning lengths are general: 60 ft for every car and 80 ft for every loco, plus the 10% slack factor (66 ft and 88 ft).** The type only changes the silhouette, so a tank car looks like a tank car, but it plans at the same 60 ft as a boxcar. This keeps plans simple and errs on the safe side.
 
-| Type | Default | Source quality |
+The typical real lengths below, from car builder, lessor and reference sources (`docs/research/car-lengths.md`), are kept for reference and for anyone who wants to set an exact length on a car. They are lengths over couplers, rounded to the foot.
+
+| Type | Typical real length | Source quality |
 |---|---|---|
-| Generic car | 60 ft | Project default |
 | Boxcar, 50 ft | 58 ft | Builder sheet |
 | Boxcar, 60 ft high cube | 68 ft | Builder sheet |
 | Covered hopper, small (cement, sand) | 42 ft | Builder sheet |
@@ -328,7 +330,7 @@ Each type has a default length and a side-view silhouette drawn to that length. 
 
 Several figures came from search summaries rather than a sheet read in full, and the estimates are marked. These are defaults to make the drawing look right, not engineering values; worth a check by someone with current equipment data before the public release.
 
-First set of types: 50 ft boxcar, 60 ft high-cube boxcar, small covered hopper (cement, sand), large covered hopper (grain), plastics covered hopper, open-top hopper, gondola, general service tank car, pressure tank car, bulkhead flatcar, centerbeam flatcar, 89 ft flatcar, autorack, double-stack well car, reefer, and a generic car. Locos: six-axle road unit (74 ft default), four-axle (GP38-2 class), and switcher.
+First set of types: 50 ft boxcar, 60 ft high-cube boxcar, small covered hopper (cement, sand), large covered hopper (grain), plastics covered hopper, open-top hopper, gondola, general service tank car, pressure tank car, bulkhead flatcar, centerbeam flatcar, 89 ft flatcar, autorack, double-stack well car, reefer, and a generic car. Locos: six-axle road unit, four-axle (GP38-2 class), and switcher, all planned at 80 ft.
 
 Loaded and empty look different where it's visible from the side (coal or scrap showing in a gondola or open hopper, a load on a flatcar), and every car also carries a small loaded or empty marker. Reporting marks show as a label that can be turned on or off.
 
@@ -509,7 +511,7 @@ Decided (2026-10-20):
 - Public demo hosting: GitHub Pages, live once the repo goes public.
 - Clean auto-layout from the track connections. The AI sends no coordinates.
 - One plan per arrival direction. Sections: arrival, spotting and yard work, departure, with optional customer steps anywhere.
-- Track lengths to scale in feet. Cars default to 60 ft plus an always-shown 10% allowance (66 ft), overridable.
+- Track lengths to scale in feet. All cars plan at 60 ft and all locos at 80 ft, whatever the type, plus an always-applied 10% slack factor as a safety margin (66 ft and 88 ft). The factor can be raised, never lowered below 10%.
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
 - **Leaving and coming back.** When the loco, alone or with cars, is done for now, the person drags it off the edge of the drawing and it leaves for other work, with a callout if needed. Dragging it back in from the edge brings it back. In the data, a move to the reserved target `offstage` means it leaves the drawing.
@@ -517,7 +519,7 @@ Decided (2026-10-20):
 - **Cars drawn in side view**, realistic silhouettes per type, to scale along the track, with the gap between tracks stretched beyond scale to fit them.
 - **Turnout direction:** the engine guesses it when a turnout is placed; Flip up/down changes left and right, and Flip left/right changes facing and trailing.
 - **Switches are drawn about 240 ft long, to scale.** Cars stopped within about 290 ft of a switch they aren't using (240 ft plus about 50 ft to get clear) get a "may be fouling the switch" note, but are still shown as placed. No per-switch clearance settings.
-- **Loco length default: 74 ft plus the 10% allowance (about 81 ft).** That's typical of modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in). A "Four-axle" preset (GP38-2, 59 ft 2 in) is offered for locals and yard work, and any length can be typed.
+- **Loco length: 80 ft for every loco**, plus the 10% slack (88 ft). That rounds up from modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in) and covers shorter four-axle units with room to spare.
 - Each step shows one animation (one move, cut-off, couple, load or unload, or stop). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
 - Nothing is blocked. The engine's findings are notes the person can ignore; unclear moves still play; any number of steps, including static ones, is fine.
 - The train can arrive from the left or the right of the drawing, with the compass heading labelled at the ends of the main and by the train; everything else is drawn relative to that.

@@ -65,7 +65,7 @@
       }
     },
     "carLength": {
-      "description": "Default car length. The allowance is added on top and always shown, so 60 ft at 10% plans as 66 ft per car.",
+      "description": "General planning length for every car, whatever its type. A slack factor of at least 10% is always added as a safety margin, so 60 ft plans as 66 ft.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -76,8 +76,21 @@
         },
         "allowancePct": {
           "type": "number",
-          "minimum": 0,
-          "default": 10
+          "minimum": 10,
+          "default": 10,
+          "description": "Slack factor, always applied to cars and locos. Never below 10."
+        }
+      }
+    },
+    "locoLength": {
+      "description": "General planning length for every loco, whatever its type. The same slack factor is added, so 80 ft plans as 88 ft.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ft": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 80
         }
       }
     },
@@ -247,7 +260,7 @@
             "lengthFt": {
               "type": "number",
               "exclusiveMinimum": 0,
-              "description": "Defaults to 74 ft (typical modern six-axle road unit). The car allowance applies on top, so it plans as about 81 ft."
+              "description": "Overrides the general loco length for these locos. The slack factor still applies."
             },
             "type": {
               "enum": [
@@ -619,7 +632,7 @@
       }
     },
     "carType": {
-      "description": "Side-view silhouette and default length. generic is a 60 ft car.",
+      "description": "Side-view silhouette only. Planning length is the general car length (60 ft) unless a car sets its own.",
       "enum": [
         "generic",
         "boxcar_50",
