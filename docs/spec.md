@@ -634,7 +634,9 @@ Decided with the owner (2026-10-20):
 - The repo stays private until Release 1 (the editor) is done. Then it goes public and the demo goes live on GitHub Pages; until then, a private preview build.
 - Proxy on Cloudflare Workers, free plan. Supabase stays an option for storage later.
 
-Open, to confirm with the owner before P1 code: the ten conventions at the top of `docs/reference/demo-expected-states.md` (written in P1 Task 1), including spot numbering from the switch end, usable length from the clear point, the 200 ft approach margin and the 100 ft arrival stop.
+Confirmed for P1 (2026-10-20): spots are numbered from the switch end; usable length starts at the 290 ft clear point; where the train stands on arrival is the person's choice (it starts 100 ft short of the first switch only until they move it); people see more or less of the main by zooming and scrolling. The full list of ten conventions is in the P1 plan.
+
+Open: none.
 
 ## 16. Related docs
 

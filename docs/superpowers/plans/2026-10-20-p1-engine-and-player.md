@@ -25,13 +25,13 @@
 - User-facing text: plain words, no em dashes or en dashes.
 - No proprietary railway data in the repo. `private-fixtures/` stays git-ignored.
 
-## Conventions this plan fixes (to confirm with the owner)
+## Conventions this plan fixes (confirmed by the owner, 2026-10-20)
 
 1. **Distances on a track** are measured from its start: the arrival end for the main, the switch points for a branch.
 2. **Turnout and clear point:** the turnout is drawn 240 ft from the points; the clear point is 290 ft from the points. A branch's **usable length** (`lengthFt`) starts at the clear point, so its total length is 290 + `lengthFt`, with any buffer stop at that total.
 3. **Fouling zone:** from the points to 290 ft toward the frog, on both the through and the diverging track.
-4. **Approach:** the first switch on the main sits at (arriving train length + 200 ft) from the arrival end. The main runs on past its last switch by (240 ft + arriving train length).
-5. **Default arrival stop:** the head of the train stops 100 ft short of the first switch's points.
+4. **Approach:** the first switch on the main sits at least (arriving train length + 200 ft) from the arrival end, so the whole train can stand on the main before it. The main runs on past its last switch by (240 ft + arriving train length). The owner wants people to see more or less of the main by zooming and scrolling (Release 1 zoom and pan); this length is only the drawn minimum.
+5. **Arrival stop is the person's choice.** The arrival step can carry a `stop` like any move, and the person drags the train wherever it should stand. Only when no stop is given does the train start with its head 100 ft short of the first switch's points, as a starting position to drag from.
 6. **Spots** are fixed positions numbered from the switch end of the facility (spot 1 nearest the switch), 60 ft apart from the facility start. A facility with no `startFt` sits at the far end of its track.
 7. **`spot` on a step** puts the **leading** unit's front at that spot's far edge.
 8. **Group order** in lists runs from the head end of the arriving train.
@@ -80,7 +80,7 @@ Values (feet; MAIN from the arrival end; SPUR1 from the S1 points; S1 points at 
 | 8 Pull | MAIN: L1 150-230, C5 230-290, C4 290-350, C3 350-410, C2 410-470, C1 470-530 | same | all empty | none |
 | 9 Departure | all offstage arrival_end | same | all empty | none |
 
-Facing: L1 and the cars face "up" on MAIN and SPUR1 throughout (the loco never turns). Write the same values to the JSON. Put the ten conventions at the top of the markdown under "Conventions to confirm with the owner". The example is validated by Task 2's first test.
+Facing: L1 and the cars face "up" on MAIN and SPUR1 throughout (the loco never turns). Write the same values to the JSON. Put the ten conventions at the top of the markdown under "Conventions (confirmed by the owner, 2026-10-20)". The example is validated by Task 2's first test.
 
 - [ ] **Step 3: Commit**
 
@@ -106,7 +106,7 @@ git commit -m "docs: demo expected-state table and corrected demo example"
   - `migrate(raw: unknown): { doc: unknown; problems: FileProblem[] }` (0.2 to 0.3 to 1)
   - `validateFile(raw: unknown): { plan: PlanReading | null; problems: FileProblem[] }`: migrate, Ajv, then the structural checks of spec 6.4 items 1 to 3 plus "every `via` switch exists". Whether a `via` switch lies on the route is left to replay (Task 5).
 
-Schema v1 changes from v0.3: `schemaVersion: "1"`; every `work` item gets a required `id`; `consist.locos` gets an optional `list` of `{ id, type?, lengthFt? }`; `stop.offstage` becomes `"arrival_end" | "far_end"`; `spot` described as "the leading unit's front goes to this spot's far edge". Migration from 0.3: give steps `S1..Sn` ids (avoiding collisions), map offstage `left` to `arrival_end` when `arrival.enters` is `left` (and the reverse for `right`).
+Schema v1 changes from v0.3: `schemaVersion: "1"`; `arrival` gets an optional `stop` (same shape as a step's stop); every `work` item gets a required `id`; `consist.locos` gets an optional `list` of `{ id, type?, lengthFt? }`; `stop.offstage` becomes `"arrival_end" | "far_end"`; `spot` described as "the leading unit's front goes to this spot's far edge". Migration from 0.3: give steps `S1..Sn` ids (avoiding collisions), map offstage `left` to `arrival_end` when `arrival.enters` is `left` (and the reverse for `right`).
 
 - [ ] **Step 1: Scaffold**
 
@@ -547,4 +547,4 @@ Start the `preview` configuration. Expected: the demo plays all 9 steps with the
 2. **Types:** `npm run typecheck` passes for both the core (no DOM) and the app configuration.
 3. **Build:** `npm run build` succeeds.
 4. **In the browser:** the preview plays the demo, the switch-crossing plan and the pickup-then-cut-off plan as described in Task 9, Step 5.
-5. **Owner sign-off:** the owner has confirmed the ten conventions at the top of the expected-state table.
+5. **Conventions:** the ten conventions at the top of this plan are the ones in the expected-state table (confirmed by the owner on 2026-10-20).
