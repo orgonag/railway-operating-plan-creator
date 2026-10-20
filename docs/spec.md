@@ -1,6 +1,6 @@
 # Railway Operating Plan Creator: research spec
 
-Status: draft for review, 2026-10-20 (section 5 and the first-release scope revised after a senior architecture review)
+Status: draft for review, 2026-10-20. Revised through a walkthrough with the owner: human-led editing, a forgiving engine, individual cars in side view.
 Owner: Orgo Nag, P.Eng
 
 ## 1. Problem
@@ -9,7 +9,7 @@ Operating plans already exist, and they're painful to work with. They live in Po
 
 I'm building a tool that animates simple operating plans. You lay out the plan, play around with the steps the cars will take, watch the train do the work, and then export it to share.
 
-You build the plan yourself, on the canvas, and the tool checks every move as you add it. If you already have a slide or PDF, an optional import can give you a rough starting draft, asking you about anything it had to guess.
+You build the plan yourself, on the canvas, and the tool looks over every move as you add it and points out anything worth a second look. If you already have a slide or PDF, an optional import can give you a rough starting draft, asking you about anything it had to guess.
 
 ## 2. Goals and non-goals
 
@@ -17,7 +17,7 @@ You build the plan yourself, on the canvas, and the tool checks every move as yo
 
 1. Build an operating plan on the canvas by hand: lay out the track, set lengths, place the facility and cars, and add the steps one at a time.
 2. Get helpful notes as you build it, never roadblocks: cars that may not fit, a move that may foul a switch, a shove past a buffer stop, power that looks to be on the wrong end.
-3. Play the plan step by step, in the style of the existing demo, and try a different order of work.
+3. Play the plan step by step, one animation per step, and try a different order of work.
 4. Export and share the result: JSON, a share link, a standalone animated HTML page, and SVG.
 5. Optionally, import an existing plan (most common file types) to get a rough draft. The AI asks a clarifying question for every assumption it makes, and the person decides.
 6. Measure, with a small benchmark, which free model gives the best import, and how often it guesses wrong without asking.
@@ -44,7 +44,7 @@ The app is a static web page on GitHub Pages. There's one small exception to "no
 | **Your ChatGPT plan** (later) | Sign in with ChatGPT and use the user's Plus or Pro plan for the AI step (see 4.2) | Counts against their plan | Free |
 | **No model** | Draw or fix the plan by hand | Free | Free |
 
-None of this is needed to use the tool: the editor, checks, player and exports work with no AI at all. For the import button, the user can switch modes and models from a dropdown at any time, and the app records which model produced each plan. The public demo also ships with pre-run examples.
+None of this is needed to use the tool: the editor, the engine's notes, the player and the exports work with no AI at all. For the import button, the user can switch modes and models from a dropdown at any time, and the app records which model produced each plan. The public demo also ships with pre-run examples.
 
 ### 4.1 The shared free key
 
@@ -107,8 +107,8 @@ bench CLI scores the import draft, and how well its questions covered its mistak
 | `schema` | PlanReading types, JSON Schema, version tag, and migrations between versions | nothing |
 | `engine` | The plan as a state machine, and a forgiving one. Holds units, groups, coupling, power position and track offsets in feet. Expands each railroader verb into primitives (move, couple, uncouple, set state, arrive, depart) with stated defaults, and produces one world state per step. Works the other way too: given where things were before and after a drag in the editor, it finds the route and names the move (shove, pull, run light). Reports anything that looks off as notes, never as blocking errors. If it can't make sense of a step, it still produces a step: the cars slide straight to where the person put them | `schema` |
 | `validate` | Schema and reference checks for files coming in (imports, shared links, JSON), then the engine run with its notes | `schema`, `engine` |
-| `layout` | Lane assignment and geometry in feet: the main on lane 0, branches on lanes above or below by side, switches in order, approach length from the arriving train. Converts engine world states into positions on track paths | `schema`, `engine` |
-| `render` | Draws tracks, facilities, callouts and units as SVG in the demo's visual language. Applies one feet-to-pixel scale. No framework | `layout` output |
+| `layout` | Lane assignment and geometry in feet: the main on lane 0, branches on lanes to the arriving train's left or right, switches in order, approach length from the arriving train. Converts engine world states into positions on track paths | `schema`, `engine` |
+| `render` | Draws tracks, facilities, callouts, and cars and locos as side-view silhouettes, as SVG. Applies one feet-to-pixel scale along the track. No framework | `layout` output |
 | `player` | Moves groups along track paths between step states, with play, pause, step and seek. No framework | `render` |
 | `editor` | The main way to make a plan, designed to feel like PowerPoint (section 5.6): track blocks, a step strip, drag to make moves, a properties panel. A command set over an immutable PlanReading with undo and redo, and autosave in the browser. Layout stays automatic | core, `render` |
 | `ingest` | Turns most common files into what a model can read: page images plus text (section 7.1). One or several files at once, all in the browser | pdf.js, a zip reader |
@@ -116,7 +116,7 @@ bench CLI scores the import draft, and how well its questions covered its mistak
 | `questions` | Shows the import's clarifying questions as a short checklist, each with the AI's guess pre-filled. The person answers, accepts the guess or skips; answers are applied as editor commands, so they can be undone | `editor` |
 | `proxy` | Cloudflare Worker holding the project key. Verifies Turnstile server side on every call, rejects oversized payloads before reading them, keeps a per-visitor daily count, and sends the ranked free model list | OpenRouter |
 | `export` | PlanReading JSON, share link (compressed, version-tagged URL fragment), standalone HTML with the plan and player code embedded, SVG per step | core, `render`, `player` |
-| `bench` | Node CLI over fixtures, models and renders. Scores topology, facilities, consist and sequence, with sequence scored on engine outcomes rather than verb strings. Writes the results table | core, `adapters` |
+| `bench` | Node CLI over fixtures, models and renders. Scores the import's silent errors and question quality, plus topology, facilities, consist and sequence, with sequence scored on engine outcomes rather than verb strings. Writes the results table | core, `adapters` |
 
 ### 5.3 Rules
 
@@ -137,7 +137,7 @@ The AI has one job: the optional **import** button. It reads the files the perso
 
 The person works through the questions as a short checklist: answer, accept the guess, or skip and fix it later on the canvas. There's an "accept all guesses" button for people in a hurry. Answers become editor commands, so everything is undoable, and nothing reaches the plan without the person seeing it. If an answer changes the picture (for example "there are two spurs, not one"), the person can send the answers back for one more pass.
 
-The AI doesn't build the plan, edit it, run it, or judge whether it works. The person builds and edits; the engine checks.
+The AI doesn't build the plan, edit it, run it, or judge whether it works. The person builds and edits; the engine points things out.
 
 ### 5.6 The canvas editor
 
@@ -157,7 +157,7 @@ The people using this are railroaders, customer service and industrial developme
 
 **Building track with blocks**
 - A new plan starts with a main line.
-- Track blocks in the toolbar: **Turnout (left)**, **Turnout (right)**, **Track end (buffer stop)** and **Facility**.
+- Track blocks in the toolbar: **Turnout**, **Track end (buffer stop)** and **Facility**.
 - **Drag a turnout onto a track** to place it. A new branch grows out of it with a default length, and the distance from the previous switch shows and can be edited.
 - **The tool guesses the turnout's direction, and two flip buttons fix it.** When a turnout is dropped, the engine picks the most likely way for it to face from how the branch is dragged out. If that's wrong, **Flip up/down** (across the horizontal axis) moves the branch to the other side of the track (left and right), and **Flip left/right** (across the vertical axis) turns it to point the other way along the track (facing and trailing). Either flip redraws at once and can be undone.
 - **Drag the end of the branch** to stretch it. It snaps in 10 ft steps and shows its length in feet as you drag, or you can type the length in the properties panel. Dropping a turnout on the new branch builds the next track off it, and so on.
@@ -166,19 +166,19 @@ The people using this are railroaders, customer service and industrial developme
 - **Right-click any track** to rename it, set it as main, siding or spur, set its length, or delete it.
 
 **Placing cars**
-- **Every car is its own car.** Each has a type (boxcar, covered hopper, tank car, gondola and so on, section 6.5), a length that defaults from its type, loaded or empty, and optionally a reporting mark and number ("ABCX 1234").
+- **Every car is its own car.** Each has a type (boxcar, covered hopper, tank car, gondola and so on, section 6.5) that sets how it looks, loaded or empty, and optionally a reporting mark and number ("ABCX 1234"). Every car plans at 60 ft and every loco at 80 ft whatever the type, plus the 10% slack.
 - **Add cars in groups, handle them one by one.** "Add 5 covered hoppers, loaded" makes 5 separate cars in a row. Any of them can be changed, renumbered or moved on its own.
 - **Cars already on site.** A "Place cars" button drops cars straight onto any track or facility before Step 1: empties waiting at the customer, cars stored on a siding, a bad-order car on a spur.
-- **Numbered spots.** A facility shows its spots (1, 2, 3...) along the track, sized by the cars' lengths. Cars dropped at a facility snap to spots, so a step can be "ABCX 1234 to spot 3".
+- **Numbered spots.** A facility shows its spots (1, 2, 3...) along the track, 66 ft each for a default car. Cars dropped at a facility snap to spots, so a step can be "ABCX 1234 to spot 3".
 
 **Making the steps (like PowerPoint slides with Morph)**
 1. Set the arrival: which way the train is heading (north, south, east or west) and which side of the drawing it comes in from (left or right).
-2. Add the train: the loco and the cuts of cars, with a count and loaded or empty for each cut.
+2. Add the train: the loco or locos, and the cars, with a type, a count, and loaded or empty for each group. Place any cars that are already on site.
 3. **Step 1 is the arrival.** The train stands on the main as it arrives.
 4. **"New step" copies the previous step**, the way duplicating a slide does.
-5. **In the new step, pick the cars and drag them to where they should end up.** Click a car, shift-click to add more, or drag a box around several. Picking a car in the middle of a string means the tool cuts the string there. Dragging the loco (alone or with cars) off the edge of the drawing sends it away for other work; dragging it in from the edge brings it back. It slides along the track, so it can't be dropped off it.
+5. **In the new step, pick the cars and drag them to where they should end up.** Click a car, shift-click to add more, or drag a box around several. Picking a car in the middle of a string means the tool cuts the string there. Cars slide along the track, so they can't be dropped off it. Dragging the loco (alone or with cars) off the edge of the drawing sends it away for other work; dragging it in from the edge brings it back.
 6. **The tool works out the move.** Power behind the cars is a shove, power in front is a pull, a loco on its own is running light. It writes the caption ("Shove 5 loads to the unloading racks"), which you can edit.
-7. **Small buttons on the train** do the rest: scissors between two cars or the loco to cut off, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main").
+7. **Small buttons on the train** do the rest: scissors between two cars or the loco to cut off, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main"), and a Note button adds a plain slide where nothing moves.
 8. **The engine looks over each step as you make it.** If something looks off, a small note icon appears on the step with the reason in plain words. The step still works and still plays.
 9. **Play** animates from step to step, like Morph. Steps can be reordered by dragging them in the strip, and the engine looks over the whole plan again.
 
@@ -204,7 +204,7 @@ Worked example of the portfolio demo: `docs/schema/examples/customer-service-dem
 
 A plan follows the order a railroader thinks in:
 
-1. **Arrival.** The train arrives on the main in **one direction**. The direction is fixed for the plan; serving the same customer from the other direction is a separate plan. The arrival also says whether the power is on the head end or the rear.
+1. **Arrival.** The train arrives on the main in **one direction**. The direction is fixed for the plan; serving the same customer from the other direction is a separate plan. The arrival also says which side of the drawing the train enters from, and whether the power is on the head end or the rear.
 2. **Spotting and yard work.** An ordered list of steps that starts once the train is on the main. This is where the railroad puts cars on the customer's track (or related tracks) and picks cars up.
 3. **Departure.** The railroad puts the train together on the main and leaves, with a direction and the cuts it takes.
 4. **Customer work (optional).** The customer loading, unloading or moving cars with their own equipment. It isn't a fixed section: customer steps can sit anywhere in the work list, marked `actor: customer`.
@@ -216,7 +216,7 @@ PlanReading
   schemaVersion  "0.3"
   title, description?
   arrival        direction (eastbound | westbound | northbound | southbound), enters (left | right), on (main track id), locos (head | rear), text
-  carLength      ft (default 60), allowancePct (always at least 10)
+  carLength      ft (default 60), allowancePct: the slack factor (always at least 10)
   locoLength     ft (default 80)
   tracks[]       id, role (main | siding | spur | yard | lead), name?, lengthFt?, end? (buffer_stop | continues | rejoins)
   switches[]     id, on (track), to (diverging track), side (left | right), approach (facing | trailing), order?, distanceFt?
@@ -234,7 +234,7 @@ PlanReading
 The terms are chosen to match how a railroader would describe the plan:
 - `side` and `approach` are relative to the **arriving** train. "The spur leaves on the left, facing point" is how you'd say it, and it's why a plan is tied to one direction.
 - **Cars can be counted or listed.** "5 loads for the racks" is a cut with a count, which is how most plans and most imports describe them. When specific cars matter, the cut's `list` names each one, with type, reporting mark and number, and its spot. A step's `cars` can name whole cuts or single cars, and `spot` says which numbered spot at the facility the first car goes to.
-- **Lengths are in feet and to scale, kept general on purpose.** Every car defaults to 60 ft and every loco to 80 ft, whatever its type. A **10% slack factor is always added** on top as a safety margin, so a car plans as 66 ft and a loco as 88 ft. The factor can be raised but never goes below 10%. A length can still be changed for one car or one cut when someone knows better. Lengths the document doesn't give are left out and the editor asks for them.
+- **Lengths are in feet and to scale, kept general on purpose.** Every car defaults to 60 ft and every loco to 80 ft, whatever its type. A **10% slack factor is always added** on top as a safety margin, so a car plans as 66 ft and a loco as 88 ft. The factor can be raised but never goes below 10%. A length can still be changed for one car or one cut when someone knows better. Track lengths the document doesn't give are left out and the editor asks for them.
 - **`questions`** appear only on an import draft. They make every AI guess visible and put the decision with the person (section 5.5). Once answered, they are removed from the saved plan. A field path is `collection.id.field`, for example `tracks.SPUR1.lengthFt`.
 
 Names follow OpenStreetMap railway tagging where it fits (track roles, switch side). Concepts follow railML and RailTopoModel, but we don't copy railML's schema because of its licence (CC BY-NC-ND, see research notes).
@@ -256,7 +256,7 @@ Names follow OpenStreetMap railway tagging where it fits (track roles, switch si
 | customer | `move_cars` | The customer moves cars with their own equipment |
 | either | `note` | A plain slide: nothing moves, just a caption and an optional callout |
 
-Each step has exactly one `do`, `cars` (cut ids), `to` (a track or facility), optional `via` (switches, in order) and a plain-language `text`, which becomes the step caption. In the editor, a reversal becomes two steps (section 5.6).
+Each step has exactly one `do`, `cars` (cut or car ids), `to` (a track, a facility, or `offstage` when the power leaves the drawing), optional `spot` and `via` (switches, in order), and a plain-language `text`, which becomes the step caption. In the editor, a reversal becomes two steps (section 5.6).
 
 Any step can also carry a **`callout`**: `{ text, at? }`, where `at` is a switch, track or facility id. The canvas pins it to that spot during the step, for example "Stop clear of S1. Wait for the signal before entering the main." A `stop` step needs a callout.
 
@@ -280,7 +280,7 @@ First release covers tier 1 and tier 2 layouts: the main, spurs, one siding that
 
 ### 6.4 Validation and feasibility
 
-Two kinds of checks, and only the first kind ever stops anything.
+Two kinds of checks. Neither one stops the person; the first only tidies files on the way in.
 
 **File checks** apply only to files coming in: an import draft, a shared link or a JSON file. Constrained decoding can force the right JSON shape but not the right content, so these are checked and fixed up on the way in, with the problems listed for the person:
 1. Every id is unique and every reference resolves.
@@ -289,17 +289,17 @@ Two kinds of checks, and only the first kind ever stops anything.
 4. Every `via` switch is on a real path between where the move starts and its `to`.
 
 **Notes from the engine** apply to everything, and never block a step, a Play or an export. The engine can't foresee every situation, so these are things to look at, not rules:
-5. **Fit.** Every cut fits where it's sent. Cars × (car length + 10% slack) must be no longer than the facility or track, with the numbers shown, e.g. "5 × 66 ft = 330 ft of 360 ft at the racks: fits".
+5. **Fit.** A note when cars may not fit where they're sent, with the numbers shown: cars × (car length + 10% slack) against the facility or track, e.g. "6 × 66 ft = 396 ft, the racks have 360 ft".
 6. **Clear of switches.** Kept simple on purpose. Turnouts are drawn to scale at about 240 ft, so people can see when cars are sitting in a switch. If cars stop within about 290 ft of a switch they aren't using (the 240 ft switch plus about 50 ft to get clear), a note says it looks like they may be fouling it. It still shows and plays exactly as placed. The exact clear point really depends on the switch type and track spacing, so this is a rule of thumb, not a calculation.
-7. **Buffer stops.** Nothing is shoved past the end of a track.
-8. **Power on the right end.** A `pull` needs the power on the far side of the cut from where it's going; a `shove` needs it behind. A trailing-point spur needs a runaround (or a different plan) to be served as drawn.
-9. **Runaround.** A runaround needs a siding with two switches and room for the power.
+7. **Buffer stops.** A note when cars are moved past the end of a track.
+8. **Power on the right end.** A note when the power looks to be on the wrong end: a `pull` has the power ahead of the cut, a `shove` has it behind. A trailing-point spur usually needs a runaround (or a different plan) to be served as drawn.
+9. **Runaround.** A note when a runaround has no siding with two switches, or no room for the power.
 10. **Unclear move.** The engine couldn't follow the route, so the step slides straight to the end position.
-11. **Work sequence.** The power is attached before it moves a cut; `cut_off` leaves cars where they are; customer `unload` needs loaded cars at a facility; `departure.cars` are on the train at the end.
+11. **Work sequence.** A note when the order looks off: the power moving cars it isn't coupled to, a customer unloading empty cars, or cars listed for departure that aren't on the train.
 
 Notes show on their steps and in one list the person can open or ignore. Exports and share links leave notes out unless the person chooses to include them.
 
-**Plan metrics** come from the same engine run: number of moves, switch throws, feet travelled, times the main is fouled, couplings. They let two versions of a plan for the same customer be compared side by side (section 12).
+**Plan metrics** come from the same engine run: number of moves, switch throws, feet travelled, times the main is fouled, couplings. They let two versions of a plan for the same customer be compared side by side (section 12.3).
 
 ### 6.5 Car and locomotive types
 
