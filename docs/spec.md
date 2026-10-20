@@ -457,6 +457,7 @@ Visual language follows the portfolio demo (ink background, gold facility boxes 
 - **Share link:** the plan, compressed into the URL fragment and tagged with its schema version. The fragment is never sent to a server, so a static host can serve it. If big plans make links too long to paste into an email, Supabase can store the plan and give a short link instead (section 4.3).
 - **Standalone HTML:** one file with the plan and the player code embedded, in the demo's style. This is what goes on the portfolio.
 - **SVG:** a still for each step.
+- **What's in an export:** the whole plan, including names, reporting marks and callouts, so anyone with a share link or file can see it. The share dialog says so in one line. Engine notes are left out unless the person chooses to include them.
 - **Later:** an embeddable player (one script tag), a crew briefing page, WebM video.
 
 ## 12. First release, phases, and what comes after
@@ -465,45 +466,47 @@ Visual language follows the portfolio demo (ink background, gold facility boxes 
 
 In:
 - PlanReading v1 as the one public format, with migration from v0.2 and v0.3.
-- Engine (plan state, primitives, verb expansion, feasibility checks and metrics), validate, and layout for tier 1 and tier 2. Render and player with no framework.
-- The canvas editor in section 5.6 as the main tool: track blocks, drag to stretch track, facilities, the train, steps made like slides by dragging, the engine naming each move and adding notes where something looks off, templates, autosave, undo and redo.
+- Engine (plan state, primitives, verb expansion, notes and metrics), validate, and layout for tier 1 and tier 2. Render and player with no framework, with side-view silhouettes for the car and loco types in section 6.5.
+- The canvas editor in section 5.6 as the main tool: track blocks and flip buttons, drag to stretch track, facilities with numbered spots, individual cars and Place cars, steps made like slides by dragging (including leaving and returning off the edge), the engine naming each move and adding notes where something looks off, templates, autosave, undo and redo.
 - Share link, standalone HTML export, SVG per step, PlanReading JSON export and import.
-- One optional import button accepting the files in section 7.1, with clarifying questions shown as a checklist.
+- One optional import button accepting the files in section 7.1, with page picking, the privacy warning and preview with cover-up boxes (section 7.2), and clarifying questions shown as a checklist.
 - The import behind the adapter interface, with the `none`, `proxy` and `openrouter` adapters, and the proxy on a Cloudflare Worker.
 - A small bench CLI for the import across the renders and the model groups in section 8.3, scoring silent errors and outcome-based sequence, and a results page.
 - Three pre-run examples on the live site, including the portfolio demo.
 - Deployed on GitHub Pages from the first week, even with only the demo plan.
 
-Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT, the gallery, any AI beyond the import button. Compare mode goes in if the engine makes it trivial.
+Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT, the gallery, any AI beyond the import button. Not planned at all: CAD files and hand-drawn sketches as import input. Compare mode goes in if the engine makes it trivial.
 
 ### 12.2 Phases
 
 | Phase | Delivers | Done when |
 |---|---|---|
 | P0 Spec | This doc, research notes, PlanReading schema, demo example | Reviewed and approved |
-| P1 Engine and player | Schema v1 and migration, engine, validate, layout (tier 1), render, player; deployed | The demo reading plays the 7 steps on the live site and the engine reports its fit check |
+| P1 Engine and player | Schema v1 and migration, engine, validate, layout (tier 1), render with silhouettes, player; deployed | The demo plan plays step by step on the live site, and the engine shows its fit note at the racks |
 | P2 Editor and sharing | Canvas editor with undo, share link, standalone HTML, SVG, JSON import and export; tier 2 layout | Someone who uses PowerPoint but not CAD can build the demo plan from the "Single spur" template in under 10 minutes without help, and share it by link, with no AI |
-| P3 Import | Ingest for the section 7.1 files, adapter, clarifying questions checklist, proxy with Turnstile and limits, Sign in with OpenRouter | A PowerPoint slide of a tier 1 plan becomes a draft plus questions; after answering them it plays on the live site, on the free mode |
+| P3 Import | Ingest for the section 7.1 files, page picking, privacy warning and preview, adapter, clarifying questions checklist, proxy with Turnstile and limits, Sign in with OpenRouter | A PowerPoint slide of a tier 1 plan becomes a draft plus questions; after answering them it plays on the live site, on the free mode |
 | P4 Benchmark | Fixtures (layout-drawn and messy PowerPoint), bench CLI, outcome-based scoring, results page; proxy model list set from results | Results table published in `docs/results/` |
 | P5 Portfolio | Three pre-run examples, plan metrics, portfolio branch line | Portfolio links to a live plan under Industrial Development (2020 to 2023) |
 
 ### 12.3 After the first release, ranked by impact against effort
 
-1. **Engine notes** (in the first release): the switching know-how rail people will talk about, offered as notes, never as rules.
-2. **Plan metrics and compare two plans:** same customer, two orders of work, numbers side by side. That's how a plan gets sold to a customer and a crew. Low effort once the engine exists.
-3. **The open format:** name it, publish the schema at a stable URL, a one-page description with three examples, a stated licence.
-4. **Embeddable player:** one script tag, works on any static page including an internal wiki.
-5. **Crew briefing export:** a printable page with the step list, car counts, which cut goes where, switch positions per step, and callouts.
-6. **Public gallery:** example plans in the repo, submitted by pull request, once the format is stable.
-7. **Vector pipelines A and C:** the second study (section 8.4).
+The engine's notes, the switching know-how rail people will talk about, are already in the first release. After it:
+
+1. **Plan metrics and compare two plans:** same customer, two orders of work, numbers side by side. That's how a plan gets sold to a customer and a crew. Low effort once the engine exists.
+2. **The open format:** name it, publish the schema at a stable URL, a one-page description with three examples, under Apache 2.0.
+3. **Embeddable player:** one script tag, works on any static page including an internal wiki.
+4. **Crew briefing export:** a printable page with the step list, car counts, which cut goes where, switch positions per step, and callouts.
+5. **Public gallery:** example plans in the repo, submitted by pull request, once the format is stable.
+6. **Vector pipelines A and C:** the second study (section 8.4).
 
 ## 13. Testing
 
-- Unit tests (Vitest) for the engine first: every verb expansion, every feasibility rule, migrations, and every scoring function.
-- Property tests: random valid plans, checking that every car that arrived is somewhere at the end, no two groups overlap on a track, and nothing passes a buffer stop.
-- Snapshot tests for layout, one per tier.
-- Golden test for the demo, on what it means rather than its coordinates (the hand-built demo isn't to scale): same tracks and switch, 7 steps, cars at the racks after the shove, the empties on the train at departure.
-- One browser smoke test for the player, and browser tests for the main editor actions (place a turnout, stretch a track, make a step by dragging, undo).
+- Unit tests (Vitest) for the engine first: every verb expansion, every note rule, migrations, and every scoring function.
+- Property tests for a forgiving engine: on random plans, including odd ones, the engine never crashes, produces a step for every step, and never loses or duplicates a car.
+- Snapshot tests for layout, one per tier, including trains arriving from the left and from the right.
+- Golden test for the demo, on what it means rather than its coordinates (the hand-built demo isn't to scale): same tracks and switch, the same order of work, cars at the racks after the shove, the empties on the train at departure.
+- Privacy tests for the import: metadata, notes, comments, hidden slides, emails and phone numbers are gone from what's sent, and covered-up areas are blank in the images.
+- One browser smoke test for the player, and browser tests for the main editor actions (place a turnout, flip it, stretch a track, place cars, make a step by dragging, undo).
 - Hallway test before the first release: two or three people who use PowerPoint but not CAD build the demo plan while we watch, without help. Anything they get stuck on gets fixed or simplified.
 - The benchmark runs on demand, never in CI (it can cost money).
 
@@ -520,38 +523,49 @@ Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT,
 | Project key abused | Key never reaches the browser; $0 credit limit and a guardrail model allowlist at OpenRouter |
 | A user's own OpenRouter key sits in the browser | Strict Content Security Policy, no third-party scripts, key kept in memory or session storage, clear sign-out |
 | Free endpoints may log or train on prompts | Warning before every free import; only the drawing is sent, with private details stripped and a preview with cover-up boxes (section 7.2); fixtures are synthetic, so the benchmark exposes nothing |
+| People with low computer confidence get lost in the editor | PowerPoint-like design (section 5.6), templates, the hallway test before release |
+| A share link or export passes a plan around further than intended | The share dialog says the link contains the whole plan; nothing is stored on a server |
 | Licences change (Gemma, Qwen, tldraw) | Record the licence per model in results; re-check before going public |
 
 ## 15. Decisions and open questions
 
-Decided (2026-10-20):
-- Accuracy ceiling: Claude Opus 5.5, called through OpenRouter, as a reference point only.
-- No local models and no Ollama.
-- The project key lives on the owner's existing OpenRouter account, which already qualifies for the 1,000 requests a day free cap. No credit purchase needed.
-- Licence: Apache 2.0, for the patent grant and clear trademark terms that larger organisations look for.
-- Privacy: a clear warning before every free import; only the drawing is sent, with private details stripped and a preview where the person can cover anything up (section 7.2).
-- Proxy host: Cloudflare Workers on the free plan. Supabase stays an option for storage later.
-- Real op plans found online form a private test set only: never committed or published, aggregate scores only. The public benchmark is synthetic.
-- The import does not accept CAD files (DWG, DXF) or hand-drawn sketches. Scans of printed plans are supported; there's no separate OCR cost.
-- Default mode uses a project OpenRouter key behind a proxy, limited to free models, with the best free model picked from benchmark results.
-- Sign in with ChatGPT is planned for later, after applying for a client ID.
-- Public demo hosting: GitHub Pages, live once the repo goes public.
-- Clean auto-layout from the track connections. The AI sends no coordinates.
-- One plan per arrival direction. Sections: arrival, spotting and yard work, departure, with optional customer steps anywhere.
-- Track lengths to scale in feet. All cars plan at 60 ft and all locos at 80 ft, whatever the type, plus an always-applied 10% slack factor as a safety margin (66 ft and 88 ft). The factor can be raised, never lowered below 10%.
-- Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
-- Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
-- **Leaving and coming back.** When the loco, alone or with cars, is done for now, the person drags it off the edge of the drawing and it leaves for other work, with a callout if needed. Dragging it back in from the edge brings it back. In the data, a move to the reserved target `offstage` means it leaves the drawing.
-- **Individual cars:** every car can be placed, numbered, typed and spotted on its own; counts stay as a shortcut. Cars already on site are placed with "Place cars" before Step 1. Facilities have numbered spots.
-- **Cars drawn in side view**, realistic silhouettes per type, to scale along the track, with the gap between tracks stretched beyond scale to fit them.
-- **Turnout direction:** the engine guesses it when a turnout is placed; Flip up/down changes left and right, and Flip left/right changes facing and trailing.
-- **Switches are drawn about 240 ft long, to scale.** Cars stopped within about 290 ft of a switch they aren't using (240 ft plus about 50 ft to get clear) get a "may be fouling the switch" note, but are still shown as placed. No per-switch clearance settings.
-- **Loco length: 80 ft for every loco**, plus the 10% slack (88 ft). That rounds up from modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in) and covers shorter four-axle units with room to spare.
-- Each step shows one animation (one move, cut-off, couple, load or unload, or stop). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
+Decided with the owner (2026-10-20):
+
+**Product**
+- The person does most of the work. Canvas editing is the main tool and is in the first release. AI is one optional import button; no chat editing or AI explanations.
 - Nothing is blocked. The engine's findings are notes the person can ignore; unclear moves still play; any number of steps, including static ones, is fine.
-- The train can arrive from the left or the right of the drawing, with the compass heading labelled at the ends of the main and by the train; everything else is drawn relative to that.
+- Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
+- Licence: Apache 2.0, for the patent grant and clear trademark terms that larger organisations look for.
+
+**Editor and drawing**
 - The editor feels like PowerPoint: automatic, to-scale drawing, track built by dragging turnout blocks and stretching track ends, steps made like slides by dragging the train to where it ends up (section 5.6).
-- The person does most of the work. Canvas editing is the main tool and is in the first release. AI is one optional import button that accepts most common files and asks a clarifying question for every assumption. No chat editing or AI explanations.
+- Turnout direction: the engine guesses it when a turnout is placed; Flip up/down changes left and right, and Flip left/right changes facing and trailing.
+- The train arrives from the left or the right of the drawing, with the compass heading labelled at the ends of the main and by the train; everything else is drawn relative to that.
+- Each step shows one animation (one move, cut-off, couple, load or unload, stop or note). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
+- Leaving and coming back: dragging the loco (alone or with cars) off the edge of the drawing sends it away for other work, with a callout if needed; dragging it in from the edge brings it back. In the data, the reserved target `offstage`.
+- Cars and locos are drawn in side view, as realistic silhouettes per type, to scale along the track, with the gap between tracks stretched beyond scale to fit them.
+
+**Plan data**
+- One plan per arrival direction. Sections: arrival, spotting and yard work, departure, with optional customer steps anywhere.
+- Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
+- Individual cars: every car can be placed, numbered, typed and spotted on its own; counts stay as a shortcut. Cars already on site are placed before Step 1. Facilities have numbered spots.
+- Track lengths to scale in feet. All cars plan at 60 ft and all locos at 80 ft, whatever the type, plus an always-applied 10% slack factor as a safety margin (66 ft and 88 ft). The factor can be raised, never lowered below 10%. The 80 ft loco rounds up from modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in).
+- Switches are drawn about 240 ft long, to scale. Cars stopped within about 290 ft of a switch they aren't using get a "may be fouling the switch" note, but are still shown as placed. No per-switch clearance settings.
+- Clean auto-layout from the track connections. The AI sends no coordinates.
+
+**AI import**
+- Default mode uses a project OpenRouter key behind a proxy, limited to free models, with the best free model picked from benchmark results.
+- The project key lives on the owner's existing OpenRouter account, which already qualifies for the 1,000 requests a day free cap. No credit purchase needed.
+- Privacy: a clear warning before every free import; only the drawing is sent, with private details stripped and a preview where the person can cover anything up (section 7.2).
+- The import asks a clarifying question for every assumption it makes.
+- The import does not accept CAD files (DWG, DXF) or hand-drawn sketches. Scans of printed plans are supported; there's no separate OCR cost.
+- No local models and no Ollama. Sign in with ChatGPT is planned for later, after applying for a client ID.
+- Accuracy ceiling in the benchmark: Claude Opus 5.5, called through OpenRouter, as a reference point only.
+- Real op plans found online form a private test set only: never committed or published, aggregate scores only. The public benchmark is synthetic.
+
+**Hosting**
+- Public demo on GitHub Pages, live once the repo goes public.
+- Proxy on Cloudflare Workers, free plan. Supabase stays an option for storage later.
 
 Open: none at the moment.
 
