@@ -127,7 +127,7 @@ bench CLI scores the import draft, and how well its questions covered its mistak
 
 ### 5.4 Order of work
 
-Engine and layout with the demo plan first, deployed on GitHub Pages on the first day it plays. Then the canvas editor, share link and exports: at that point the tool is complete without any AI. Then the import button (ingest, adapter, proxy, questions). Then the small benchmark that picks the import model. Reading PowerPoint and PDF shapes as geometry is a second study, done only if the import results call for it (section 8.4).
+Engine and layout with the demo plan first, running as a preview build from the first day it plays. The repo stays private until the first release is done; then it goes public and the site goes live on GitHub Pages. Then the canvas editor, share link and exports: at that point the tool is complete without any AI. Then the import button (ingest, adapter, proxy, questions). Then the small benchmark that picks the import model. Reading PowerPoint and PDF shapes as geometry is a second study, done only if the import results call for it (section 8.4).
 
 ### 5.5 What the AI does, and doesn't
 
@@ -472,8 +472,8 @@ In:
 - One optional import button accepting the files in section 7.1, with page picking, the privacy warning and preview with cover-up boxes (section 7.2), and clarifying questions shown as a checklist.
 - The import behind the adapter interface, with the `none`, `proxy` and `openrouter` adapters, and the proxy on a Cloudflare Worker.
 - A small bench CLI for the import across the renders and the model groups in section 8.3, scoring silent errors and outcome-based sequence, and a results page.
-- Three pre-run examples on the live site, including the portfolio demo.
-- Deployed on GitHub Pages from the first week, even with only the demo plan.
+- Three pre-run examples, including the portfolio demo.
+- At the end of the first release: the repo goes public under Apache 2.0 and the site goes live on GitHub Pages. Until then it runs as a private preview build.
 
 Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT, the gallery, any AI beyond the import button. Not planned at all: CAD files and hand-drawn sketches as import input. Compare mode goes in if the engine makes it trivial.
 
@@ -482,11 +482,11 @@ Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT,
 | Phase | Delivers | Done when |
 |---|---|---|
 | P0 Spec | This doc, research notes, PlanReading schema, demo example | Reviewed and approved |
-| P1 Engine and player | Schema v1 and migration, engine, validate, layout (tier 1), render with silhouettes, player; deployed | The demo plan plays step by step on the live site, and the engine shows its fit note at the racks |
+| P1 Engine and player | Schema v1 and migration, engine, validate, layout (tier 1), render with silhouettes, player; preview build | The demo plan plays step by step in the preview build, and the engine shows its fit note at the racks |
 | P2 Editor and sharing | Canvas editor with undo, share link, standalone HTML, SVG, JSON import and export; tier 2 layout | Someone who uses PowerPoint but not CAD can build the demo plan from the "Single spur" template in under 10 minutes without help, and share it by link, with no AI |
-| P3 Import | Ingest for the section 7.1 files, page picking, privacy warning and preview, adapter, clarifying questions checklist, proxy with Turnstile and limits, Sign in with OpenRouter | A PowerPoint slide of a tier 1 plan becomes a draft plus questions; after answering them it plays on the live site, on the free mode |
+| P3 Import | Ingest for the section 7.1 files, page picking, privacy warning and preview, adapter, clarifying questions checklist, proxy with Turnstile and limits, Sign in with OpenRouter | A PowerPoint slide of a tier 1 plan becomes a draft plus questions; after answering them it plays in the preview build, on the free mode (the proxy is deployed and allows the preview's address) |
 | P4 Benchmark | Fixtures (layout-drawn and messy PowerPoint), bench CLI, outcome-based scoring, results page; proxy model list set from results | Results table published in `docs/results/` |
-| P5 Portfolio | Three pre-run examples, plan metrics, portfolio branch line | Portfolio links to a live plan under Industrial Development (2020 to 2023) |
+| P5 Release and portfolio | Three pre-run examples, plan metrics; repo made public, site live on GitHub Pages, proxy switched to the live address; portfolio branch line | Portfolio links to a live plan under Industrial Development (2020 to 2023) |
 
 ### 12.3 After the first release, ranked by impact against effort
 
@@ -564,7 +564,7 @@ Decided with the owner (2026-10-20):
 - Real op plans found online form a private test set only: never committed or published, aggregate scores only. The public benchmark is synthetic.
 
 **Hosting**
-- Public demo on GitHub Pages, live once the repo goes public.
+- The repo stays private until the first release is done. Then it goes public and the demo goes live on GitHub Pages; until then, a private preview build.
 - Proxy on Cloudflare Workers, free plan. Supabase stays an option for storage later.
 
 Open: none at the moment.
