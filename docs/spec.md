@@ -207,7 +207,7 @@ Every change to a plan, whether from a button, a drag or the import, goes throug
 
 ## 6. Data: the PlanReading format
 
-**PlanReading** (v0.3, `docs/schema/plan-reading.schema.json`) is the one public format. The person writes it in the editor, or the import gives them a first draft of it. It holds the plan in railway terms: tracks, lengths, switches, facilities, consist, and the arrival, work and departure. It has no coordinates. It's what gets saved, shared, edited and scored.
+**PlanReading** is the one public format. The schema file `docs/schema/plan-reading.schema.json` is currently the v0.3 draft; P1 turns it into v1 (permanent step IDs, explicit equipment lists, logical offstage ends) with migration from the drafts. The person writes it in the editor, or the import gives them a first draft of it. It holds the plan in railway terms: tracks, lengths, switches, facilities, consist, and the arrival, work and departure. It has no coordinates. It's what gets saved, shared, edited and scored.
 
 The canvas model is internal. The engine and layout rebuild it from the reading on every change, in feet, and `render` applies one feet-to-pixel scale. (An early public draft of it, CanvasPlan v0.1, is kept in `docs/archive/` for reference.)
 
@@ -252,10 +252,10 @@ PlanReading
 The terms are chosen to match how a railroader would describe the plan:
 - `side` and `approach` are relative to the **arriving** train. "The spur leaves on the left, facing point" is how you'd say it, and it's why a plan is tied to one direction.
 - **Cars can be counted or listed in the file, but always become individual cars.** "5 loads for the racks" is a group with a count, which is how most imports describe them. When the plan is opened, every counted car gets its own ID. If a group gives both a count and a list, the list wins and a mismatch becomes a question. Lists run from the head end of the arriving train, or from the switch end of the track for cars on site. With several locos, each loco has its own ID too, and a step names which ones move.
-- **Where a move stops** is saved in railway terms, never screen positions: a facility spot, a distance along a track with which end of the moving group is placed there ("the rear car 50 ft past S1"), or `offstage` with the edge it leaves by. A loco that leaves and comes back keeps its ID and which way it faces.
+- **Where a move stops** is saved in railway terms, never screen positions: a facility spot, a distance along a track with which end of the moving group is placed there ("the rear car 50 ft past S1"), or `offstage` with the end of the main it leaves by (`arrival_end` or `far_end`, never left or right, so mirroring the drawing can't change the meaning). A loco that leaves and comes back keeps its ID and which way it faces. A stop past the end of a track is kept as authored, shown where the person put it, and gets a note; nothing is shortened or pulled back.
 - **Lengths are in feet and to scale, kept general on purpose.** Every car is drawn and counted at 60 ft and every loco at 80 ft, whatever its type. These are planning assumptions, not measured lengths, and fit notes say so. A length can be changed for one car or one cut when someone knows better.
 - **A 10% slack check runs inside the engine.** It isn't added to the drawing or the spots. The engine uses it only when deciding whether to raise a fit note, and the note explains it: "5 cars at 60 ft = 300 ft, plus 10% for slack = 330 ft; the racks have 360 ft." The check never goes below 10%.
-- **Track lengths mean usable standing length**, the length cars can actually stand on. A facility's length means its loading or unloading frontage along the track. Track lengths the document doesn't give are left out and the editor asks for them.
+- **Track lengths mean usable standing length**, the length cars can actually stand on. On a branch it's measured from the clear point, 290 ft past the switch points (the 240 ft turnout plus 50 ft to get clear), so the branch's full length is 290 ft plus its usable length. A facility's length means its loading or unloading frontage along the track. Track lengths the document doesn't give are left out and the editor asks for them.
 - **`questions`** appear only on an import draft. They make every AI guess visible and put the decision with the person (section 5.5). Once answered, the question is removed but its **provenance** stays: a guess the person accepted is marked "confirmed by the person", never "read from the drawing". The engine ignores provenance; the editor shows it. A field path is `collection.id.field`, for example `tracks.SPUR1.lengthFt`.
 
 Names follow OpenStreetMap railway tagging where it fits (track roles, switch side). Concepts follow railML and RailTopoModel, but we don't copy railML's schema because of its licence (CC BY-NC-ND, see research notes).
@@ -294,7 +294,7 @@ The `layout` module draws a clean schematic in the demo's style. It never tries 
 5. One scale (feet to pixels) fits the longest lane to the canvas width, and every track is drawn to that scale. Tracks with no length get a default and a visible "length needed" marker.
 6. Facilities sit along their track at `startFt`, or at the far end. Their spots are fixed, numbered positions, 60 ft apart by default.
 7. **Cars and locos are drawn in side view**, as realistic silhouettes of their type, to scale along the track (section 6.5). To make room for them, the gap between parallel tracks is stretched beyond scale; lengths along the track stay true. On the angled part of a turnout, cars tilt to follow the track.
-8. Callouts are drawn as a labelled marker at their `at` feature, kept clear of the track, and shown only during their step.
+8. Callouts are drawn as a labelled marker at their `at` feature, kept clear of the track, and shown only during their step. Anything a person typed (captions, callouts, names, reporting marks) is always shown as plain text, never treated as markup.
 9. Unit positions for each step come from the engine's world states, not from layout's own reasoning.
 
 First release covers tier 1 and tier 2 layouts: the main, spurs, one siding that rejoins, one runaround. Yards with ladders (tier 3) come later.
@@ -408,7 +408,7 @@ Reading the shape list from PowerPoint or Visio is lighter than the vector pipel
 
 Anything sent to a model goes to OpenRouter and the model's provider, and free models in particular may log or train on what they receive. The rule is simple: **the preview shows the complete content that will be sent, and nothing else is sent.**
 
-1. **A clear warning before every free import:** "This uses a free AI model. What you send may be shared with the model's provider. Only the drawing is sent, and you can check it first."
+1. **A clear warning before every free import:** "This uses a free AI model. What you send may be shared with the model's provider. Only what you see on the next screen is sent, and you can check it first."
 2. **Every piece is listed on the preview.** Each thing that will go out appears as its own item: page images, each embedded picture, a PDF's text layer, a slide's shape labels, a table from a spreadsheet. Items can be removed one by one.
 3. **Cover-up boxes are burned in.** Covering a name on an image re-draws that image with the area blacked out before it's sent. If the same words also appear in a text item (a PDF text layer, a shape label), those text items are flagged too, and they're removed from the request unless the person edits and keeps them.
 4. **Text is off by default.** PDF text layers and Word or Excel text go only if the person ticks them. Shape labels from PowerPoint and Visio are shown as an editable list.
@@ -474,7 +474,7 @@ Each run also records input and output tokens, cost in USD (from the provider's 
 | Cheap hosted, open | Qwen3-VL 32B, Gemma 4 31B, Qwen3-VL 235B-A22B | OpenRouter |
 | Ceiling, closed | Claude Opus 5.5 | OpenRouter, reference only |
 
-The first benchmark runs the import (page images, plus shape lists for PowerPoint) on every render. The result table lists every model with mean overall, usable rate, cost per document and time per document, separately for the layout-drawn and the messy PowerPoint fixtures. The recommendation, and the proxy's ranked free model list, is the cheapest setup whose usable rate is within a few points of the best.
+The first benchmark runs the import through exactly the same reading path as the real app (section 7.1; PowerPoint as shape labels and pictures, not a rendered slide) on every render. The result table lists every model with mean overall, usable rate, cost per document and time per document, separately for the layout-drawn and the messy PowerPoint fixtures. The recommendation, and the proxy's ranked free model list, is the cheapest setup whose usable rate is within a few points of the best.
 
 ### 8.4 Second study: reading vectors directly
 
@@ -587,7 +587,7 @@ Release 2 adds: **a covered-up import**, where the covered content is absent fro
 | Shared free quota used up by a few heavy users or bots | Turnstile verified server side, per-visitor daily limit, payload cap, images downscaled; the app falls back to the other modes |
 | Project key abused | Key never reaches the browser; $0 credit limit and a guardrail model allowlist at OpenRouter |
 | A user's own OpenRouter key sits in the browser | Strict Content Security Policy that allows only our own scripts plus Cloudflare Turnstile's, key kept in memory or session storage, clear sign-out |
-| Free endpoints may log or train on prompts | Warning before every free import; only the drawing is sent, with private details stripped and a preview with cover-up boxes (section 7.2); fixtures are synthetic, so the benchmark exposes nothing |
+| Free endpoints may log or train on prompts | Warning before every free import; only what the preview lists is sent, with private details stripped and cover-ups applied across every piece (section 7.2). The public fixtures are synthetic; the private test set goes through the same preview rules |
 | People with low computer confidence get lost in the editor | PowerPoint-like design (section 5.6), templates, the hallway test before release |
 | A share link or export passes a plan around further than intended | The share dialog says the link contains the whole plan; nothing is stored on a server |
 | Licences change (Gemma, Qwen, tldraw) | Record the licence per model in results; re-check before going public |
@@ -623,7 +623,7 @@ Decided with the owner (2026-10-20):
 **AI import**
 - Default mode uses a project OpenRouter key behind a proxy, limited to free models, with the best free model picked from benchmark results.
 - The project key lives on the owner's existing OpenRouter account, which already qualifies for the 1,000 requests a day free cap. No credit purchase needed.
-- Privacy: a clear warning before every free import; only the drawing is sent, with private details stripped and a preview where the person can cover anything up (section 7.2).
+- Privacy: a clear warning before every free import; the preview lists every piece that will be sent, private details are stripped, and cover-ups apply across every piece (section 7.2).
 - The import asks a clarifying question for every assumption it makes.
 - The import keeps all the formats in section 7.1, with a preview that lists every piece that will be sent (section 7.2). It does not accept CAD files (DWG, DXF) or hand-drawn sketches. Scans of printed plans are supported; there's no separate OCR cost.
 - No local models and no Ollama. Sign in with ChatGPT is planned for later, after applying for a client ID.
@@ -634,7 +634,7 @@ Decided with the owner (2026-10-20):
 - The repo stays private until Release 1 (the editor) is done. Then it goes public and the demo goes live on GitHub Pages; until then, a private preview build.
 - Proxy on Cloudflare Workers, free plan. Supabase stays an option for storage later.
 
-Open: none at the moment.
+Open, to confirm with the owner before P1 code: the ten conventions at the top of `docs/reference/demo-expected-states.md` (written in P1 Task 1), including spot numbering from the switch end, usable length from the clear point, the 200 ft approach margin and the 100 ft arrival stop.
 
 ## 16. Related docs
 
