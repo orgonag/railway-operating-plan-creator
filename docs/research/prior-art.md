@@ -6,9 +6,9 @@ Compiled 2026-10-20 from web research. "Verified" means checked on a primary pag
 
 - No public dataset or benchmark for parsing rail track schematics was found. This project builds a small synthetic one.
 - The closest research is P&ID and circuit schematic digitization. Both report that combining geometry or detection with a language model beats a model alone, which is why pipelines A and C are in the spec.
-- railML 3 is the main rail data standard but is licensed CC BY-NC-ND 4.0 with registration and certification rules, so OpPlan borrows its concepts (track elements joined at nodes) without copying its schema.
+- railML 3 is the main rail data standard but is licensed CC BY-NC-ND 4.0 with registration and certification rules, so PlanReading borrows its concepts (track elements joined at nodes) without copying its schema.
 - OpenStreetMap railway tags are free to reuse as vocabulary and give us track roles and switch fields.
-- No open format covers customer switching steps (arrive, shove to racks, pull empties), so OpPlan defines its own action list.
+- No open format covers customer switching steps (arrive, shove to racks, pull empties), so PlanReading defines its own work steps.
 
 
 ### Diagram-to-graph research

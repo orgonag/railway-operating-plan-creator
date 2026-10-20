@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/orgonag/railway-operating-plan-creator/docs/schema/plan-reading.schema.json",
+  "title": "PlanReading",
+  "description": "What the AI sends after reading an operating plan document. Railway terms only, no coordinates. Code turns this into the canvas plan. Version 0.2.",
+  "type": "object",
+  "required": ["schemaVersion", "title", "arrival", "tracks", "switches", "facilities", "consist", "work", "departure"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "0.2" },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "arrival": {
+      "description": "One plan covers one arrival direction. A different direction is a different plan.",
+      "type": "object",
+      "required": ["direction", "on", "locos", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "direction": { "$ref": "#/$defs/direction" },
+        "on": { "description": "The main track the train arrives on.", "$ref": "#/$defs/id" },
+        "locos": { "description": "Where the power is in the arriving train, relative to its direction of travel.", "enum": ["head", "rear"] },
+        "text": { "type": "string" }
+      }
+    },
+    "carLength": {
+      "description": "Default car length. The allowance is added on top and always shown, so 60 ft at 10% plans as 66 ft per car.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ft": { "type": "number", "exclusiveMinimum": 0, "default": 60 },
+        "allowancePct": { "type": "number", "minimum": 0, "default": 10 }
+      }
+    },
+    "tracks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "role"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "role": { "enum": ["main", "siding", "spur", "yard", "lead"] },
+          "name": { "type": "string" },
+          "lengthFt": { "description": "Usable length. Leave out if the document doesn't say; the editor will ask.", "type": "number", "exclusiveMinimum": 0 },
+          "end": {
+            "description": "What is at the far end of the track, away from the switch it leaves from. Main tracks continue.",
+            "enum": ["buffer_stop", "continues", "rejoins"]
+          }
+        }
+      }
+    },
+    "switches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "on", "to", "side", "approach"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "on": { "description": "The track the switch sits on.", "$ref": "#/$defs/id" },
+          "to": { "description": "The track the diverging route leads to.", "$ref": "#/$defs/id" },
+          "side": { "description": "Which side the diverging route leaves on, as seen by the arriving train.", "enum": ["left", "right"] },
+          "approach": { "description": "Facing or trailing point for the arriving train.", "enum": ["facing", "trailing"] },
+          "order": { "description": "1 for the first switch the arriving train reaches on this track, 2 for the next, and so on.", "type": "integer", "minimum": 1 },
+          "distanceFt": { "description": "Distance from the previous switch on the same track, or from where the drawing starts for the first one.", "type": "number", "minimum": 0 },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "facilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "kind", "track"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "name": { "type": "string" },
+          "kind": { "enum": ["unloading_racks", "loading_racks", "transload", "warehouse", "other"] },
+          "track": { "$ref": "#/$defs/id" },
+          "lengthFt": { "description": "Length of track alongside the facility.", "type": "number", "exclusiveMinimum": 0 },
+          "startFt": { "description": "Where the facility starts, measured from the switch end of its track. Leave out to place it at the far end.", "type": "number", "minimum": 0 },
+          "spots": { "description": "Number of car spots, if the document shows them.", "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "consist": {
+      "type": "object",
+      "required": ["locos", "cuts"],
+      "additionalProperties": false,
+      "properties": {
+        "locos": {
+          "type": "object",
+          "required": ["count"],
+          "additionalProperties": false,
+          "properties": {
+            "count": { "type": "integer", "minimum": 1 },
+            "lengthFt": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "cuts": {
+          "description": "Groups of cars in the arriving train, listed from the head end back.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "cars", "state"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "cars": { "type": "integer", "minimum": 1 },
+              "state": { "enum": ["loaded", "empty"] },
+              "carType": { "type": "string" },
+              "carLengthFt": { "description": "Overrides the default car length for this cut.", "type": "number", "exclusiveMinimum": 0 },
+              "for": { "description": "Facility these cars are going to, if any.", "$ref": "#/$defs/id" }
+            }
+          }
+        },
+        "onSite": {
+          "description": "Cars already sitting on customer or other tracks before the train arrives, such as empties waiting to be pulled.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "cars", "state", "at"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "cars": { "type": "integer", "minimum": 1 },
+              "state": { "enum": ["loaded", "empty"] },
+              "carType": { "type": "string" },
+              "carLengthFt": { "type": "number", "exclusiveMinimum": 0 },
+              "at": { "description": "Facility or track id.", "$ref": "#/$defs/id" }
+            }
+          }
+        }
+      }
+    },
+    "work": {
+      "description": "Spotting and yard work, in order. Customer steps can appear anywhere.",
+      "type": "array",
+      "items": { "anyOf": [{ "$ref": "#/$defs/railroadStep" }, { "$ref": "#/$defs/customerStep" }] }
+    },
+    "departure": {
+      "type": "object",
+      "required": ["direction", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "direction": { "$ref": "#/$defs/direction" },
+        "cars": { "description": "Cuts that leave with the train.", "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "text": { "type": "string" }
+      }
+    },
+    "unsure": {
+      "description": "Fields the AI is not confident about, as dotted paths (e.g. tracks.SPUR1.lengthFt). The editor highlights them.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "notes": {
+      "description": "Anything in the document that didn't fit the fields above.",
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
+    "direction": { "enum": ["eastbound", "westbound", "northbound", "southbound"] },
+    "ids": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } },
+    "railroadStep": {
+      "type": "object",
+      "required": ["actor", "do", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "actor": { "const": "railroad" },
+        "do": {
+          "description": "shove: push cars ahead of the power. pull: draw cars behind the power. cut_off: uncouple the power and leave cars. couple: couple to cars. run_light: move the power alone. runaround: get the power to the other end of its cars. set_out: leave cars on a track. pick_up: collect cars from a track.",
+          "enum": ["shove", "pull", "cut_off", "couple", "run_light", "runaround", "set_out", "pick_up"]
+        },
+        "cars": { "$ref": "#/$defs/ids" },
+        "to": { "description": "Facility or track id the move ends at.", "$ref": "#/$defs/id" },
+        "via": { "description": "Switches passed through, in order, if the document says.", "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "text": { "type": "string" }
+      }
+    },
+    "customerStep": {
+      "type": "object",
+      "required": ["actor", "do", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "actor": { "const": "customer" },
+        "do": { "enum": ["load", "unload", "move_cars"] },
+        "cars": { "$ref": "#/$defs/ids" },
+        "to": { "description": "For move_cars: the facility or track the customer moves cars to.", "$ref": "#/$defs/id" },
+        "text": { "type": "string" }
+      }
+    }
+  }
+}

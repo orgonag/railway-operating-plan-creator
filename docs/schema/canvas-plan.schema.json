@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/orgonag/railway-operating-plan-creator/docs/schema/opplan.schema.json",
-  "title": "OpPlan",
-  "description": "A schematic rail operating plan: track layout, customer facilities, train consist and ordered service steps. Version 0.1.",
+  "$id": "https://github.com/orgonag/railway-operating-plan-creator/docs/schema/canvas-plan.schema.json",
+  "title": "CanvasPlan",
+  "description": "The plan the canvas draws and plays: nodes with positions, tracks, facilities, units and motion actions. Produced by the layout code from a PlanReading, or by the editor. Never produced by the AI directly. Version 0.1.",
   "type": "object",
   "required": ["schemaVersion", "meta", "canvas", "nodes", "tracks", "switches", "facilities", "consist", "initial", "steps"],
   "additionalProperties": false,

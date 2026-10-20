@@ -16,7 +16,7 @@ This project asks a narrow question: **can a cheap, open model turn an existing 
 ### Goals
 
 1. Upload a PDF, PPTX or image of a track schematic with an operating plan.
-2. Get a baseline plan as JSON: tracks, switches, sidings, customer facilities and spots, the train consist, and the ordered service steps.
+2. Get a baseline plan as JSON, in railway terms: tracks and their lengths, switches, customer facilities, the train consist, and the plan's arrival, spotting and yard work, and departure.
 3. See that plan on a canvas and play it step by step, in the style of the existing demo.
 4. Fix anything the model got wrong with simple editing tools.
 5. Export the result as JSON, a standalone animated HTML page, and SVG.
@@ -24,7 +24,7 @@ This project asks a narrow question: **can a cheap, open model turn an existing 
 
 ### Non-goals (for now)
 
-- Real-world scale, surveyed geometry or CAD accuracy. Plans are schematics.
+- Surveyed geometry or CAD accuracy. Track lengths are to scale, but the layout is a clean schematic, not a map.
 - Signals, interlocking, speed restrictions, timetables or multi-train conflict checks.
 - Accounts, a backend database or server-side storage.
 - Any proprietary railway data. All fixtures are synthetic and drawn for this project.
@@ -58,88 +58,126 @@ The public demo ships with pre-run examples so a visitor sees the full flow with
 Single repo, TypeScript, Vite, React for the panels, and a hand-written SVG renderer for the canvas. The same core modules run in the browser app and in a Node benchmark CLI.
 
 ```
-upload ─> ingest ─> extract ─> adapter (model or none) ─> validate ─> canvas + player ─> export
-                                                            │
-                                         bench CLI reuses ──┘ (same modules, scored against fixtures)
+upload ─> ingest ─> extract ─> adapter ─> PlanReading ─> validate ─> layout ─> CanvasPlan ─> canvas + player ─> export
+                                           │
+                        bench CLI scores ──┘ (PlanReading against the fixture's true reading)
 ```
 
 | Module | Job | Depends on |
 |---|---|---|
-| `schema` | OpPlan types, JSON Schema, version | nothing |
+| `schema` | PlanReading and CanvasPlan types, JSON Schemas, versions | nothing |
 | `ingest` | Turn a file into pages: page image (PNG), plus vector primitives and text with coordinates when the file has them. PDF via pdf.js, PPTX by reading the slide XML directly, images as is | pdf.js, a zip reader |
 | `extract` | Turn primitives into a candidate track graph: snap line ends, find junctions, guess switches, attach text labels to nearest features | `schema`, `ingest` output |
-| `adapters` | One interface, `extract(doc, options) -> { plan, usage, warnings }`. Implementations: `none` and `openrouter` (OAuth PKCE sign-in, free router or a chosen model) | `schema` |
-| `validate` | JSON Schema check, then topology and step checks (section 6.3) | `schema` |
-| `render` | Draw an OpPlan as SVG in the demo's visual language | `schema` |
+| `adapters` | One interface, `read(doc, options) -> { reading, usage, warnings }`. Implementations: `none` and `openrouter` (OAuth PKCE sign-in, free router or a chosen model) | `schema` |
+| `validate` | JSON Schema check, then topology, length and work-sequence checks on the PlanReading (section 6.4) | `schema` |
+| `layout` | Turn a PlanReading into a CanvasPlan: draw the main line, place switches and branch tracks, scale lengths, place facilities and cars, and convert each work step into motion actions (section 6.3) | `schema` |
+| `render` | Draw a CanvasPlan as SVG in the demo's visual language | `schema` |
 | `player` | Compute unit positions per step and animate along track paths | `schema`, `render` |
-| `editor` | Selection, drag with snapping, add/split/delete track, facility and consist panels, step list, undo/redo | all of the above |
-| `export` | OpPlan JSON, standalone HTML player, SVG per step; WebM later | `render`, `player` |
+| `editor` | Edits the PlanReading (tracks, lengths, switches, facilities, consist, steps), re-runs layout live, highlights `unsure` fields, undo/redo | all of the above |
+| `export` | PlanReading JSON, standalone HTML player, SVG per step; WebM later | `render`, `player` |
 | `bench` | Node CLI: run pipelines x models over fixtures, score, write a results table | everything except `editor` |
 
-Units are small and testable on their own. The model never touches the canvas directly; it only produces an OpPlan, and everything downstream works the same whether the plan came from a model or a person.
+Units are small and testable on their own. The model never touches the canvas directly. It only produces a PlanReading, and everything downstream works the same whether the reading came from a model or a person.
 
 ### Pipelines under test
 
-The benchmark compares three ways to get from a document to an OpPlan. Picking one is a result of the research, not an assumption.
+The benchmark compares three ways to get from a document to a PlanReading. Picking one is a result of the research, not an assumption.
 
-- **A. Vector first.** `ingest` pulls lines, shapes and text from the PPTX or PDF. `extract` builds the graph with plain geometry code. A model (text only, or text plus a small page image) only labels things: which track is the main line, which box is the facility, how many cars, and what the steps are. Only works when the file has vectors.
-- **B. Vision first.** The page image goes to a vision-language model, which returns the whole OpPlan, coordinates included (on a 0 to 1000 grid, then scaled). Works on anything, including scans and photos.
-- **C. Hybrid (marked primitives).** The model gets the page image plus a numbered list of the primitives `extract` found, and answers by referring to primitive ids instead of inventing coordinates. If there are no vectors, a cheap first call asks the vision model only for text label boxes to anchor on.
+- **A. Vector first.** `ingest` pulls lines, shapes and text from the PPTX or PDF. `extract` builds the track graph and measures relative lengths with plain geometry code. A model (text only, or text plus a small page image) only interprets: which track is the main line, which box is the facility, what the length labels say, how many cars, and what the steps are. Only works when the file has vectors.
+- **B. Vision first.** The page image goes to a vision-language model, which returns the whole PlanReading. No coordinates are needed, because the canvas is laid out by code. Works on anything, including scans and photos.
+- **C. Hybrid (marked primitives).** The model gets the page image plus a numbered list of the primitives `extract` found, and answers by referring to primitive ids, so its reading can be checked against the drawing. If there are no vectors, a cheap first call asks the vision model only for text label boxes to anchor on.
 
 Prior work on P&ID and circuit diagrams found hybrids beat model-only approaches (see `docs/research/prior-art.md`), which is why C is in the set. The benchmark decides.
 
-## 6. Data: the OpPlan format (v0.1)
+## 6. Data: what the AI sends, and what the canvas draws
 
-Full JSON Schema: `docs/schema/opplan.schema.json`. Worked example (the portfolio demo, all 7 steps): `docs/schema/examples/customer-service-demo.json`.
+There are two formats, and only the first one comes from the AI.
 
-### 6.1 Shape
+| Format | Who writes it | What it holds | Schema |
+|---|---|---|---|
+| **PlanReading** (v0.2) | The AI, or the user in the editor | The plan in railway terms: tracks, lengths, switches, facilities, consist, and the arrival, work and departure. No coordinates. | `docs/schema/plan-reading.schema.json` |
+| **CanvasPlan** (v0.1) | The `layout` code, never the AI | Node positions, track paths, car positions and motion actions for the player | `docs/schema/canvas-plan.schema.json` |
+
+The PlanReading is the source of truth. It's what gets saved, shared, edited and scored. The CanvasPlan is rebuilt from it whenever it changes.
+
+Why the split: a model can reliably read "the spur leaves the main on the left, 800 ft, buffer stop at the end". It can't reliably invent "offset 550". So the AI sends only what has to be read from the document, and code works out everything that can be computed.
+
+Worked examples of the portfolio demo: `docs/schema/examples/customer-service-demo.reading.json` (what the AI would send) and `docs/schema/examples/customer-service-demo.canvas.json` (the target for layout; it reproduces the hand-built demo's coordinates exactly, and real layout output should come close to it).
+
+### 6.1 Plan structure
+
+A plan follows the order a railroader thinks in:
+
+1. **Arrival.** The train arrives on the main in **one direction**. The direction is fixed for the plan; serving the same customer from the other direction is a separate plan. The arrival also says whether the power is on the head end or the rear.
+2. **Spotting and yard work.** An ordered list of steps that starts once the train is on the main. This is where the railroad puts cars on the customer's track (or related tracks) and picks cars up.
+3. **Departure.** The railroad puts the train together on the main and leaves, with a direction and the cuts it takes.
+4. **Customer work (optional).** The customer loading, unloading or moving cars with their own equipment. It isn't a fixed section: customer steps can sit anywhere in the work list, marked `actor: customer`.
+
+### 6.2 PlanReading fields
 
 ```
-OpPlan
-  schemaVersion  "0.1"
-  meta           title, description, source { kind, filename, pages }, extractedBy { pipeline, model }
-  canvas         width, height (schematic units; the demo uses 1000 x 320)
-  nodes[]        id, kind: edge | end | switch | junction, x, y, label?
-  tracks[]       id, from (node id), to (node id), points[] (optional bends), role, label?
-  switches[]     id, node, toe (track id), normal (track id), reverse (track id), turnoutSide?: left | right
-  facilities[]   id, name, kind, track, box { x, y, w, h }, spots[] { id, offset }
-  consist        units[] { id, kind: loco | car, carType?, state?: loaded | empty, length }
-  initial        groups[] { units, at (position), facing (node id), offstage? }: where units are before step 1
-  steps[]        id, title, text, actions[]
+PlanReading
+  schemaVersion  "0.2"
+  title, description?
+  arrival        direction (eastbound | westbound | northbound | southbound), on (main track id), locos (head | rear), text
+  carLength      ft (default 60), allowancePct (default 10)
+  tracks[]       id, role (main | siding | spur | yard | lead), name?, lengthFt?, end? (buffer_stop | continues | rejoins)
+  switches[]     id, on (track), to (diverging track), side (left | right), approach (facing | trailing), order?, distanceFt?
+  facilities[]   id, name, kind, track, lengthFt?, startFt?, spots?
+  consist        locos { count, lengthFt? }, cuts[] { id, cars, state, carType?, carLengthFt?, for? },
+                 onSite[] { id, cars, state, at }: cars already on site before the train arrives
+  work[]         actor, do, cars?, to?, via?, text
+  departure      direction, cars?, text
+  unsure[]       dotted paths the AI isn't confident about, e.g. "tracks.SPUR1.lengthFt"
+  notes[]        anything that didn't fit
 ```
 
-Names follow OpenStreetMap railway tagging where it fits (`role` uses main, siding, spur, yard, lead; switches have `turnoutSide`). Concepts follow railML and RailTopoModel (track elements joined at nodes), but we don't copy railML's schema because of its licence (CC BY-NC-ND, see research notes). railML export could come later.
+The terms are chosen to match how a railroader would describe the plan:
+- `side` and `approach` are relative to the **arriving** train. "The spur leaves on the left, facing point" is how you'd say it, and it's why a plan is tied to one direction.
+- **Cars come in cuts** ("5 loads for the racks"), not as numbered individual cars. The editor can split a cut.
+- **Lengths are in feet and to scale.** Cars default to 60 ft. The **10% allowance is always shown** on top, so each car plans as 66 ft. Users can override the default length and the allowance for the plan, or the length for one cut. Lengths the document doesn't give are left out and the editor asks for them.
+- **`unsure`** lets the AI flag what it guessed, so the editor can highlight those fields instead of the user hunting for mistakes.
 
-### 6.2 Positions and steps
+Names follow OpenStreetMap railway tagging where it fits (track roles, switch side). Concepts follow railML and RailTopoModel, but we don't copy railML's schema because of its licence (CC BY-NC-ND, see research notes).
 
-- A position is `{ track, offset }`: distance along the track from its `from` node, in schematic units. On a track that starts at an `edge` node (the drawing continues off the page), offsets can be negative, meaning off-page.
-- A group of coupled units is listed **leading end first in the direction of travel**. The player places the leader at the stop position and lays the rest out behind it along the route, spacing by unit lengths.
-- Step actions (the minimum set that covers the demo):
+**Work steps (`do`)**
 
-| op | Fields | Meaning |
+| Actor | `do` | Meaning |
 |---|---|---|
-| `arrive` | units, enter (edge node), route, stop | Group enters from off-page and stops |
-| `move` | units, route, stop | Group moves along the listed tracks in order and stops |
-| `uncouple` | between [a, b] | Splits a group between two adjacent units |
-| `couple` | between [a, b] | Joins two adjacent units into one group |
-| `set_state` | units, state | Loaded to empty or back (customer work) |
-| `dwell` | minutes? | Time passes; nothing moves |
-| `depart` | units, route, exit (edge node) | Group leaves off-page |
+| railroad | `shove` | Push cars ahead of the power |
+| railroad | `pull` | Draw cars behind the power |
+| railroad | `cut_off` | Uncouple the power and leave the cars |
+| railroad | `couple` | Couple to cars |
+| railroad | `run_light` | Move the power alone |
+| railroad | `runaround` | Get the power to the other end of its cars |
+| railroad | `set_out` | Leave cars on a track |
+| railroad | `pick_up` | Collect cars from a track |
+| customer | `load` / `unload` | The customer loads or unloads cars where they sit |
+| customer | `move_cars` | The customer moves cars with their own equipment |
 
-`route` is an ordered list of track ids; the direction on each track comes from the shared nodes. A step can hold several actions; the player runs them in order.
+Each step has `cars` (cut ids), `to` (a track or facility), optional `via` (switches, in order) and a plain-language `text`, which becomes the step caption.
 
-### 6.3 Validation (beyond the JSON Schema)
+### 6.3 Layout: from reading to canvas
 
-Constrained decoding can force the right JSON shape but not the right content, so `validate` checks:
+The `layout` module draws a clean schematic in the demo's style. It never tries to copy the original drawing's positions.
+
+1. The main line is horizontal, and the arriving train always enters from the left. Compass directions stay as labels.
+2. Switches go on the main in `order`, spaced by `distanceFt` when given, otherwise evenly.
+3. A branch on the arriving train's left goes up, and one on its right goes down. It leaves at a fixed angle, then runs parallel to the main. Facing switches diverge forward and trailing switches diverge back toward the arrival end.
+4. One scale (feet to pixels) fits the longest track to the canvas width, and every track is drawn to that scale. Tracks with no length get a default and a visible "length needed" marker.
+5. Facilities sit along their track at `startFt`, or at the far end, and spots are laid out at 66 ft per car (or the overrides).
+6. Each work step becomes motion actions (`arrive`, `move`, `couple`, `uncouple`, `set_state`, `depart`): routes come from a shortest path over the track graph, and stop positions come from car lengths and spot positions.
+
+### 6.4 Validation
+
+Constrained decoding can force the right JSON shape but not the right content, so `validate` checks the PlanReading:
 
 1. Every id is unique and every reference resolves.
-2. Every track's `from` and `to` nodes exist, and no track has zero length.
-3. Every `switch` node joins exactly three tracks, and toe, normal and reverse are three different tracks touching that node.
-4. Every `end` and `edge` node touches exactly one track; every `junction` touches exactly two.
-5. Every route is connected: consecutive tracks share a node, and the path through a switch goes toe to normal or toe to reverse, never normal to reverse.
-6. Every stop offset lies on its track (or off-page past an `edge` node).
-7. Couple and uncouple refer to units that are actually adjacent at that point in the plan.
-8. Facility spots lie on the facility's track.
+2. The arrival is on a `main` track, and every switch's `on` and `to` are different tracks.
+3. A spur is reached by one switch; a siding that `rejoins` is reached by two.
+4. **Fit checks** (warnings): every cut fits where it's sent. Cars × (car length + allowance) must be no longer than the facility or track, with the numbers shown, e.g. "5 × 66 ft = 330 ft of 360 ft at the racks: fits".
+5. **Work sequence** (simulated step by step): the power is attached before it shoves or pulls a cut; `cut_off` leaves cars where they are; customer `unload` needs loaded cars at a facility; `departure.cars` are attached to the train at the end.
+6. Every `via` switch is on a real path between where the move starts and its `to`.
 
 Errors block export; warnings show in the editor. The editor always opens, even on a plan with errors.
 
@@ -160,19 +198,21 @@ There is no public dataset for parsing rail track schematics (see research notes
   - Tier 1, single customer spur (5 plans; includes the demo).
   - Tier 2, two customers or a run-around move (5 plans).
   - Tier 3, a small yard with several tracks and customers (5 plans).
-- For each plan, the ground truth OpPlan JSON is written first. Code then renders it four ways: PPTX with native shapes, vector PDF, clean PNG, and a "scanned" PNG (slight rotation, blur, noise). The answers are exact by construction.
+- For each plan, the ground truth PlanReading is written first, and layout draws it. Code then renders it four ways: PPTX with native shapes, vector PDF, clean PNG, and a "scanned" PNG (slight rotation, blur, noise). The answers are exact by construction.
 - Known weakness: synthetic drawings are tidier than real ones. To check this, a few plans can be redrawn by hand in PowerPoint in a messier, real-world style (still synthetic, no proprietary content).
 
 ### 8.2 Scores (each 0 to 1)
 
+Scoring compares the model's PlanReading with the true one. No coordinates are involved.
+
 | Score | How |
 |---|---|
 | `valid` | Passes the schema and validator after at most one repair |
-| `topology` | Match predicted nodes to true nodes after normalizing to the drawing's bounding box (tolerance 3% of the diagonal); F1 over nodes, tracks (both ends matched) and switches; plus track role accuracy |
-| `facilities` | Facility found on the right track, name match, spot count |
-| `consist` | Unit count, kinds and loaded/empty states |
-| `steps` | 1 minus normalized edit distance over the action sequence, with arguments compared after mapping ids through the node/track match |
-| `overall` | 0.4 topology + 0.15 facilities + 0.15 consist + 0.3 steps, and 0 if not valid |
+| `topology` | Tracks matched by role and by how they connect (graph match); switch side and facing/trailing correct; track lengths within 5% when the document states them |
+| `facilities` | Facility on the right track, name match, length and spot count |
+| `consist` | Loco count; cuts with the right car counts, states and destinations; cars already on site |
+| `sequence` | Arrival direction and power position; 1 minus normalized edit distance over the work steps as (actor, do, cars, to); departure direction and cars |
+| `overall` | 0.35 topology + 0.15 facilities + 0.15 consist + 0.35 sequence, and 0 if not valid |
 
 **Usable** means `valid` and `overall` of at least 0.8: good enough that fixing it in the editor beats drawing from scratch. This threshold is a starting guess; we'll check it by timing a few real fix-ups.
 
@@ -196,7 +236,7 @@ Full first run: about 15 plans x 4 renders x up to 3 pipelines x 3 hosted open m
 
 ## 10. Canvas and animation
 
-The demo already shows the right technique: tracks as SVG paths, and units placed with `getPointAtLength` and rotated to the path angle. The renderer generalizes it. Each track becomes a path (with its bends), a route becomes a concatenated path, and the player eases the group's leader from one stop to the next.
+Layout (section 6.3) produces the geometry; the renderer only draws it. The demo already shows the right drawing technique: tracks as SVG paths, and units placed with `getPointAtLength` and rotated to the path angle. The renderer generalizes it. Each track becomes a path (with its bends), a route becomes a concatenated path, and the player eases the group's leader from one stop to the next.
 
 Library choice (details in `docs/research/canvas.md`): plain SVG plus small geometry helpers for the canvas, React for panels. React Flow (MIT) was considered for editor chrome, but track geometry isn't box-and-wire, so it isn't needed for v1. tldraw is ruled out by its production licence. Konva and PixiJS are ruled out because SVG export matters.
 
@@ -204,7 +244,7 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 
 ## 11. Publish and export
 
-- **OpPlan JSON:** the source of truth, re-importable.
+- **PlanReading JSON:** the source of truth, re-importable.
 - **Standalone HTML player:** one file with the plan embedded, in the same style as the demo. This is what goes on the portfolio.
 - **SVG:** a still for each step.
 - **Share link:** the plan, compressed into the URL fragment. The fragment is never sent to a server, so a static host can serve it.
@@ -214,8 +254,8 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 
 | Phase | Delivers | Done when |
 |---|---|---|
-| P0 Spec | This doc, research notes, schema v0.1, demo fixture | Reviewed and approved |
-| P1 Schema and player | Types, validator, SVG renderer, step player | The demo fixture JSON plays the same 7 steps as the hand-built demo |
+| P0 Spec | This doc, research notes, PlanReading v0.2 and CanvasPlan v0.1 schemas, demo examples | Reviewed and approved |
+| P1 Layout and player | Types, validator, layout, SVG renderer, step player | The demo PlanReading lays out and plays the same 7 steps as the hand-built demo |
 | P2 Ingest and extract | PDF and PPTX readers, vector primitives, graph builder | Tier 1 PPTX and PDF renders give the right topology with no model |
 | P3 Adapters and first benchmark | none and OpenRouter adapters (with sign-in); bench CLI; fixtures; first results table | Results table published in `docs/results/` |
 | P4 Editor | Snapping edits, panels, step editor, undo/redo, validation panel | A tier 2 plan can be fixed from a model baseline to valid without touching JSON |
@@ -225,8 +265,8 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 
 ## 13. Testing
 
-- Unit tests (Vitest) for schema validation, topology checks, the route-to-path builder, position layout and every scoring function.
-- Golden test: the demo fixture renders and its unit positions at each step match the hand-built demo within a few units.
+- Unit tests (Vitest) for schema validation, fit checks, the work-sequence simulation, layout, the route-to-path builder and every scoring function.
+- Golden test: layout of the demo PlanReading gives the same tracks, switch and step sequence as the demo CanvasPlan, with cars at the racks after the shove and unit positions close to the hand-built demo.
 - Benchmark is its own test of the model step and is run on demand, never in CI (it can cost money).
 
 ## 14. Risks
@@ -246,15 +286,19 @@ Decided (2026-10-20):
 - Accuracy ceiling: Claude Opus 5.5, called through OpenRouter. It's a reference point only, not part of the "open" result.
 - No local models and no Ollama. Everything goes through OpenRouter.
 - Public demo hosting: GitHub Pages. Pages on a private repo needs a paid GitHub plan, so the live demo goes up when the repo goes public.
+- Clean auto-layout from the track connections. The AI sends no coordinates.
+- One plan per arrival direction. Sections: arrival, spotting and yard work, departure, with optional customer steps anywhere.
+- Track lengths to scale in feet. Cars default to 60 ft plus an always-shown 10% allowance (66 ft), overridable.
+- Move vocabulary as in section 6.2.
 
 Open:
 1. Licence when the repo goes public: MIT or Apache 2.0.
 2. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
-3. The AI-to-canvas data contract (section 6) is a first draft, to be worked through together before P1 starts.
+3. Default loco length for layout when the document doesn't give one.
 
 ## 16. Related docs
 
 - `docs/research/models.md`: candidate models, licences, runtimes, prices, structured output
 - `docs/research/prior-art.md`: diagram-to-graph research and rail data formats
 - `docs/research/canvas.md`: canvas, animation and document ingestion libraries
-- `docs/schema/opplan.schema.json` and `docs/schema/examples/`
+- `docs/schema/plan-reading.schema.json` (what the AI sends), `docs/schema/canvas-plan.schema.json` (what layout produces) and `docs/schema/examples/`
