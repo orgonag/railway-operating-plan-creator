@@ -9,19 +9,18 @@ Operating plans already exist, and they're painful to work with. They live in Po
 
 I'm building a tool that animates simple operating plans. You lay out the plan, play around with the steps the cars will take, watch the train do the work, and then export it to share.
 
-You don't have to start from a blank page. Upload the slide or PDF you already have, and an AI reads it into a first draft that you fix and finish.
+You build the plan yourself, on the canvas, and the tool checks every move as you add it. If you already have a slide or PDF, an optional import can give you a rough starting draft, asking you about anything it had to guess.
 
 ## 2. Goals and non-goals
 
 ### Goals
 
-1. Upload a PDF or image of a track schematic with an operating plan. (PowerPoint: export the slide as PDF or PNG for now; direct PPTX reading comes later.)
-2. Get a baseline plan as JSON, in railway terms: tracks and their lengths, switches, customer facilities, the train consist, and the plan's arrival, spotting and yard work, and departure.
-3. See that plan on a canvas and play it step by step, in the style of the existing demo.
-4. Fix anything the model got wrong with simple editing tools.
-5. Check that the plan actually works: cars fit, moves stay clear of switches, nothing is shoved past a buffer stop, the power is on the right end for each move.
-6. Export the result as JSON, a share link, a standalone animated HTML page, and SVG.
-7. Measure, with a small public benchmark, which model gives the best reading for the least money. Accuracy and cost are both measured; we don't assume one has to be traded for the other.
+1. Build an operating plan on the canvas by hand: lay out the track, set lengths, place the facility and cars, and add the steps one at a time.
+2. Check that the plan actually works as you build it: cars fit, moves stay clear of switches, nothing is shoved past a buffer stop, the power is on the right end for each move.
+3. Play the plan step by step, in the style of the existing demo, and try a different order of work.
+4. Export and share the result: JSON, a share link, a standalone animated HTML page, and SVG.
+5. Optionally, import an existing plan (most common file types) to get a rough draft. The AI asks a clarifying question for every assumption it makes, and the person decides.
+6. Measure, with a small benchmark, which free model gives the best import, and how often it guesses wrong without asking.
 
 ### Non-goals (for now)
 
@@ -32,7 +31,7 @@ You don't have to start from a blank page. Upload the slide or PDF you already h
 
 ## 3. Who it is for
 
-First version: a portfolio research piece. It should show clear problem framing, a small and well-tested domain model that understands switching, a live demo, and an honest model evaluation. A practitioner in industrial development or customer service should be able to try it in a browser at no cost, but polish for daily production use is out of scope for v1.
+First version: a portfolio research piece. It should show clear problem framing, a well-made editor, a small and well-tested domain model that understands switching, and a live demo. The AI import is a helpful extra, not the product. A practitioner in industrial development or customer service should be able to try it in a browser at no cost, but polish for daily production use is out of scope for v1.
 
 ## 4. How people use it
 
@@ -45,7 +44,7 @@ The app is a static web page on GitHub Pages. There's one small exception to "no
 | **Your ChatGPT plan** (later) | Sign in with ChatGPT and use the user's Plus or Pro plan for the AI step (see 4.2) | Counts against their plan | Free |
 | **No model** | Draw or fix the plan by hand | Free | Free |
 
-The user can switch modes and models from a dropdown at any time, and the app records which model produced each plan. The public demo also ships with pre-run examples.
+None of this is needed to use the tool: the editor, checks, player and exports work with no AI at all. For the import button, the user can switch modes and models from a dropdown at any time, and the app records which model produced each plan. The public demo also ships with pre-run examples.
 
 ### 4.1 The shared free key
 
@@ -78,14 +77,16 @@ Claude subscriptions stay out: Anthropic's terms say Claude Free, Pro and Max si
 
 Single repo in TypeScript. The core is a plain TypeScript package with no browser dependency: schema, engine, validate, layout. The app (Vite, React for panels) and the bench CLI (Node) both import that package. The renderer and player are plain SVG and DOM code with no framework, so the same code runs in the app, in the standalone export and in an embeddable player.
 
-What makes this worth noticing isn't that an AI can read a slide. It's that the tool understands switching. It animates the plan, then tells you that 5 cars at 66 ft need 330 ft and the racks have 360, that the spur is trailing point for this arrival so the plan needs a runaround, or that the power is on the wrong end for the pull. Today that gets argued over by eye on a slide. The architecture is built around that engine.
+What makes this worth noticing isn't that an AI can read a slide. It's that the person can build a plan quickly and the tool understands switching. It animates the plan, then tells you that 5 cars at 66 ft need 330 ft and the racks have 360, that the spur is trailing point for this arrival so the plan needs a runaround, or that the power is on the wrong end for the pull. Today that gets argued over by eye on a slide. The architecture is built around the editor and that engine; the AI import sits off to one side.
 
 ### 5.1 Data flow
 
 ```
-upload ─> ingest ─> adapter ─> PlanReading ─> engine ─> validate + layout ─> render + player ─> export
-                                    │
-               bench CLI scores ────┘ (the reading, and the engine's step outcomes, against the fixture's truth)
+person ─> editor ─────────────────────────────┐
+                                               ├─> PlanReading ─> engine ─> validate + layout ─> render + player ─> export
+optional: files ─> ingest ─> adapter ─> draft ─┘        (questions answered by the person)
+
+bench CLI scores the import draft, and how well its questions covered its mistakes, against the fixture's truth.
 ```
 
 ### 5.2 Modules
@@ -98,9 +99,10 @@ upload ─> ingest ─> adapter ─> PlanReading ─> engine ─> validate + lay
 | `layout` | Lane assignment and geometry in feet: the main on lane 0, branches on lanes above or below by side, switches in order, approach length from the arriving train. Converts engine world states into positions on track paths | `schema`, `engine` |
 | `render` | Draws tracks, facilities, callouts and units as SVG in the demo's visual language. Applies one feet-to-pixel scale. No framework | `layout` output |
 | `player` | Moves groups along track paths between step states, with play, pause, step and seek. No framework | `render` |
-| `editor` | A command set over an immutable PlanReading (add, remove, set, insert step, move step, split cut) with a command log for undo and redo. Re-runs validate and layout on every change and highlights `unsure` fields. The same command set is the interface for a later AI editing mode | core, `render` |
-| `ingest` | File to page images. PDF through pdf.js, images as is, downscaled in the browser (long side about 1,500 px) before upload. PPTX isn't read in this release; the app asks for a PDF or image export | pdf.js |
-| `adapters` | One interface, `read(doc, options) -> { reading, usage, warnings }`. Implementations: `none`, `proxy` (shared free key), `openrouter` (user signs in), later `chatgpt`. Vision reading only in this release | `schema` |
+| `editor` | The main way to make a plan. Direct canvas editing: click a track to add a switch and pick its side, drag a branch's end to set its length (snaps to feet), click a track to place a facility, drop a cut of cars, and build steps by picking a cut and a destination, with the engine checking each step as it's added. Side panels for exact values. A command set over an immutable PlanReading with undo and redo. Layout stays automatic: the person edits what connects to what and how long it is, never pixel positions | core, `render` |
+| `ingest` | Turns most common files into what a model can read: page images plus text (section 7.1). One or several files at once, all in the browser | pdf.js, a zip reader |
+| `adapters` | One interface, `read(doc, options) -> { reading, usage, warnings }`. Implementations: `none`, `proxy` (shared free key), `openrouter` (user signs in), later `chatgpt`. The reading comes back with its clarifying questions | `schema` |
+| `questions` | Shows the import's clarifying questions as a short checklist, each with the AI's guess pre-filled. The person answers, accepts the guess or skips; answers are applied as editor commands, so they can be undone | `editor` |
 | `proxy` | Cloudflare Worker holding the project key. Verifies Turnstile server side on every call, rejects oversized payloads before reading them, keeps a per-visitor daily count, and sends the ranked free model list | OpenRouter |
 | `export` | PlanReading JSON, share link (compressed, version-tagged URL fragment), standalone HTML with the plan and player code embedded, SVG per step | core, `render`, `player` |
 | `bench` | Node CLI over fixtures, models and renders. Scores topology, facilities, consist and sequence, with sequence scored on engine outcomes rather than verb strings. Writes the results table | core, `adapters` |
@@ -114,21 +116,25 @@ upload ─> ingest ─> adapter ─> PlanReading ─> engine ─> validate + lay
 
 ### 5.4 Order of work
 
-Engine and layout with the demo plan first, deployed on GitHub Pages on the first day it plays. Then the editor, share link and exports. Then the vision adapter and proxy. Then the benchmark. Reading PowerPoint and PDF vectors directly is a second study, done only if the vision results call for it (section 8.4).
+Engine and layout with the demo plan first, deployed on GitHub Pages on the first day it plays. Then the canvas editor, share link and exports: at that point the tool is complete without any AI. Then the import button (ingest, adapter, proxy, questions). Then the small benchmark that picks the import model. Reading PowerPoint and PDF shapes as geometry is a second study, done only if the import results call for it (section 8.4).
 
-### 5.5 The AI's jobs
+### 5.5 What the AI does, and doesn't
 
-1. **Read a document into a first draft** (this release). The page image goes to a vision model, which returns a PlanReading. This works on PDFs, screenshots and photos of slides.
-2. **Fix the plan by chat** (later). The user says "the spur is 600 ft, not 800" or "add a runaround before the pull", and the model calls the editor's commands; the engine re-checks the plan after every change. We measure how many turns it takes to get from a first draft to a valid plan.
-3. **Explain the findings** (later, cheap). The model reads the plan and the engine's findings and explains them in plain words. The deterministic engine stays the judge of whether a plan works; the model never is.
+The AI has one job: the optional **import** button. It reads the files the person drops in and returns a rough PlanReading plus a list of clarifying questions.
+
+**It asks about every assumption.** Anything the AI did not read directly from the document (a length it estimated, a switch side it inferred, a car count it couldn't see, which cut goes where) must come with a question. Each question names the field it's about, asks it in plain words, offers the AI's guess, gives choices where they make sense, and says what in the document led to the guess. For example: "The spur's length isn't labelled. I guessed 800 ft from its drawn length next to the main. Is that right?" Fields read directly need no question.
+
+The person works through the questions as a short checklist: answer, accept the guess, or skip and fix it later on the canvas. There's an "accept all guesses" button for people in a hurry. Answers become editor commands, so everything is undoable, and nothing reaches the plan without the person seeing it. If an answer changes the picture (for example "there are two spurs, not one"), the person can send the answers back for one more pass.
+
+The AI doesn't build the plan, edit it, run it, or judge whether it works. The person builds and edits; the engine checks.
 
 ## 6. Data: the PlanReading format
 
-**PlanReading** (v0.2, `docs/schema/plan-reading.schema.json`) is the one public format. The AI writes it, or the user does in the editor. It holds the plan in railway terms: tracks, lengths, switches, facilities, consist, and the arrival, work and departure. It has no coordinates. It's what gets saved, shared, edited and scored.
+**PlanReading** (v0.2, `docs/schema/plan-reading.schema.json`) is the one public format. The person writes it in the editor, or the import gives them a first draft of it. It holds the plan in railway terms: tracks, lengths, switches, facilities, consist, and the arrival, work and departure. It has no coordinates. It's what gets saved, shared, edited and scored.
 
 The canvas model is internal. The engine and layout rebuild it from the reading on every change, in feet, and `render` applies one feet-to-pixel scale. (An early public draft of it, CanvasPlan v0.1, is kept in `docs/archive/` for reference.)
 
-Why the split: a model can reliably read "the spur leaves the main on the left, 800 ft, buffer stop at the end". It can't reliably invent "offset 550". So the AI sends only what has to be read from the document, and code works out everything that can be computed.
+Why the split: a model can reliably read "the spur leaves the main on the left, 800 ft, buffer stop at the end". It can't reliably invent "offset 550". So the import sends only what has to be read from the document, and code works out everything that can be computed. The same is true in the editor: the person sets what connects to what and how long it is, and code does the drawing.
 
 Worked example of the portfolio demo: `docs/schema/examples/customer-service-demo.reading.json`.
 
@@ -156,7 +162,7 @@ PlanReading
                  onSite[] { id, cars, state, at }: cars already on site before the train arrives
   work[]         actor, do, cars?, to?, via?, text
   departure      direction, cars?, text
-  unsure[]       dotted paths the AI isn't confident about, e.g. "tracks.SPUR1.lengthFt"
+  questions[]    import only: id, about (field path), ask, guess?, options?, basis
   notes[]        anything that didn't fit
 ```
 
@@ -164,7 +170,7 @@ The terms are chosen to match how a railroader would describe the plan:
 - `side` and `approach` are relative to the **arriving** train. "The spur leaves on the left, facing point" is how you'd say it, and it's why a plan is tied to one direction.
 - **Cars come in cuts** ("5 loads for the racks"), not as numbered individual cars. The editor can split a cut.
 - **Lengths are in feet and to scale.** Cars default to 60 ft. The **10% allowance is always shown** on top, so each car plans as 66 ft. Users can override the default length and the allowance for the plan, or the length for one cut. Lengths the document doesn't give are left out and the editor asks for them.
-- **`unsure`** lets the AI flag what it guessed, so the editor can highlight those fields instead of the user hunting for mistakes.
+- **`questions`** appear only on an import draft. They make every AI guess visible and put the decision with the person (section 5.5). Once answered, they are removed from the saved plan. A field path is `collection.id.field`, for example `tracks.SPUR1.lengthFt`.
 
 Names follow OpenStreetMap railway tagging where it fits (track roles, switch side). Concepts follow railML and RailTopoModel, but we don't copy railML's schema because of its licence (CC BY-NC-ND, see research notes).
 
@@ -232,12 +238,29 @@ Errors and warnings show in one list in the editor. A plan with errors can still
 - Model returns invalid JSON: one repair retry with the validator messages fed back. If it still fails, keep every part that parses, mark the rest as warnings, and open the editor.
 - Model times out or the key is rejected: show the message and offer no-model mode.
 - Free model rate limit hit (HTTP 429): say so plainly, show when to retry, and offer a paid model or no-model mode.
-- PowerPoint file: show "Export this slide as PDF or PNG from PowerPoint (File, Export) and drop that here."
-- Unsupported or encrypted file: say so and offer no-model mode.
+- Unsupported or encrypted file: say so, suggest a format that works (section 7.1), and remind the person they can build the plan by hand.
+- The import returns too many questions (more than about 20): show the most important first, grouped by section, and let the person stop and edit on the canvas.
+
+### 7.1 Files the import accepts
+
+All reading happens in the browser. One or several files can be dropped at once, for example a slide plus a spreadsheet of car counts.
+
+| File | How it's read |
+|---|---|
+| PDF | Page images (pdf.js) plus the text layer |
+| PNG, JPG, WebP, GIF | As is, downscaled to a long side of about 1,500 px |
+| SVG | Drawn to an image in the browser, plus its text |
+| PowerPoint (PPTX) | Unzipped in the browser. Each slide's text and a compact list of its shapes (type, position, size, label, connector ends) go to the model as text, with any pictures on the slide as images. No slide rendering is needed |
+| Word (DOCX) | Text, tables and embedded pictures |
+| Visio (VSDX) | Like PowerPoint: page text and shape list, plus embedded pictures |
+| Excel (XLSX), CSV | Sheets as plain tables, useful for step lists, car counts and track lengths |
+| Old .ppt, .doc, .vsd, HEIC photos | Not read in the browser. The app asks the person to save as the newer format, PDF or JPG |
+
+Reading the shape list from PowerPoint or Visio is lighter than the vector pipeline in section 8.4. We don't build a track graph from geometry; we only describe the shapes in text and let the model interpret them, with questions where it's unsure.
 
 ## 8. Benchmark design
 
-There is no public dataset for parsing rail track schematics (see research notes), so the project builds a small one.
+The benchmark is a side study with one practical purpose: pick the free model the import button uses, and check that its questions catch its mistakes. There is no public dataset for parsing rail track schematics (see research notes), so the project builds a small one.
 
 ### 8.1 Fixtures
 
@@ -245,7 +268,7 @@ There is no public dataset for parsing rail track schematics (see research notes
   - Tier 1, single customer spur (5 plans; includes the demo).
   - Tier 2, two customers or a run-around move (5 plans).
   - Tier 3, a small yard with several tracks and customers (5 plans). These join the benchmark once layout handles tier 3, since layout draws the fixtures.
-- For each plan, the ground truth PlanReading is written first, and layout draws it. Code then renders it four ways: PDF, clean PNG, a "scanned" PNG (slight rotation, blur, noise), and a "photo of a slide" PNG (perspective, glare). The answers are exact by construction.
+- For each plan, the ground truth PlanReading is written first, and layout draws it. Code then renders it as PPTX, PDF, clean PNG, a "scanned" PNG (slight rotation, blur, noise), and a "photo of a slide" PNG (perspective, glare). The answers are exact by construction.
 - Known weakness: these drawings come from our own layout code, so they're tidier than real ones. Four or five plans are also redrawn by hand in PowerPoint in a messier, real-world style (still synthetic, no proprietary content) and reported separately.
 
 ### 8.2 Scores (each 0 to 1)
@@ -261,7 +284,15 @@ Scoring compares the model's PlanReading with the true one. No coordinates are i
 | `sequence` | Arrival direction and power position, then **outcome based**: run both readings through the engine and compare the world state after each step (which cuts are where, coupled to what, loaded or empty), plus departure direction and cars. A reading that says `set_out` where the truth says `shove` then `cut_off` scores the same, because it does the same thing |
 | `overall` | 0.35 topology + 0.15 facilities + 0.15 consist + 0.35 sequence, and 0 if not valid |
 
-**Usable** means `valid` and `overall` of at least 0.8: a first draft the user only needs to touch up. This threshold is a starting guess; we'll check it by timing a few real fix-ups.
+Question quality, the measure that matters most for a human-led tool:
+
+| Score | How |
+|---|---|
+| `silent errors` | Fields the draft got wrong **without** asking about them, per plan. The target is zero; this is the headline number |
+| `question precision` | Share of questions that were about something actually uncertain in the document, so the person isn't buried in needless questions |
+| `after answers` | `overall` again after applying the true answers to the questions. Shows how close the draft gets once the person has done the checklist |
+
+**Usable** means `valid` and `overall` of at least 0.8 after answers, with silent errors near zero: a first draft the user only needs to touch up. This threshold is a starting guess; we'll check it by timing a few real fix-ups.
 
 Each run also records input and output tokens, cost in USD (from the provider's usage response), wall time and repair count.
 
@@ -273,14 +304,14 @@ Each run also records input and output tokens, cost in USD (from the provider's 
 | Cheap hosted, open | Qwen3-VL 32B, Gemma 4 31B, Qwen3-VL 235B-A22B | OpenRouter |
 | Ceiling, closed | Claude Opus 5.5 | OpenRouter, reference only |
 
-The first benchmark runs vision reading (pipeline B) on every render. The result table lists every model with mean overall, usable rate, cost per document and time per document, separately for synthetic and hand-drawn fixtures. The recommendation, and the proxy's ranked free model list, is the cheapest setup whose usable rate is within a few points of the best.
+The first benchmark runs the import (page images, plus shape lists for PowerPoint) on every render. The result table lists every model with mean overall, usable rate, cost per document and time per document, separately for synthetic and hand-drawn fixtures. The recommendation, and the proxy's ranked free model list, is the cheapest setup whose usable rate is within a few points of the best.
 
 ### 8.4 Second study: reading vectors directly
 
-Two more pipelines stay in the research plan as a second study, done only if vision reading's topology score falls below the usable line:
+Two more pipelines stay in the research plan as a second study, done only if the import's topology score falls below the usable line:
 
 - **A. Vector first.** Read lines, shapes and text from the PPTX or PDF directly, build the track graph with geometry code, and use a model only to interpret labels and steps.
-- **C. Hybrid.** Give the model the page image plus a numbered list of the shapes found, and have it answer by shape id.
+- **C. Hybrid.** Build the track graph with geometry code first, then give the model the page image plus that graph, and have it answer by element id.
 
 Both need the hardest code in the project (PPTX shape geometry, pdf.js vector paths), and on our own synthetic fixtures they would mostly be parsing our own output, which proves little. So this study only runs on the hand-drawn fixtures, and only if B needs the help. Prior work on P&ID and circuit diagrams suggests hybrids help (see `docs/research/prior-art.md`); the study would test whether that holds here.
 
@@ -313,15 +344,15 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 In:
 - PlanReading v1 as the one public format, with migration from v0.2.
 - Engine (plan state, primitives, verb expansion, feasibility checks and metrics), validate, and layout for tier 1 and tier 2. Render and player with no framework.
-- Editor as forms and lists: tracks and lengths, switches, facilities, consist, a step list with reorder and insert, `unsure` highlights, undo and redo. No dragging on the canvas yet.
+- Canvas editor as the main tool: add switches and branches, drag to set lengths, place facilities and cuts, build steps by picking a cut and a destination, reorder steps, side panels for exact values, undo and redo. The engine checks each change as it's made.
 - Share link, standalone HTML export, SVG per step, PlanReading JSON export and import.
-- Upload of PDF, PNG and JPG. PowerPoint files get the export-as-PDF hint.
-- Vision reading behind the adapter interface, with the `none`, `proxy` and `openrouter` adapters, and the proxy on a Cloudflare Worker.
-- Bench CLI for vision reading across the renders and the model groups in section 8.3, with outcome-based sequence scoring, and a results page.
+- One optional import button accepting the files in section 7.1, with clarifying questions shown as a checklist.
+- The import behind the adapter interface, with the `none`, `proxy` and `openrouter` adapters, and the proxy on a Cloudflare Worker.
+- A small bench CLI for the import across the renders and the model groups in section 8.3, scoring silent errors and outcome-based sequence, and a results page.
 - Three pre-run examples on the live site, including the portfolio demo.
 - Deployed on GitHub Pages from the first week, even with only the demo plan.
 
-Out for now: vector pipelines A and C, PPTX reading, tier 3 yards, canvas drag editing, WebM, Sign in with ChatGPT, the gallery. Compare mode goes in if the engine makes it trivial.
+Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT, the gallery, any AI beyond the import button. Compare mode goes in if the engine makes it trivial.
 
 ### 12.2 Phases
 
@@ -329,8 +360,8 @@ Out for now: vector pipelines A and C, PPTX reading, tier 3 yards, canvas drag e
 |---|---|---|
 | P0 Spec | This doc, research notes, PlanReading schema, demo example | Reviewed and approved |
 | P1 Engine and player | Schema v1 and migration, engine, validate, layout (tier 1), render, player; deployed | The demo reading plays the 7 steps on the live site and the engine reports its fit check |
-| P2 Editor and sharing | Command-based editor with undo, share link, standalone HTML, SVG, JSON import and export; tier 2 layout | A tier 2 plan can be built from scratch, fixed until valid, and shared by link |
-| P3 Reading | Upload (PDF, PNG, JPG), vision adapter, proxy with Turnstile and limits, Sign in with OpenRouter | A PDF of a tier 1 plan becomes a playable draft on the live site, on the free mode |
+| P2 Editor and sharing | Canvas editor with undo, share link, standalone HTML, SVG, JSON import and export; tier 2 layout | A tier 2 plan can be built from scratch on the canvas in a few minutes, checked, and shared by link, with no AI |
+| P3 Import | Ingest for the section 7.1 files, adapter, clarifying questions checklist, proxy with Turnstile and limits, Sign in with OpenRouter | A PowerPoint slide of a tier 1 plan becomes a draft plus questions; after answering them it plays on the live site, on the free mode |
 | P4 Benchmark | Fixtures (synthetic and hand-drawn), bench CLI, outcome-based scoring, results page; proxy model list set from results | Results table published in `docs/results/` |
 | P5 Portfolio | Three pre-run examples, plan metrics, portfolio branch line | Portfolio links to a live plan under Industrial Development (2020 to 2023) |
 
@@ -342,8 +373,7 @@ Out for now: vector pipelines A and C, PPTX reading, tier 3 yards, canvas drag e
 4. **Embeddable player:** one script tag, works on any static page including an internal wiki.
 5. **Crew briefing export:** a printable page with the step list, car counts, which cut goes where, switch positions per step, and callouts.
 6. **Public gallery:** example plans in the repo, submitted by pull request, once the format is stable.
-7. **Chat to fix the plan:** the AI calls editor commands (section 5.5).
-8. **Vector pipelines A and C:** the second study (section 8.4).
+7. **Vector pipelines A and C:** the second study (section 8.4).
 
 ## 13. Testing
 
@@ -381,7 +411,8 @@ Decided (2026-10-20):
 - One plan per arrival direction. Sections: arrival, spotting and yard work, departure, with optional customer steps anywhere.
 - Track lengths to scale in feet. Cars default to 60 ft plus an always-shown 10% allowance (66 ft), overridable.
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
-- Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vision reading first, vector pipelines as a second study.
+- Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
+- The person does most of the work. Canvas editing is the main tool and is in the first release. AI is one optional import button that accepts most common files and asks a clarifying question for every assumption. No chat editing or AI explanations.
 
 Open:
 1. Licence when the repo goes public: MIT or Apache 2.0 (recommended).

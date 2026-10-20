@@ -8,36 +8,158 @@
     "locos": "rear",
     "text": "A local train arrives on the main line with the customer's loaded cars."
   },
-  "carLength": { "ft": 60, "allowancePct": 10 },
+  "carLength": {
+    "ft": 60,
+    "allowancePct": 10
+  },
   "tracks": [
-    { "id": "MAIN", "role": "main", "name": "Main line", "end": "continues" },
-    { "id": "SPUR1", "role": "spur", "name": "Customer siding", "lengthFt": 800, "end": "buffer_stop" }
+    {
+      "id": "MAIN",
+      "role": "main",
+      "name": "Main line",
+      "end": "continues"
+    },
+    {
+      "id": "SPUR1",
+      "role": "spur",
+      "name": "Customer siding",
+      "lengthFt": 800,
+      "end": "buffer_stop"
+    }
   ],
   "switches": [
-    { "id": "S1", "on": "MAIN", "to": "SPUR1", "side": "left", "approach": "facing", "order": 1 }
+    {
+      "id": "S1",
+      "on": "MAIN",
+      "to": "SPUR1",
+      "side": "left",
+      "approach": "facing",
+      "order": 1
+    }
   ],
   "facilities": [
-    { "id": "RACKS", "name": "Unloading racks", "kind": "unloading_racks", "track": "SPUR1", "lengthFt": 360, "spots": 5 }
+    {
+      "id": "RACKS",
+      "name": "Unloading racks",
+      "kind": "unloading_racks",
+      "track": "SPUR1",
+      "lengthFt": 360,
+      "spots": 5
+    }
   ],
   "consist": {
-    "locos": { "count": 1 },
+    "locos": {
+      "count": 1
+    },
     "cuts": [
-      { "id": "LOADS", "cars": 5, "state": "loaded", "for": "RACKS" }
+      {
+        "id": "LOADS",
+        "cars": 5,
+        "state": "loaded",
+        "for": "RACKS"
+      }
     ]
   },
   "work": [
-    { "actor": "railroad", "do": "shove", "cars": ["LOADS"], "to": "RACKS", "via": ["S1"], "text": "The locomotive shoves the loaded cars through the turnout and spots them at the unloading racks." },
-    { "actor": "railroad", "do": "cut_off", "cars": ["LOADS"], "text": "The locomotive cuts off, leaving the loaded cars at the facility." },
-    { "actor": "railroad", "do": "run_light", "to": "MAIN", "via": ["S1"], "text": "It pulls back out through the turnout and leaves for other work." },
-    { "actor": "customer", "do": "unload", "cars": ["LOADS"], "text": "While the locomotive is away, the customer unloads the cars." },
-    { "actor": "railroad", "do": "run_light", "to": "SPUR1", "via": ["S1"], "text": "Later, the locomotive returns, running back in through the turnout to the empty cars." },
-    { "actor": "railroad", "do": "couple", "cars": ["LOADS"], "text": "It couples to the empties." },
-    { "actor": "railroad", "do": "pull", "cars": ["LOADS"], "to": "MAIN", "via": ["S1"], "text": "It pulls them back out onto the main line." }
+    {
+      "actor": "railroad",
+      "do": "shove",
+      "cars": [
+        "LOADS"
+      ],
+      "to": "RACKS",
+      "via": [
+        "S1"
+      ],
+      "text": "The locomotive shoves the loaded cars through the turnout and spots them at the unloading racks."
+    },
+    {
+      "actor": "railroad",
+      "do": "cut_off",
+      "cars": [
+        "LOADS"
+      ],
+      "text": "The locomotive cuts off, leaving the loaded cars at the facility."
+    },
+    {
+      "actor": "railroad",
+      "do": "run_light",
+      "to": "MAIN",
+      "via": [
+        "S1"
+      ],
+      "text": "It pulls back out through the turnout and leaves for other work."
+    },
+    {
+      "actor": "customer",
+      "do": "unload",
+      "cars": [
+        "LOADS"
+      ],
+      "text": "While the locomotive is away, the customer unloads the cars."
+    },
+    {
+      "actor": "railroad",
+      "do": "run_light",
+      "to": "SPUR1",
+      "via": [
+        "S1"
+      ],
+      "text": "Later, the locomotive returns, running back in through the turnout to the empty cars."
+    },
+    {
+      "actor": "railroad",
+      "do": "couple",
+      "cars": [
+        "LOADS"
+      ],
+      "text": "It couples to the empties."
+    },
+    {
+      "actor": "railroad",
+      "do": "pull",
+      "cars": [
+        "LOADS"
+      ],
+      "to": "MAIN",
+      "via": [
+        "S1"
+      ],
+      "text": "It pulls them back out onto the main line."
+    }
   ],
   "departure": {
     "direction": "westbound",
-    "cars": ["LOADS"],
+    "cars": [
+      "LOADS"
+    ],
     "text": "The train departs with the empties. The customer is served, ready for the next cycle."
   },
-  "unsure": ["tracks.SPUR1.lengthFt", "facilities.RACKS.lengthFt"]
+  "questions": [
+    {
+      "id": "Q1",
+      "about": "tracks.SPUR1.lengthFt",
+      "ask": "How long is the customer siding? It isn't labelled.",
+      "guess": 800,
+      "basis": "Drawn at a bit over half the width of the main line."
+    },
+    {
+      "id": "Q2",
+      "about": "facilities.RACKS.lengthFt",
+      "ask": "How much track do the unloading racks cover?",
+      "guess": 360,
+      "basis": "The racks box covers about half the siding; 5 cars at 66 ft is 330 ft."
+    },
+    {
+      "id": "Q3",
+      "about": "departure.direction",
+      "ask": "Does the train leave westbound, back the way it came?",
+      "guess": "westbound",
+      "options": [
+        "eastbound",
+        "westbound"
+      ],
+      "basis": "Step 7 shows the train heading back toward the left edge."
+    }
+  ]
 }

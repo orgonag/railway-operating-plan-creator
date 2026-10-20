@@ -1,10 +1,10 @@
 # Railway Operating Plan Creator
 
-An open research project. Upload a rail operating plan (a PDF drawing, a PowerPoint slide or an image of a track schematic) and get back a structured plan you can see, animate, fix and share.
+An open research project. Build a rail operating plan on a canvas, play it step by step, and share it. You lay out the track to scale, place the customer's facility and the cars, and add the moves one at a time. A switching engine checks every move as you go: cars fit, moves stay clear of switches, nothing is shoved past a buffer stop, the power is on the right end. Then export the plan as JSON, a share link, an animated page or SVG.
 
-A model reads the document and sends back the plan in railway terms: tracks and their lengths, switches, customer facilities, the train consist, and the arrival, spotting work and departure. Code then lays it out as a clean schematic, to scale. The plan plays step by step, and a switching engine checks that it works: cars fit, moves stay clear of switches, the power is on the right end. You correct what the model got wrong, then export the plan as JSON, an animated page or SVG.
+If you already have a plan in PowerPoint, PDF, an image or another common format, an optional import gives you a rough first draft. It asks you about every assumption it made, so nothing goes into the plan without you seeing it.
 
-The research question is how cheaply that baseline can be produced without giving up accuracy. A small synthetic benchmark compares pipelines and models on both.
+A small benchmark picks the free model the import uses, and measures how often it guesses wrong without asking.
 
 Status: research spec, no code yet.
 

@@ -361,11 +361,43 @@
         }
       }
     },
-    "unsure": {
-      "description": "Fields the AI is not confident about, as dotted paths (e.g. tracks.SPUR1.lengthFt). The editor highlights them.",
+    "questions": {
+      "description": "Import drafts only. One question for every assumption the AI made that it did not read directly from the document. Removed once answered.",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "required": [
+          "id",
+          "about",
+          "ask",
+          "basis"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "about": {
+            "description": "Field path, collection.id.field, e.g. tracks.SPUR1.lengthFt.",
+            "type": "string"
+          },
+          "ask": {
+            "description": "The question in plain words.",
+            "type": "string"
+          },
+          "guess": {
+            "description": "The AI's best guess, pre-filled for the person to accept or change."
+          },
+          "options": {
+            "description": "Choices, when the answer is one of a few values.",
+            "type": "array",
+            "items": {}
+          },
+          "basis": {
+            "description": "What in the document led to the guess.",
+            "type": "string"
+          }
+        }
       }
     },
     "notes": {
