@@ -159,6 +159,7 @@ The people using this are railroaders, customer service and industrial developme
 - A new plan starts with a main line.
 - Track blocks in the toolbar: **Turnout (left)**, **Turnout (right)**, **Track end (buffer stop)** and **Facility**.
 - **Drag a turnout onto a track** to place it. A new branch grows out of it with a default length, and the distance from the previous switch shows and can be edited.
+- **The tool guesses the turnout's direction, and two flip buttons fix it.** When a turnout is dropped, the engine picks the most likely way for it to face from how the branch is dragged out. If that's wrong, **Flip up/down** (across the horizontal axis) moves the branch to the other side of the track (left and right), and **Flip left/right** (across the vertical axis) turns it to point the other way along the track (facing and trailing). Either flip redraws at once and can be undone.
 - **Drag the end of the branch** to stretch it. It snaps in 10 ft steps and shows its length in feet as you drag, or you can type the length in the properties panel. Dropping a turnout on the new branch builds the next track off it, and so on.
 - **Drag a branch's end onto another track** to join it back (a siding).
 - **Drag a facility onto a track** to place it, and drag its ends to size it along the track. The number of cars it holds at 66 ft each shows as you drag.
@@ -471,6 +472,7 @@ Decided (2026-10-20):
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
 - **Leaving and coming back.** When the loco, alone or with cars, is done for now, the person drags it off the edge of the drawing and it leaves for other work, with a callout if needed. Dragging it back in from the edge brings it back. In the data, a move to the reserved target `offstage` means it leaves the drawing.
+- **Turnout direction:** the engine guesses it when a turnout is placed; Flip up/down changes left and right, and Flip left/right changes facing and trailing.
 - **Switches are drawn about 240 ft long, to scale.** Cars stopped within about 290 ft of a switch they aren't using (240 ft plus about 50 ft to get clear) get a "may be fouling the switch" note, but are still shown as placed. No per-switch clearance settings.
 - **Loco length default: 74 ft plus the 10% allowance (about 81 ft).** That's typical of modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in). A "Four-axle" preset (GP38-2, 59 ft 2 in) is offered for locals and yard work, and any length can be typed.
 - Each step shows one animation (one move, cut-off, couple, load or unload, or stop). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
