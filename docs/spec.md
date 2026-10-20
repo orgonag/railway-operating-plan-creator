@@ -184,7 +184,7 @@ Each run also records input and output tokens, cost in USD (from the provider's 
 |---|---|---|
 | Free | `openrouter/free` (random free model), plus 2 or 3 pinned `:free` vision models | OpenRouter, free tier |
 | Cheap hosted, open | Qwen3-VL 32B, Gemma 4 31B, Qwen3-VL 235B-A22B | OpenRouter |
-| Ceiling, closed | One frontier model | OpenRouter, reference only |
+| Ceiling, closed | Claude Opus 5.5 | OpenRouter, reference only |
 
 Pipelines A and C run on PPTX and PDF renders; B and C run on all four renders. The result table lists every pipeline x model with mean overall, usable rate, cost per document and time per document. The recommendation is the cheapest setup whose usable rate is within a few points of the best.
 
@@ -192,7 +192,7 @@ Pipelines A and C run on PPTX and PDF renders; B and C run on all four renders. 
 
 Rough sizes per document: page image about 1,500 to 3,000 tokens, instructions and schema about 2,000, output about 2,000. At hosted open-model prices seen in Aug to Sep 2026 (about $0.10 to $0.26 per million input tokens and $0.34 to $1.04 per million output; secondary trackers), that is roughly $0.001 to $0.003 per document.
 
-Full first run: about 15 plans x 4 renders x up to 3 pipelines x 3 hosted open models is a few hundred calls, about $1 to $3. The frontier ceiling adds maybe $5 to $10. **Proposed cap: $15 for the first benchmark, and nothing is spent without a go-ahead and a per-run estimate.** Free-tier runs cost nothing but are rate limited, so the free group runs slowly over a day or two.
+Full first run: about 15 plans x 4 renders x up to 3 pipelines x 3 hosted open models is a few hundred calls, about $1 to $3. The Opus 5.5 ceiling costs more per call; its estimate gets worked out from current OpenRouter pricing before that run. **Proposed cap: $15 for the first benchmark, and nothing is spent without a go-ahead and a per-run estimate.** Free-tier runs cost nothing but are rate limited, so the free group runs slowly over a day or two.
 
 ## 10. Canvas and animation
 
@@ -240,12 +240,17 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 | Free models change or vanish without notice | Record the exact model id per run; re-run the free group before publishing results |
 | Free endpoints may log or train on prompts | Say so in the app before a free run; fixtures are synthetic, so the benchmark exposes nothing |
 
-## 15. Open questions
+## 15. Decisions and open questions
 
-1. Licence when the repo goes public: MIT or Apache 2.0? (Apache 2.0 matches most of the models.)
-2. Which frontier model to use as the ceiling?
-3. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
-4. Hosting for the public demo: GitHub Pages or Cloudflare Pages?
+Decided (2026-10-20):
+- Accuracy ceiling: Claude Opus 5.5, called through OpenRouter. It's a reference point only, not part of the "open" result.
+- No local models and no Ollama. Everything goes through OpenRouter.
+- Public demo hosting: GitHub Pages. Pages on a private repo needs a paid GitHub plan, so the live demo goes up when the repo goes public.
+
+Open:
+1. Licence when the repo goes public: MIT or Apache 2.0.
+2. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
+3. The AI-to-canvas data contract (section 6) is a first draft, to be worked through together before P1 starts.
 
 ## 16. Related docs
 
