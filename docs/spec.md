@@ -48,7 +48,7 @@ None of this is needed to use the tool: the editor, the engine's notes, the play
 
 ### 4.1 The shared free key
 
-A key placed in browser code is public, so the project key never goes to the browser. It lives in a small proxy (a Cloudflare Worker on the free plan is the likely host), and the proxy is locked down on both sides.
+A key placed in browser code is public, so the project key never goes to the browser. It lives in a small proxy (a Cloudflare Worker on the free plan), and the proxy is locked down on both sides.
 
 At OpenRouter:
 - **The key has a $0 credit limit.** Even if it leaked, it couldn't spend money.
@@ -347,7 +347,18 @@ Loaded and empty look different where it's visible from the side (coal or scrap 
 
 ### 7.1 Files the import accepts
 
-All reading happens in the browser. One or several files can be dropped at once, for example a slide plus a spreadsheet of car counts. What gets sent to the model (page images and extracted text) goes to OpenRouter and the model's provider, and the app says so on the import button before anything is sent. The libraries for reading Word and Excel files must have open licences (to check at build time).
+All reading happens in the browser. One or several files can be dropped at once, for example a slide plus a spreadsheet of car counts. The libraries for reading Word and Excel files must have open licences (to check at build time).
+
+### 7.2 Privacy: strip private data, send only the drawing
+
+Anything sent to a model goes to OpenRouter and the model's provider, and free models in particular may log or train on what they receive. So the import is built to send as little as possible:
+
+1. **A clear warning before every free import:** "This uses a free AI model. What you send may be shared with the model's provider. Only the drawing is sent, and you can check it first."
+2. **Only the drawing is sent.** The pages the person ticked go as images. Document details are stripped before anything leaves the browser: file names, author and company metadata, speaker notes, comments, hidden slides, and email addresses and phone numbers in the text.
+3. **The person sees exactly what will be sent** on a preview screen, and can cover up anything else with a black box (a customer name, a logo, an address) before pressing Send.
+4. **Nothing is sent without that Send press.** The person can always skip the import and build the plan by hand.
+
+The same stripping and preview apply when the person uses their own OpenRouter account; only the warning's wording changes.
 
 | File | How it's read |
 |---|---|
@@ -508,7 +519,7 @@ Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT,
 | Shared free quota used up by a few heavy users or bots | Turnstile verified server side, per-visitor daily limit, payload cap, images downscaled; the app falls back to the other modes |
 | Project key abused | Key never reaches the browser; $0 credit limit and a guardrail model allowlist at OpenRouter |
 | A user's own OpenRouter key sits in the browser | Strict Content Security Policy, no third-party scripts, key kept in memory or session storage, clear sign-out |
-| Free endpoints may log or train on prompts | Say so in the app before a free run; fixtures are synthetic, so the benchmark exposes nothing |
+| Free endpoints may log or train on prompts | Warning before every free import; only the drawing is sent, with private details stripped and a preview with cover-up boxes (section 7.2); fixtures are synthetic, so the benchmark exposes nothing |
 | Licences change (Gemma, Qwen, tldraw) | Record the licence per model in results; re-check before going public |
 
 ## 15. Decisions and open questions
@@ -517,6 +528,8 @@ Decided (2026-10-20):
 - Accuracy ceiling: Claude Opus 5.5, called through OpenRouter, as a reference point only.
 - No local models and no Ollama.
 - The project key lives on the owner's existing OpenRouter account, which already qualifies for the 1,000 requests a day free cap. No credit purchase needed.
+- Privacy: a clear warning before every free import; only the drawing is sent, with private details stripped and a preview where the person can cover anything up (section 7.2).
+- Proxy host: Cloudflare Workers on the free plan. Supabase stays an option for storage later.
 - Real op plans found online form a private test set only: never committed or published, aggregate scores only. The public benchmark is synthetic.
 - The import does not accept CAD files (DWG, DXF) or hand-drawn sketches. Scans of printed plans are supported; there's no separate OCR cost.
 - Default mode uses a project OpenRouter key behind a proxy, limited to free models, with the best free model picked from benchmark results.
@@ -541,8 +554,6 @@ Decided (2026-10-20):
 
 Open:
 1. Licence when the repo goes public: MIT or Apache 2.0 (recommended).
-2. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
-3. Proxy host: Cloudflare Workers (recommended, free plan) or a Supabase Edge Function, if we end up using Supabase for anything else.
 
 ## 16. Related docs
 
