@@ -278,7 +278,7 @@ The `layout` module draws a clean schematic in the demo's style. It never tries 
 
 First release covers tier 1 and tier 2 layouts: the main, spurs, one siding that rejoins, one runaround. Yards with ladders (tier 3) come later.
 
-### 6.4 Validation and feasibility
+### 6.4 Validation and notes
 
 Two kinds of checks. Neither one stops the person; the first only tidies files on the way in.
 
