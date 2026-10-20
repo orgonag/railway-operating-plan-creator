@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/orgonag/railway-operating-plan-creator/docs/schema/opplan.schema.json",
+  "title": "OpPlan",
+  "description": "A schematic rail operating plan: track layout, customer facilities, train consist and ordered service steps. Version 0.1.",
+  "type": "object",
+  "required": ["schemaVersion", "meta", "canvas", "nodes", "tracks", "switches", "facilities", "consist", "initial", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "meta": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "enum": ["pdf", "pptx", "image", "manual"] },
+            "filename": { "type": "string" },
+            "pages": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+          }
+        },
+        "extractedBy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pipeline": { "enum": ["A", "B", "C", "manual"] },
+            "model": { "type": "string" }
+          }
+        }
+      }
+    },
+    "canvas": {
+      "type": "object",
+      "required": ["width", "height"],
+      "additionalProperties": false,
+      "properties": {
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "x", "y"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "kind": {
+            "description": "edge: track continues off the drawing. end: buffer stop or end of track. switch: a turnout. junction: a plain joint between two tracks.",
+            "enum": ["edge", "end", "switch", "junction"]
+          },
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "tracks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "from", "to", "role"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "from": { "$ref": "#/$defs/id" },
+          "to": { "$ref": "#/$defs/id" },
+          "points": {
+            "description": "Optional bend points between from and to, in drawing order.",
+            "type": "array",
+            "items": { "$ref": "#/$defs/point" }
+          },
+          "role": {
+            "description": "Follows OSM railway service values where they fit. spur is a customer or industry track.",
+            "enum": ["main", "siding", "spur", "yard", "lead"]
+          },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "switches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "node", "toe", "normal", "reverse"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "node": { "$ref": "#/$defs/id" },
+          "toe": { "description": "Track on the points end of the turnout.", "$ref": "#/$defs/id" },
+          "normal": { "description": "Track reached with the switch lined normal (straight through).", "$ref": "#/$defs/id" },
+          "reverse": { "description": "Track reached with the switch lined reverse (diverging).", "$ref": "#/$defs/id" },
+          "turnoutSide": { "enum": ["left", "right"] },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "facilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "kind", "track", "spots"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "name": { "type": "string" },
+          "kind": { "enum": ["unloading_racks", "loading_racks", "transload", "warehouse", "other"] },
+          "track": { "$ref": "#/$defs/id" },
+          "box": {
+            "type": "object",
+            "required": ["x", "y", "w", "h"],
+            "additionalProperties": false,
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "w": { "type": "number", "exclusiveMinimum": 0 },
+              "h": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          },
+          "spots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "offset"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "$ref": "#/$defs/id" },
+                "offset": { "type": "number" },
+                "label": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "consist": {
+      "type": "object",
+      "required": ["units"],
+      "additionalProperties": false,
+      "properties": {
+        "units": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "length"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "kind": { "enum": ["loco", "car"] },
+              "carType": { "type": "string" },
+              "state": { "enum": ["loaded", "empty"] },
+              "length": { "description": "Schematic units, used for spacing.", "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "initial": {
+      "description": "Where units are before step 1. Each group is listed leading end first, facing the direction it will next move.",
+      "type": "object",
+      "required": ["groups"],
+      "additionalProperties": false,
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["units", "at", "facing"],
+            "additionalProperties": false,
+            "properties": {
+              "units": { "$ref": "#/$defs/unitList" },
+              "at": { "$ref": "#/$defs/position" },
+              "facing": { "description": "Node the leading unit points toward.", "$ref": "#/$defs/id" },
+              "offstage": { "description": "True if the group starts off the drawing.", "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "text", "actions"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "title": { "type": "string" },
+          "text": { "type": "string" },
+          "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
+    "point": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+    },
+    "position": {
+      "type": "object",
+      "required": ["track", "offset"],
+      "additionalProperties": false,
+      "properties": {
+        "track": { "$ref": "#/$defs/id" },
+        "offset": { "description": "Distance from the track's from node. Negative only past an edge node.", "type": "number" }
+      }
+    },
+    "unitList": {
+      "description": "Coupled units, leading end first in the direction of travel.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/id" }
+    },
+    "route": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } },
+    "action": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["op", "units", "enter", "route", "stop"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "arrive" },
+            "units": { "$ref": "#/$defs/unitList" },
+            "enter": { "$ref": "#/$defs/id" },
+            "route": { "$ref": "#/$defs/route" },
+            "stop": { "$ref": "#/$defs/position" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "units", "route", "stop"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "move" },
+            "units": { "$ref": "#/$defs/unitList" },
+            "route": { "$ref": "#/$defs/route" },
+            "stop": { "$ref": "#/$defs/position" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "between"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "enum": ["couple", "uncouple"] },
+            "between": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/id" } }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "units", "state"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "set_state" },
+            "units": { "$ref": "#/$defs/unitList" },
+            "state": { "enum": ["loaded", "empty"] }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "dwell" },
+            "minutes": { "type": "number", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "units", "route", "exit"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "depart" },
+            "units": { "$ref": "#/$defs/unitList" },
+            "route": { "$ref": "#/$defs/route" },
+            "exit": { "$ref": "#/$defs/id" }
+          }
+        }
+      ]
+    }
+  }
+}

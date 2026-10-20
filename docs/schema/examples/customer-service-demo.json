@@ -1,0 +1,353 @@
+{
+  "schemaVersion": "0.1",
+  "meta": {
+    "title": "How a Train Services a Customer",
+    "description": "A local train spots loaded cars at a customer's unloading racks, leaves, then returns to pull the empties. Rebuilds the hand-made portfolio demo as data.",
+    "source": {
+      "kind": "manual",
+      "filename": "operating-plan.html"
+    },
+    "extractedBy": {
+      "pipeline": "manual"
+    }
+  },
+  "canvas": {
+    "width": 1000,
+    "height": 320
+  },
+  "nodes": [
+    {
+      "id": "N_W",
+      "kind": "edge",
+      "x": 20,
+      "y": 248,
+      "label": "West"
+    },
+    {
+      "id": "SW1",
+      "kind": "switch",
+      "x": 380,
+      "y": 248
+    },
+    {
+      "id": "N_E",
+      "kind": "edge",
+      "x": 985,
+      "y": 248,
+      "label": "East"
+    },
+    {
+      "id": "N_STOP",
+      "kind": "end",
+      "x": 945,
+      "y": 128
+    }
+  ],
+  "tracks": [
+    {
+      "id": "T_MAIN_W",
+      "from": "N_W",
+      "to": "SW1",
+      "role": "main",
+      "label": "Main line"
+    },
+    {
+      "id": "T_MAIN_E",
+      "from": "SW1",
+      "to": "N_E",
+      "role": "main"
+    },
+    {
+      "id": "T_SPUR",
+      "from": "SW1",
+      "to": "N_STOP",
+      "points": [
+        {
+          "x": 430,
+          "y": 128
+        }
+      ],
+      "role": "spur",
+      "label": "Customer siding"
+    }
+  ],
+  "switches": [
+    {
+      "id": "S1",
+      "node": "SW1",
+      "toe": "T_MAIN_W",
+      "normal": "T_MAIN_E",
+      "reverse": "T_SPUR",
+      "turnoutSide": "left"
+    }
+  ],
+  "facilities": [
+    {
+      "id": "F1",
+      "name": "Unloading racks",
+      "kind": "unloading_racks",
+      "track": "T_SPUR",
+      "box": {
+        "x": 640,
+        "y": 20,
+        "w": 300,
+        "h": 44
+      },
+      "spots": [
+        {
+          "id": "SP1",
+          "offset": 350
+        },
+        {
+          "id": "SP2",
+          "offset": 400
+        },
+        {
+          "id": "SP3",
+          "offset": 450
+        },
+        {
+          "id": "SP4",
+          "offset": 500
+        },
+        {
+          "id": "SP5",
+          "offset": 550
+        }
+      ]
+    }
+  ],
+  "consist": {
+    "units": [
+      {
+        "id": "L1",
+        "kind": "loco",
+        "length": 60
+      },
+      {
+        "id": "C1",
+        "kind": "car",
+        "state": "loaded",
+        "length": 50
+      },
+      {
+        "id": "C2",
+        "kind": "car",
+        "state": "loaded",
+        "length": 50
+      },
+      {
+        "id": "C3",
+        "kind": "car",
+        "state": "loaded",
+        "length": 50
+      },
+      {
+        "id": "C4",
+        "kind": "car",
+        "state": "loaded",
+        "length": 50
+      },
+      {
+        "id": "C5",
+        "kind": "car",
+        "state": "loaded",
+        "length": 50
+      }
+    ]
+  },
+  "initial": {
+    "groups": [
+      {
+        "units": [
+          "C5",
+          "C4",
+          "C3",
+          "C2",
+          "C1",
+          "L1"
+        ],
+        "at": {
+          "track": "T_MAIN_W",
+          "offset": -300
+        },
+        "facing": "SW1",
+        "offstage": true
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "step1",
+      "title": "Arrive",
+      "text": "A local train arrives on the main line with the customer's loaded cars.",
+      "actions": [
+        {
+          "op": "arrive",
+          "units": [
+            "C5",
+            "C4",
+            "C3",
+            "C2",
+            "C1",
+            "L1"
+          ],
+          "enter": "N_W",
+          "route": [
+            "T_MAIN_W"
+          ],
+          "stop": {
+            "track": "T_MAIN_W",
+            "offset": 340
+          }
+        }
+      ]
+    },
+    {
+      "id": "step2",
+      "title": "Spot the loads",
+      "text": "The locomotive shoves the loaded cars through the turnout and spots them at the unloading racks.",
+      "actions": [
+        {
+          "op": "move",
+          "units": [
+            "C5",
+            "C4",
+            "C3",
+            "C2",
+            "C1",
+            "L1"
+          ],
+          "route": [
+            "T_MAIN_W",
+            "T_SPUR"
+          ],
+          "stop": {
+            "track": "T_SPUR",
+            "offset": 550
+          }
+        }
+      ]
+    },
+    {
+      "id": "step3",
+      "title": "Locomotive departs",
+      "text": "Its work done for now, the locomotive pulls back out through the turnout and departs. The loaded cars stay at the facility.",
+      "actions": [
+        {
+          "op": "uncouple",
+          "between": [
+            "C1",
+            "L1"
+          ]
+        },
+        {
+          "op": "depart",
+          "units": [
+            "L1"
+          ],
+          "route": [
+            "T_SPUR",
+            "T_MAIN_W"
+          ],
+          "exit": "N_W"
+        }
+      ]
+    },
+    {
+      "id": "step4",
+      "title": "Customer unloads",
+      "text": "While the locomotive is away, the customer unloads the cars.",
+      "actions": [
+        {
+          "op": "set_state",
+          "units": [
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5"
+          ],
+          "state": "empty"
+        }
+      ]
+    },
+    {
+      "id": "step5",
+      "title": "Locomotive returns",
+      "text": "Later, the locomotive returns, running back in through the turnout to the empty cars.",
+      "actions": [
+        {
+          "op": "arrive",
+          "units": [
+            "L1"
+          ],
+          "enter": "N_W",
+          "route": [
+            "T_MAIN_W",
+            "T_SPUR"
+          ],
+          "stop": {
+            "track": "T_SPUR",
+            "offset": 295
+          }
+        }
+      ]
+    },
+    {
+      "id": "step6",
+      "title": "Pull the empties",
+      "text": "It couples the empties and pulls them back out onto the main line.",
+      "actions": [
+        {
+          "op": "couple",
+          "between": [
+            "L1",
+            "C1"
+          ]
+        },
+        {
+          "op": "move",
+          "units": [
+            "L1",
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5"
+          ],
+          "route": [
+            "T_SPUR",
+            "T_MAIN_W"
+          ],
+          "stop": {
+            "track": "T_MAIN_W",
+            "offset": 85
+          }
+        }
+      ]
+    },
+    {
+      "id": "step7",
+      "title": "Depart",
+      "text": "The train departs with the empties. The customer is served, ready for the next cycle.",
+      "actions": [
+        {
+          "op": "depart",
+          "units": [
+            "L1",
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5"
+          ],
+          "route": [
+            "T_MAIN_W"
+          ],
+          "exit": "N_W"
+        }
+      ]
+    }
+  ]
+}
