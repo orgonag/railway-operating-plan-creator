@@ -13,6 +13,9 @@
     "ft": 60,
     "allowancePct": 10
   },
+  "locoLength": {
+    "ft": 80
+  },
   "tracks": [
     {
       "id": "MAIN",
@@ -65,13 +68,13 @@
             "id": "C1",
             "mark": "ABCX",
             "number": "1001",
-            "spot": 1
+            "spot": 5
           },
           {
             "id": "C2",
             "mark": "ABCX",
             "number": "1002",
-            "spot": 2
+            "spot": 4
           },
           {
             "id": "C3",
@@ -83,13 +86,13 @@
             "id": "C4",
             "mark": "ABCX",
             "number": "1004",
-            "spot": 4
+            "spot": 2
           },
           {
             "id": "C5",
             "mark": "ABCX",
             "number": "1005",
-            "spot": 5
+            "spot": 1
           }
         ]
       }
@@ -107,7 +110,7 @@
         "S1"
       ],
       "text": "The locomotive shoves the loaded cars through the turnout and spots them at the unloading racks.",
-      "spot": 1
+      "spot": 5
     },
     {
       "actor": "railroad",
@@ -126,7 +129,7 @@
       ],
       "text": "It pulls back out through the turnout and leaves for other work.",
       "stop": {
-        "offstage": "left"
+        "offstage": "arrival_end"
       }
     },
     {
@@ -147,7 +150,7 @@
       "text": "Later, the locomotive returns, running back in through the turnout to the empty cars.",
       "stop": {
         "track": "SPUR1",
-        "ft": 435,
+        "ft": 730,
         "end": "lead"
       }
     },
@@ -172,7 +175,7 @@
       "text": "It pulls them back out onto the main line.",
       "stop": {
         "beyond": "S1",
-        "ft": 300,
+        "ft": 50,
         "end": "rear"
       }
     }
@@ -197,7 +200,7 @@
       "about": "facilities.RACKS.lengthFt",
       "ask": "How much track do the unloading racks cover?",
       "guess": 360,
-      "basis": "The racks box covers about half the siding; 5 cars at 66 ft is 330 ft."
+      "basis": "The racks box covers about half the siding; 5 cars at 60 ft is 300 ft, 330 ft with 10% slack."
     },
     {
       "id": "Q3",
