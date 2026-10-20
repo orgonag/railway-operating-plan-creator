@@ -302,7 +302,31 @@ Notes show on their steps and in one list the person can open or ignore. Exports
 
 ### 6.5 Car and locomotive types
 
-Each type has a default length and a side-view silhouette drawn to that length. Default lengths are being researched against car builder and railway equipment sources (`docs/research/car-lengths.md`); until then a generic car is 60 ft, as decided. Every length can be overridden for one car, for all cars of a type in the plan, or for the plan's generic car.
+Each type has a default length and a side-view silhouette drawn to that length. Defaults are length over couplers, rounded to the foot, from car builder, lessor and reference sources (`docs/research/car-lengths.md`). The 10% allowance goes on top, as for every car. Every length can be overridden for one car, for all cars of a type in the plan, or for the plan's generic car.
+
+| Type | Default | Source quality |
+|---|---|---|
+| Generic car | 60 ft | Project default |
+| Boxcar, 50 ft | 58 ft | Builder sheet |
+| Boxcar, 60 ft high cube | 68 ft | Builder sheet |
+| Covered hopper, small (cement, sand) | 42 ft | Builder sheet |
+| Covered hopper, large (grain) | 55 ft | Estimate from similar cars |
+| Covered hopper, plastics | 60 ft | Builder sheet |
+| Open-top hopper (coal) | 57 ft | Estimate |
+| Gondola (52 ft mill) | 58 ft | Builder sheet |
+| Tank car, general service | 60 ft | Builder sheets for similar cars |
+| Tank car, pressure (LPG) | 67 ft | Builder sheets differ by 3 ft |
+| Flatcar, bulkhead | 65 ft | Estimate from length over strikers |
+| Flatcar, centerbeam | 80 ft | Sources conflict; to confirm |
+| Flatcar, 89 ft | 95 ft | Builder and railway sheets |
+| Autorack | 94 ft | Builder sheet |
+| Double-stack well car (single unit) | 77 ft | Builder sheet |
+| Reefer (72 ft) | 82 ft | Builder sheet |
+| Loco, six-axle road unit | 74 ft | Builder and reference figures |
+| Loco, four-axle (GP38-2 class) | 59 ft | Lessor spec sheet |
+| Loco, switcher (SW1500 class) | 45 ft | Reference figure |
+
+Several figures came from search summaries rather than a sheet read in full, and the estimates are marked. These are defaults to make the drawing look right, not engineering values; worth a check by someone with current equipment data before the public release.
 
 First set of types: 50 ft boxcar, 60 ft high-cube boxcar, small covered hopper (cement, sand), large covered hopper (grain), plastics covered hopper, open-top hopper, gondola, general service tank car, pressure tank car, bulkhead flatcar, centerbeam flatcar, 89 ft flatcar, autorack, double-stack well car, reefer, and a generic car. Locos: six-axle road unit (74 ft default), four-axle (GP38-2 class), and switcher.
 
@@ -511,6 +535,7 @@ Open:
 - `docs/research/models.md`: candidate models, licences, prices, structured output
 - `docs/research/prior-art.md`: diagram-to-graph research and rail data formats
 - `docs/research/canvas.md`: canvas, animation and document ingestion libraries
+- `docs/research/car-lengths.md`: default car and loco lengths with sources and silhouette notes
 - `docs/research/architecture-review.md`: the senior architecture review this revision is based on
 - `docs/schema/plan-reading.schema.json` and `docs/schema/examples/`
 - `docs/archive/`: the early CanvasPlan v0.1 draft and its demo example
