@@ -259,7 +259,7 @@ The `layout` module draws a clean schematic in the demo's style. It never tries 
 1. The main line is horizontal on lane 0. The arriving train enters from the **left or the right**, as the plan says (`arrival.enters`), so the drawing can match how people picture the location. The heading is labelled clearly: each end of the main shows its compass point (for an eastbound train entering from the left, "West" on the left end and "East" on the right), with a small arrow and "Eastbound" by the arriving train. Everything else is drawn relative to that.
 2. Lanes: "left" and "right" for switches mean the arriving train's left and right. For a train entering from the left, its left is up the page; for a train entering from the right, its left is down the page. A branch on the train's left goes on a lane on that side, and one on its right on the other side. A branch off a branch takes the next lane out in the same direction. Two branches on the same side get separate lanes so they never overlap.
 3. Switches go on their track in `order`, spaced by `distanceFt` when given, otherwise evenly. The approach before the first switch isn't read from the document: layout makes it long enough for the whole arriving train to stand on the main, to scale, plus a margin.
-4. A branch leaves at a fixed angle, then runs parallel to its parent. Facing switches diverge forward and trailing switches diverge back toward the arrival end. A siding that `rejoins` closes back onto its parent at its second switch.
+4. A turnout is drawn to scale at about 240 ft from the points to where the branch runs parallel. A branch leaves at a fixed angle, then runs parallel to its parent. Facing switches diverge forward and trailing switches diverge back toward the arrival end. A siding that `rejoins` closes back onto its parent at its second switch.
 5. One scale (feet to pixels) fits the longest lane to the canvas width, and every track is drawn to that scale. Tracks with no length get a default and a visible "length needed" marker.
 6. Facilities sit along their track at `startFt`, or at the far end. Spots are laid out at 66 ft per car, or the overrides.
 7. Callouts are drawn as a labelled marker at their `at` feature, kept clear of the track, and shown only during their step.
@@ -279,7 +279,7 @@ Two kinds of checks, and only the first kind ever stops anything.
 
 **Notes from the engine** apply to everything, and never block a step, a Play or an export. The engine can't foresee every situation, so these are things to look at, not rules:
 5. **Fit.** Every cut fits where it's sent. Cars × (car length + allowance) must be no longer than the facility or track, with the numbers shown, e.g. "5 × 66 ft = 330 ft of 360 ft at the racks: fits".
-6. **Clear of switches.** After every move, every group stands clear of every switch it isn't using. Each turnout has a clearance point marker, placed at a default distance from the switch and draggable along the branch, and the note compares cars against that marker. No single published figure fits every turnout (it depends on turnout size and track centres; AREMA and each railway's standard plans govern), so the default is a starting value the person adjusts.
+6. **Clear of switches.** Kept simple on purpose. Turnouts are drawn to scale at about 240 ft, so people can see when cars are sitting in a switch. If cars stop within about 290 ft of a switch they aren't using (the 240 ft switch plus about 50 ft to get clear), a note says it looks like they may be fouling it. It still shows and plays exactly as placed. The exact clear point really depends on the switch type and track spacing, so this is a rule of thumb, not a calculation.
 7. **Buffer stops.** Nothing is shoved past the end of a track.
 8. **Power on the right end.** A `pull` needs the power on the far side of the cut from where it's going; a `shove` needs it behind. A trailing-point spur needs a runaround (or a different plan) to be served as drawn.
 9. **Runaround.** A runaround needs a siding with two switches and room for the power.
@@ -471,6 +471,7 @@ Decided (2026-10-20):
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
 - **Leaving and coming back.** When the loco, alone or with cars, is done for now, the person drags it off the edge of the drawing and it leaves for other work, with a callout if needed. Dragging it back in from the edge brings it back. In the data, a move to the reserved target `offstage` means it leaves the drawing.
+- **Switches are drawn about 240 ft long, to scale.** Cars stopped within about 290 ft of a switch they aren't using (240 ft plus about 50 ft to get clear) get a "may be fouling the switch" note, but are still shown as placed. No per-switch clearance settings.
 - **Loco length default: 74 ft plus the 10% allowance (about 81 ft).** That's typical of modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in). A "Four-axle" preset (GP38-2, 59 ft 2 in) is offered for locals and yard work, and any length can be typed.
 - Each step shows one animation (one move, cut-off, couple, load or unload, or stop). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
 - Nothing is blocked. The engine's findings are notes the person can ignore; unclear moves still play; any number of steps, including static ones, is fine.
@@ -481,9 +482,8 @@ Decided (2026-10-20):
 Open:
 1. Licence when the repo goes public: MIT or Apache 2.0 (recommended).
 2. Buy $10 of OpenRouter credits once, to lift the shared free cap from 50 to 1,000 requests a day? The review recommends it as the cheapest capacity in the project. Your call; it's a spend.
-3. Default clearance point distance for each turnout (see the clearance note in section 6.4).
-4. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
-5. Proxy host: Cloudflare Workers (recommended, free plan) or a Supabase Edge Function, if we end up using Supabase for anything else.
+3. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
+4. Proxy host: Cloudflare Workers (recommended, free plan) or a Supabase Edge Function, if we end up using Supabase for anything else.
 
 ## 16. Related docs
 
