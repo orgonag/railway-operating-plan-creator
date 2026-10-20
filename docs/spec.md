@@ -165,12 +165,18 @@ The people using this are railroaders, customer service and industrial developme
 - **Drag a facility onto a track** to place it, and drag its ends to size it along the track. The number of cars it holds at 66 ft each shows as you drag.
 - **Right-click any track** to rename it, set it as main, siding or spur, set its length, or delete it.
 
+**Placing cars**
+- **Every car is its own car.** Each has a type (boxcar, covered hopper, tank car, gondola and so on, section 6.5), a length that defaults from its type, loaded or empty, and optionally a reporting mark and number ("ABCX 1234").
+- **Add cars in groups, handle them one by one.** "Add 5 covered hoppers, loaded" makes 5 separate cars in a row. Any of them can be changed, renumbered or moved on its own.
+- **Cars already on site.** A "Place cars" button drops cars straight onto any track or facility before Step 1: empties waiting at the customer, cars stored on a siding, a bad-order car on a spur.
+- **Numbered spots.** A facility shows its spots (1, 2, 3...) along the track, sized by the cars' lengths. Cars dropped at a facility snap to spots, so a step can be "ABCX 1234 to spot 3".
+
 **Making the steps (like PowerPoint slides with Morph)**
 1. Set the arrival: which way the train is heading (north, south, east or west) and which side of the drawing it comes in from (left or right).
 2. Add the train: the loco and the cuts of cars, with a count and loaded or empty for each cut.
 3. **Step 1 is the arrival.** The train stands on the main as it arrives.
 4. **"New step" copies the previous step**, the way duplicating a slide does.
-5. **In the new step, drag the train or a cut to where it should end up.** Dragging the loco (alone or with cars) off the edge of the drawing sends it away for other work; dragging it in from the edge brings it back. It slides along the track, so it can't be dropped off it.
+5. **In the new step, pick the cars and drag them to where they should end up.** Click a car, shift-click to add more, or drag a box around several. Picking a car in the middle of a string means the tool cuts the string there. Dragging the loco (alone or with cars) off the edge of the drawing sends it away for other work; dragging it in from the edge brings it back. It slides along the track, so it can't be dropped off it.
 6. **The tool works out the move.** Power behind the cars is a shove, power in front is a pull, a loco on its own is running light. It writes the caption ("Shove 5 loads to the unloading racks"), which you can edit.
 7. **Small buttons on the train** do the rest: scissors between two cars or the loco to cut off, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main").
 8. **The engine looks over each step as you make it.** If something looks off, a small note icon appears on the step with the reason in plain words. The step still works and still plays.
@@ -186,7 +192,7 @@ Under the hood, each step is still saved as the verbs in section 6.2, with the r
 
 ## 6. Data: the PlanReading format
 
-**PlanReading** (v0.2, `docs/schema/plan-reading.schema.json`) is the one public format. The person writes it in the editor, or the import gives them a first draft of it. It holds the plan in railway terms: tracks, lengths, switches, facilities, consist, and the arrival, work and departure. It has no coordinates. It's what gets saved, shared, edited and scored.
+**PlanReading** (v0.3, `docs/schema/plan-reading.schema.json`) is the one public format. The person writes it in the editor, or the import gives them a first draft of it. It holds the plan in railway terms: tracks, lengths, switches, facilities, consist, and the arrival, work and departure. It has no coordinates. It's what gets saved, shared, edited and scored.
 
 The canvas model is internal. The engine and layout rebuild it from the reading on every change, in feet, and `render` applies one feet-to-pixel scale. (An early public draft of it, CanvasPlan v0.1, is kept in `docs/archive/` for reference.)
 
@@ -207,16 +213,18 @@ A plan follows the order a railroader thinks in:
 
 ```
 PlanReading
-  schemaVersion  "0.2"
+  schemaVersion  "0.3"
   title, description?
   arrival        direction (eastbound | westbound | northbound | southbound), enters (left | right), on (main track id), locos (head | rear), text
   carLength      ft (default 60), allowancePct (default 10)
   tracks[]       id, role (main | siding | spur | yard | lead), name?, lengthFt?, end? (buffer_stop | continues | rejoins)
   switches[]     id, on (track), to (diverging track), side (left | right), approach (facing | trailing), order?, distanceFt?
   facilities[]   id, name, kind, track, lengthFt?, startFt?, spots?
-  consist        locos { count, lengthFt? }, cuts[] { id, cars, state, carType?, carLengthFt?, for? },
-                 onSite[] { id, cars, state, at }: cars already on site before the train arrives
-  work[]         actor, do, cars?, to?, via?, text
+  consist        locos { count, type?, lengthFt? },
+                 cuts[] { id, cars (count), carType?, state, carLengthFt?, for?, list[]? }: cars in the arriving train
+                 onSite[] { id, cars, carType?, state, at, spot?, list[]? }: cars already on site before the train arrives
+                 list[] holds individual cars when they matter: { id, type?, lengthFt?, state?, mark?, number?, spot? }
+  work[]         actor, do, cars? (cut or car ids), to?, spot?, via?, text, callout?
   departure      direction, cars?, text
   questions[]    import only: id, about (field path), ask, guess?, options?, basis
   notes[]        anything that didn't fit
@@ -224,7 +232,7 @@ PlanReading
 
 The terms are chosen to match how a railroader would describe the plan:
 - `side` and `approach` are relative to the **arriving** train. "The spur leaves on the left, facing point" is how you'd say it, and it's why a plan is tied to one direction.
-- **Cars come in cuts** ("5 loads for the racks"), not as numbered individual cars. The editor can split a cut.
+- **Cars can be counted or listed.** "5 loads for the racks" is a cut with a count, which is how most plans and most imports describe them. When specific cars matter, the cut's `list` names each one, with type, reporting mark and number, and its spot. A step's `cars` can name whole cuts or single cars, and `spot` says which numbered spot at the facility the first car goes to.
 - **Lengths are in feet and to scale.** Cars default to 60 ft. The **10% allowance is always shown** on top, so each car plans as 66 ft. Users can override the default length and the allowance for the plan, or the length for one cut. Lengths the document doesn't give are left out and the editor asks for them.
 - **`questions`** appear only on an import draft. They make every AI guess visible and put the decision with the person (section 5.5). Once answered, they are removed from the saved plan. A field path is `collection.id.field`, for example `tracks.SPUR1.lengthFt`.
 
@@ -262,9 +270,10 @@ The `layout` module draws a clean schematic in the demo's style. It never tries 
 3. Switches go on their track in `order`, spaced by `distanceFt` when given, otherwise evenly. The approach before the first switch isn't read from the document: layout makes it long enough for the whole arriving train to stand on the main, to scale, plus a margin.
 4. A turnout is drawn to scale at about 240 ft from the points to where the branch runs parallel. A branch leaves at a fixed angle, then runs parallel to its parent. Facing switches diverge forward and trailing switches diverge back toward the arrival end. A siding that `rejoins` closes back onto its parent at its second switch.
 5. One scale (feet to pixels) fits the longest lane to the canvas width, and every track is drawn to that scale. Tracks with no length get a default and a visible "length needed" marker.
-6. Facilities sit along their track at `startFt`, or at the far end. Spots are laid out at 66 ft per car, or the overrides.
-7. Callouts are drawn as a labelled marker at their `at` feature, kept clear of the track, and shown only during their step.
-8. Unit positions for each step come from the engine's world states, not from layout's own reasoning.
+6. Facilities sit along their track at `startFt`, or at the far end. Spots are numbered and laid out by each car's length plus the allowance (66 ft for a default car).
+7. **Cars and locos are drawn in side view**, as realistic silhouettes of their type, to scale along the track (section 6.5). To make room for them, the gap between parallel tracks is stretched beyond scale; lengths along the track stay true. On the angled part of a turnout, cars tilt to follow the track.
+8. Callouts are drawn as a labelled marker at their `at` feature, kept clear of the track, and shown only during their step.
+9. Unit positions for each step come from the engine's world states, not from layout's own reasoning.
 
 First release covers tier 1 and tier 2 layouts: the main, spurs, one siding that rejoins, one runaround. Yards with ladders (tier 3) come later.
 
@@ -290,6 +299,14 @@ Two kinds of checks, and only the first kind ever stops anything.
 Notes show on their steps and in one list the person can open or ignore. Exports and share links leave notes out unless the person chooses to include them.
 
 **Plan metrics** come from the same engine run: number of moves, switch throws, feet travelled, times the main is fouled, couplings. They let two versions of a plan for the same customer be compared side by side (section 12).
+
+### 6.5 Car and locomotive types
+
+Each type has a default length and a side-view silhouette drawn to that length. Default lengths are being researched against car builder and railway equipment sources (`docs/research/car-lengths.md`); until then a generic car is 60 ft, as decided. Every length can be overridden for one car, for all cars of a type in the plan, or for the plan's generic car.
+
+First set of types: 50 ft boxcar, 60 ft high-cube boxcar, small covered hopper (cement, sand), large covered hopper (grain), plastics covered hopper, open-top hopper, gondola, general service tank car, pressure tank car, bulkhead flatcar, centerbeam flatcar, 89 ft flatcar, autorack, double-stack well car, reefer, and a generic car. Locos: six-axle road unit (74 ft default), four-axle (GP38-2 class), and switcher.
+
+Loaded and empty look different where it's visible from the side (coal or scrap showing in a gondola or open hopper, a load on a flatcar), and every car also carries a small loaded or empty marker. Reporting marks show as a label that can be turned on or off.
 
 ## 7. Error handling in the pipeline
 
@@ -385,7 +402,7 @@ Layout (section 6.3) produces the geometry, and the renderer only draws it. The 
 
 Library choice (details in `docs/research/canvas.md`): plain SVG and small geometry helpers, with no framework in `render` or `player`, and React only for the editor panels. tldraw is ruled out by its production licence. Konva and PixiJS are ruled out because SVG export matters.
 
-Visual language matches the portfolio demo: ink background, gold facility boxes and labels, red loco, amber loaded cars, outlined empty cars, JetBrains Mono labels, Archivo headings. The standalone export inlines its fonts or falls back cleanly, so it works offline and in locked-down corporate browsers.
+Visual language follows the portfolio demo (ink background, gold facility boxes and labels, JetBrains Mono labels, Archivo headings), with the plain boxes replaced by side-view silhouettes of each car and loco type (section 6.5). Loco red, and the demo's amber for loaded and outline for empty, carry over as accents. The standalone export inlines its fonts or falls back cleanly, so it works offline and in locked-down corporate browsers.
 
 ## 11. Publish and export
 
@@ -400,7 +417,7 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 ### 12.1 First release
 
 In:
-- PlanReading v1 as the one public format, with migration from v0.2.
+- PlanReading v1 as the one public format, with migration from v0.2 and v0.3.
 - Engine (plan state, primitives, verb expansion, feasibility checks and metrics), validate, and layout for tier 1 and tier 2. Render and player with no framework.
 - The canvas editor in section 5.6 as the main tool: track blocks, drag to stretch track, facilities, the train, steps made like slides by dragging, the engine naming each move and adding notes where something looks off, templates, autosave, undo and redo.
 - Share link, standalone HTML export, SVG per step, PlanReading JSON export and import.
@@ -472,6 +489,8 @@ Decided (2026-10-20):
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
 - **Leaving and coming back.** When the loco, alone or with cars, is done for now, the person drags it off the edge of the drawing and it leaves for other work, with a callout if needed. Dragging it back in from the edge brings it back. In the data, a move to the reserved target `offstage` means it leaves the drawing.
+- **Individual cars:** every car can be placed, numbered, typed and spotted on its own; counts stay as a shortcut. Cars already on site are placed with "Place cars" before Step 1. Facilities have numbered spots.
+- **Cars drawn in side view**, realistic silhouettes per type, to scale along the track, with the gap between tracks stretched beyond scale to fit them.
 - **Turnout direction:** the engine guesses it when a turnout is placed; Flip up/down changes left and right, and Flip left/right changes facing and trailing.
 - **Switches are drawn about 240 ft long, to scale.** Cars stopped within about 290 ft of a switch they aren't using (240 ft plus about 50 ft to get clear) get a "may be fouling the switch" note, but are still shown as placed. No per-switch clearance settings.
 - **Loco length default: 74 ft plus the 10% allowance (about 81 ft).** That's typical of modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in). A "Four-axle" preset (GP38-2, 59 ft 2 in) is offered for locals and yard work, and any length can be typed.

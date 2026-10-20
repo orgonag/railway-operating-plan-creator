@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "0.2",
+  "schemaVersion": "0.3",
   "title": "How a Train Services a Customer",
   "description": "The portfolio demo as the AI would send it. Track and facility lengths are illustrative; the original drawing has none.",
   "arrival": {
@@ -50,14 +50,48 @@
   ],
   "consist": {
     "locos": {
-      "count": 1
+      "count": 1,
+      "type": "six_axle"
     },
     "cuts": [
       {
         "id": "LOADS",
         "cars": 5,
         "state": "loaded",
-        "for": "RACKS"
+        "for": "RACKS",
+        "carType": "covered_hopper_large",
+        "list": [
+          {
+            "id": "C1",
+            "mark": "ABCX",
+            "number": "1001",
+            "spot": 1
+          },
+          {
+            "id": "C2",
+            "mark": "ABCX",
+            "number": "1002",
+            "spot": 2
+          },
+          {
+            "id": "C3",
+            "mark": "ABCX",
+            "number": "1003",
+            "spot": 3
+          },
+          {
+            "id": "C4",
+            "mark": "ABCX",
+            "number": "1004",
+            "spot": 4
+          },
+          {
+            "id": "C5",
+            "mark": "ABCX",
+            "number": "1005",
+            "spot": 5
+          }
+        ]
       }
     ]
   },
@@ -72,7 +106,8 @@
       "via": [
         "S1"
       ],
-      "text": "The locomotive shoves the loaded cars through the turnout and spots them at the unloading racks."
+      "text": "The locomotive shoves the loaded cars through the turnout and spots them at the unloading racks.",
+      "spot": 1
     },
     {
       "actor": "railroad",

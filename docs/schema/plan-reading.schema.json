@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/orgonag/railway-operating-plan-creator/docs/schema/plan-reading.schema.json",
   "title": "PlanReading",
-  "description": "What the AI sends after reading an operating plan document. Railway terms only, no coordinates. Code turns this into the canvas plan. Version 0.2.",
+  "description": "What the AI sends after reading an operating plan document. Railway terms only, no coordinates. Code turns this into the canvas plan. Version 0.3.",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -18,7 +18,7 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
-      "const": "0.2"
+      "const": "0.3"
     },
     "title": {
       "type": "string"
@@ -248,6 +248,13 @@
               "type": "number",
               "exclusiveMinimum": 0,
               "description": "Defaults to 74 ft (typical modern six-axle road unit). The car allowance applies on top, so it plans as about 81 ft."
+            },
+            "type": {
+              "enum": [
+                "six_axle",
+                "four_axle",
+                "switcher"
+              ]
             }
           }
         },
@@ -277,7 +284,7 @@
                 ]
               },
               "carType": {
-                "type": "string"
+                "$ref": "#/$defs/carType"
               },
               "carLengthFt": {
                 "description": "Overrides the default car length for this cut.",
@@ -287,6 +294,13 @@
               "for": {
                 "description": "Facility these cars are going to, if any.",
                 "$ref": "#/$defs/id"
+              },
+              "list": {
+                "description": "Individual cars in this cut, in order from the head end (or from the switch end of the track for cars on site). If present, its length should match cars.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/car"
+                }
               }
             }
           }
@@ -318,7 +332,7 @@
                 ]
               },
               "carType": {
-                "type": "string"
+                "$ref": "#/$defs/carType"
               },
               "carLengthFt": {
                 "type": "number",
@@ -327,6 +341,18 @@
               "at": {
                 "description": "Facility or track id.",
                 "$ref": "#/$defs/id"
+              },
+              "list": {
+                "description": "Individual cars in this cut, in order from the head end (or from the switch end of the track for cars on site). If present, its length should match cars.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/car"
+                }
+              },
+              "spot": {
+                "description": "Spot of the first car, if at a facility.",
+                "type": "integer",
+                "minimum": 1
               }
             }
           }
@@ -467,7 +493,8 @@
           ]
         },
         "cars": {
-          "$ref": "#/$defs/ids"
+          "$ref": "#/$defs/ids",
+          "description": "Cut ids or individual car ids."
         },
         "to": {
           "description": "Facility or track id the move ends at, or the reserved value \"offstage\" when the power (alone or with cars) leaves the drawing for other work.",
@@ -485,6 +512,11 @@
         },
         "callout": {
           "$ref": "#/$defs/callout"
+        },
+        "spot": {
+          "description": "Numbered spot at the facility for the first car moved.",
+          "type": "integer",
+          "minimum": 1
         }
       },
       "allOf": [
@@ -535,6 +567,11 @@
         },
         "callout": {
           "$ref": "#/$defs/callout"
+        },
+        "spot": {
+          "description": "Numbered spot, for move_cars.",
+          "type": "integer",
+          "minimum": 1
         }
       }
     },
@@ -578,6 +615,66 @@
         },
         "callout": {
           "$ref": "#/$defs/callout"
+        }
+      }
+    },
+    "carType": {
+      "description": "Side-view silhouette and default length. generic is a 60 ft car.",
+      "enum": [
+        "generic",
+        "boxcar_50",
+        "boxcar_60",
+        "covered_hopper_small",
+        "covered_hopper_large",
+        "covered_hopper_plastics",
+        "open_hopper",
+        "gondola",
+        "tank_general",
+        "tank_pressure",
+        "flat_bulkhead",
+        "flat_centerbeam",
+        "flat_89",
+        "autorack",
+        "well_car",
+        "reefer"
+      ]
+    },
+    "car": {
+      "description": "One car, when specific cars matter.",
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "$ref": "#/$defs/carType"
+        },
+        "lengthFt": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "state": {
+          "enum": [
+            "loaded",
+            "empty"
+          ]
+        },
+        "mark": {
+          "description": "Reporting mark, e.g. ABCX.",
+          "type": "string"
+        },
+        "number": {
+          "description": "Car number, e.g. 1234.",
+          "type": "string"
+        },
+        "spot": {
+          "description": "Numbered spot at a facility.",
+          "type": "integer",
+          "minimum": 1
         }
       }
     }
