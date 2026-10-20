@@ -159,7 +159,7 @@
             "minimum": 1
           },
           "distanceFt": {
-            "description": "Distance from the previous switch on the same track, or from where the drawing starts for the first one.",
+            "description": "Distance from the previous switch on the same track. Leave out for the first switch: layout makes the approach long enough for the arriving train.",
             "type": "number",
             "minimum": 0
           },
