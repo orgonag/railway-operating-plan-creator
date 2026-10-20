@@ -364,7 +364,8 @@ test("cars whose far end stands inside S1's 290 ft zone get a fouling heads-up",
 test("clamped stop at a buffer stop gives a buffer heads-up", () => {});
 test("route_not_established step gives an unclear_route note", () => {});
 test("no note text contains an em dash or en dash", () => {
-  expect(allNotes.every(x => !/[–—]/.test(x.text))).toBe(true);
+  const dashes = new RegExp("[" + String.fromCharCode(0x2013, 0x2014) + "]");
+  expect(allNotes.every(x => !dashes.test(x.text))).toBe(true);
 });
 test("demo metrics: 6 moves (arrival, shove, two run-light moves, pull, departure), 1 switch throw, 1 coupling, complete", () => {});
 test("a route_not_established step makes metrics incomplete", () => {});
