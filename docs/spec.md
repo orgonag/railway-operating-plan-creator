@@ -334,11 +334,11 @@ First set of types: 50 ft boxcar, 60 ft high-cube boxcar, small covered hopper (
 
 Loaded and empty look different where it's visible from the side (coal or scrap showing in a gondola or open hopper, a load on a flatcar), and every car also carries a small loaded or empty marker. Reporting marks show as a label that can be turned on or off.
 
-## 7. Error handling in the pipeline
+## 7. The import: problems and files
 
-- Model returns invalid JSON: one repair retry with the validator messages fed back. If it still fails, keep every part that parses, mark the rest as warnings, and open the editor.
-- Model times out or the key is rejected: show the message and offer no-model mode.
-- Free model rate limit hit (HTTP 429): say so plainly, show when to retry, and offer a paid model or no-model mode.
+- Model returns invalid JSON: one repair retry with the validator messages fed back. If it still fails, keep every part that parses, turn what's missing into questions for the person, and open the editor.
+- Model times out or the key is rejected: say so plainly and offer to build the plan by hand.
+- Free model rate limit hit (HTTP 429): say so plainly, show when to retry, and offer the person's own OpenRouter account or building by hand.
 - Unsupported or encrypted file: say so, suggest a format that works (section 7.1), and remind the person they can build the plan by hand.
 - The import returns too many questions (more than about 20): show the most important first, grouped by section, and let the person stop and edit on the canvas.
 
@@ -381,7 +381,7 @@ Scoring compares the model's PlanReading with the true one. No coordinates are i
 | `valid` | Passes the schema and validator after at most one repair |
 | `topology` | Tracks matched by role and by how they connect (graph match); switch side and facing/trailing correct; track lengths within 5% when the document states them |
 | `facilities` | Facility on the right track, name match, length and spot count |
-| `consist` | Loco count; cuts with the right car counts, states and destinations; cars already on site |
+| `consist` | Loco count; cars with the right counts, types, states and destinations; reporting marks and spots where the document shows them; cars already on site |
 | `sequence` | Arrival direction and power position, then **outcome based**: run both readings through the engine and compare the world state after each step (which cuts are where, coupled to what, loaded or empty), plus departure direction and cars. A reading that says `set_out` where the truth says `shove` then `cut_off` scores the same, because it does the same thing |
 | `overall` | 0.35 topology + 0.15 facilities + 0.15 consist + 0.35 sequence, and 0 if not valid |
 
@@ -414,13 +414,13 @@ Two more pipelines stay in the research plan as a second study, done only if the
 - **A. Vector first.** Read lines, shapes and text from the PPTX or PDF directly, build the track graph with geometry code, and use a model only to interpret labels and steps.
 - **C. Hybrid.** Build the track graph with geometry code first, then give the model the page image plus that graph, and have it answer by element id.
 
-Both need the hardest code in the project (PPTX shape geometry, pdf.js vector paths), and on our own synthetic fixtures they would mostly be parsing our own output, which proves little. So this study only runs on the hand-drawn fixtures, and only if B needs the help. Prior work on P&ID and circuit diagrams suggests hybrids help (see `docs/research/prior-art.md`); the study would test whether that holds here.
+Both need the hardest code in the project (PPTX shape geometry, pdf.js vector paths), and on our own synthetic fixtures they would mostly be parsing our own output, which proves little. So this study only runs on the hand-drawn fixtures, and only if the import needs the help. Prior work on P&ID and circuit diagrams suggests hybrids help (see `docs/research/prior-art.md`); the study would test whether that holds here.
 
 ## 9. Cost estimate and budget
 
 Rough sizes per document: page image about 1,500 to 3,000 tokens, instructions and schema about 2,000, output about 2,000. At hosted open-model prices seen in Aug to Sep 2026 (about $0.10 to $0.26 per million input tokens and $0.34 to $1.04 per million output; secondary trackers), that is roughly $0.001 to $0.003 per document.
 
-Full first run: about 20 plans (15 synthetic, 4 or 5 hand-drawn) x 4 renders x 3 hosted open models is a few hundred calls, well under $3. The Opus 5.5 ceiling costs more per call; its estimate gets worked out from current OpenRouter pricing before that run. **Proposed cap: $15 for the first benchmark, and nothing is spent without a go-ahead and a per-run estimate.** Free-tier runs cost nothing but are rate limited, so the free group runs slowly over a day or two.
+Full first run: about 15 plans (10 synthetic in tiers 1 and 2, plus 4 or 5 hand-drawn) x 5 renders x 3 hosted open models is a couple of hundred calls, well under $3. The Opus 5.5 ceiling costs more per call; its estimate gets worked out from current OpenRouter pricing before that run. **Proposed cap: $15 for the first benchmark, and nothing is spent without a go-ahead and a per-run estimate.** Free-tier runs cost nothing but share the daily cap in section 4.1: a free group of about 4 models over 75 documents is about 300 requests, more than the 50 a day an account gets without credits. So the free group either runs over several days or, if the $10 credit is bought, in a day. Either way it runs at quiet times so it doesn't use up the public import's quota.
 
 ## 10. Canvas and animation
 
