@@ -94,12 +94,12 @@ bench CLI scores the import draft, and how well its questions covered its mistak
 | Module | Job | Depends on |
 |---|---|---|
 | `schema` | PlanReading types, JSON Schema, version tag, and migrations between versions | nothing |
-| `engine` | The plan as a state machine. Holds units, groups, coupling, power position and track offsets in feet. Expands each railroader verb into primitives (move, couple, uncouple, set state, arrive, depart) with stated defaults, and produces one world state per step. Reports feasibility problems as structured findings | `schema` |
+| `engine` | The plan as a state machine. Holds units, groups, coupling, power position and track offsets in feet. Expands each railroader verb into primitives (move, couple, uncouple, set state, arrive, depart) with stated defaults, and produces one world state per step. Works the other way too: given where things were before and after a drag in the editor, it finds the route and names the move (shove, pull, run light). Reports feasibility problems as structured findings | `schema` |
 | `validate` | Schema check, reference check, topology rules, then the engine run with its findings. Errors and warnings in one list | `schema`, `engine` |
 | `layout` | Lane assignment and geometry in feet: the main on lane 0, branches on lanes above or below by side, switches in order, approach length from the arriving train. Converts engine world states into positions on track paths | `schema`, `engine` |
 | `render` | Draws tracks, facilities, callouts and units as SVG in the demo's visual language. Applies one feet-to-pixel scale. No framework | `layout` output |
 | `player` | Moves groups along track paths between step states, with play, pause, step and seek. No framework | `render` |
-| `editor` | The main way to make a plan. Direct canvas editing: click a track to add a switch and pick its side, drag a branch's end to set its length (snaps to feet), click a track to place a facility, drop a cut of cars, and build steps by picking a cut and a destination, with the engine checking each step as it's added. Side panels for exact values. A command set over an immutable PlanReading with undo and redo. Layout stays automatic: the person edits what connects to what and how long it is, never pixel positions | core, `render` |
+| `editor` | The main way to make a plan, designed to feel like PowerPoint (section 5.6): track blocks, a step strip, drag to make moves, a properties panel. A command set over an immutable PlanReading with undo and redo, and autosave in the browser. Layout stays automatic | core, `render` |
 | `ingest` | Turns most common files into what a model can read: page images plus text (section 7.1). One or several files at once, all in the browser | pdf.js, a zip reader |
 | `adapters` | One interface, `read(doc, options) -> { reading, usage, warnings }`. Implementations: `none`, `proxy` (shared free key), `openrouter` (user signs in), later `chatgpt`. The reading comes back with its clarifying questions | `schema` |
 | `questions` | Shows the import's clarifying questions as a short checklist, each with the AI's guess pre-filled. The person answers, accepts the guess or skips; answers are applied as editor commands, so they can be undone | `editor` |
@@ -127,6 +127,42 @@ The AI has one job: the optional **import** button. It reads the files the perso
 The person works through the questions as a short checklist: answer, accept the guess, or skip and fix it later on the canvas. There's an "accept all guesses" button for people in a hurry. Answers become editor commands, so everything is undoable, and nothing reaches the plan without the person seeing it. If an answer changes the picture (for example "there are two spurs, not one"), the person can send the answers back for one more pass.
 
 The AI doesn't build the plan, edit it, run it, or judge whether it works. The person builds and edits; the engine checks.
+
+### 5.6 The canvas editor
+
+The people using this are railroaders, customer service and industrial development staff, not software people. Many are not confident with computers. The editor should feel like PowerPoint, which they already use, and should make it hard to get wrong.
+
+**Principles**
+- **Looks and behaves like PowerPoint.** A toolbar of large buttons with an icon and a word, a step strip down the left like slide thumbnails, a properties panel on the right like the Format pane, right-click menus, and the usual keys (Ctrl+Z, Ctrl+Y, Delete, Ctrl+C and Ctrl+V for steps).
+- **The drawing is automatic and to scale.** People never place or nudge track by hand, so they can't make a messy or impossible drawing. They decide what connects to what and how long it is, and the layout does the rest.
+- **One obvious way to do each thing.** No modes to get stuck in; Esc always cancels.
+- **Plain words.** Railway terms only where railroaders use them. A short tooltip on every button.
+- **Undo is always visible** in the toolbar, not only on a key.
+- **Work is never lost.** The plan saves itself in the browser as you go, and the app reminds you to export or share.
+- **Problems are explained where they happen**, in a sentence, next to the thing that's wrong: "The racks hold 5 cars; you've moved 6."
+- **Start from a template**: "Single spur", "Spur with runaround", or the demo plan, instead of a blank page.
+- **Mouse first.** Big targets, readable at normal zoom. Touch is a nice extra, not a requirement.
+
+**Building track with blocks**
+- A new plan starts with a main line.
+- Track blocks in the toolbar: **Turnout (left)**, **Turnout (right)**, **Track end (buffer stop)** and **Facility**.
+- **Drag a turnout onto a track** to place it. A new branch grows out of it with a default length, and the distance from the previous switch shows and can be edited.
+- **Drag the end of the branch** to stretch it. It snaps in 10 ft steps and shows its length in feet as you drag, or you can type the length in the properties panel. Dropping a turnout on the new branch builds the next track off it, and so on.
+- **Drag a branch's end onto another track** to join it back (a siding).
+- **Drag a facility onto a track** to place it, and drag its ends to size it along the track. The number of cars it holds at 66 ft each shows as you drag.
+- **Right-click any track** to rename it, set it as main, siding or spur, set its length, or delete it.
+
+**Making the steps (like PowerPoint slides with Morph)**
+1. Add the train: the loco and the cuts of cars, with a count and loaded or empty for each cut.
+2. **Step 1 is the arrival.** The train stands on the main as it arrives.
+3. **"New step" copies the previous step**, the way duplicating a slide does.
+4. **In the new step, drag the train or a cut to where it should end up.** It slides along the track, so it can't be dropped off it.
+5. **The tool works out the move.** Power behind the cars is a shove, power in front is a pull, a loco on its own is running light. It writes the caption ("Shove 5 loads to the unloading racks"), which you can edit.
+6. **Small buttons on the train** do the rest: scissors between two cars or the loco to cut off, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main").
+7. **The engine checks each step as you make it.** A step that can't work turns red in the strip, with the reason in plain words.
+8. **Play** animates from step to step, like Morph. Steps can be reordered by dragging them in the strip, and the engine re-checks the whole plan.
+
+Under the hood, each step is still saved as the verbs in section 6.2, so a step made by dragging and a step from the import are the same thing.
 
 ## 6. Data: the PlanReading format
 
@@ -344,7 +380,7 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 In:
 - PlanReading v1 as the one public format, with migration from v0.2.
 - Engine (plan state, primitives, verb expansion, feasibility checks and metrics), validate, and layout for tier 1 and tier 2. Render and player with no framework.
-- Canvas editor as the main tool: add switches and branches, drag to set lengths, place facilities and cuts, build steps by picking a cut and a destination, reorder steps, side panels for exact values, undo and redo. The engine checks each change as it's made.
+- The canvas editor in section 5.6 as the main tool: track blocks, drag to stretch track, facilities, the train, steps made like slides by dragging, the engine naming and checking each move, templates, autosave, undo and redo.
 - Share link, standalone HTML export, SVG per step, PlanReading JSON export and import.
 - One optional import button accepting the files in section 7.1, with clarifying questions shown as a checklist.
 - The import behind the adapter interface, with the `none`, `proxy` and `openrouter` adapters, and the proxy on a Cloudflare Worker.
@@ -360,7 +396,7 @@ Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT,
 |---|---|---|
 | P0 Spec | This doc, research notes, PlanReading schema, demo example | Reviewed and approved |
 | P1 Engine and player | Schema v1 and migration, engine, validate, layout (tier 1), render, player; deployed | The demo reading plays the 7 steps on the live site and the engine reports its fit check |
-| P2 Editor and sharing | Canvas editor with undo, share link, standalone HTML, SVG, JSON import and export; tier 2 layout | A tier 2 plan can be built from scratch on the canvas in a few minutes, checked, and shared by link, with no AI |
+| P2 Editor and sharing | Canvas editor with undo, share link, standalone HTML, SVG, JSON import and export; tier 2 layout | Someone who uses PowerPoint but not CAD can build the demo plan from the "Single spur" template in under 10 minutes without help, and share it by link, with no AI |
 | P3 Import | Ingest for the section 7.1 files, adapter, clarifying questions checklist, proxy with Turnstile and limits, Sign in with OpenRouter | A PowerPoint slide of a tier 1 plan becomes a draft plus questions; after answering them it plays on the live site, on the free mode |
 | P4 Benchmark | Fixtures (synthetic and hand-drawn), bench CLI, outcome-based scoring, results page; proxy model list set from results | Results table published in `docs/results/` |
 | P5 Portfolio | Three pre-run examples, plan metrics, portfolio branch line | Portfolio links to a live plan under Industrial Development (2020 to 2023) |
@@ -381,7 +417,8 @@ Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT,
 - Property tests: random valid plans, checking that every car that arrived is somewhere at the end, no two groups overlap on a track, and nothing passes a buffer stop.
 - Snapshot tests for layout, one per tier.
 - Golden test for the demo, on what it means rather than its coordinates (the hand-built demo isn't to scale): same tracks and switch, 7 steps, cars at the racks after the shove, the empties on the train at departure.
-- One browser smoke test for the player.
+- One browser smoke test for the player, and browser tests for the main editor actions (place a turnout, stretch a track, make a step by dragging, undo).
+- Hallway test before the first release: two or three people who use PowerPoint but not CAD build the demo plan while we watch, without help. Anything they get stuck on gets fixed or simplified.
 - The benchmark runs on demand, never in CI (it can cost money).
 
 ## 14. Risks
@@ -412,6 +449,7 @@ Decided (2026-10-20):
 - Track lengths to scale in feet. Cars default to 60 ft plus an always-shown 10% allowance (66 ft), overridable.
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
+- The editor feels like PowerPoint: automatic, to-scale drawing, track built by dragging turnout blocks and stretching track ends, steps made like slides by dragging the train to where it ends up (section 5.6).
 - The person does most of the work. Canvas editing is the main tool and is in the first release. AI is one optional import button that accepts most common files and asks a clarifying question for every assumption. No chat editing or AI explanations.
 
 Open:
