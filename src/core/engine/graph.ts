@@ -26,7 +26,7 @@
  */
 
 import type { Id, PlanReading, Switch, Track } from "../schema/types";
-import { DEFAULT_CAR_LENGTH_FT, initialOrder, unitsOf } from "./materialize";
+import { initialOrder, unitsOf } from "./materialize";
 
 export const TURNOUT_FT = 240;
 export const CLEAR_FT = 290;
@@ -36,7 +36,8 @@ export const ARRIVAL_SHORT_FT = 100;
 export const DEFAULT_BRANCH_USABLE_FT = 400;
 /** Gap between switches on the same track when no distanceFt is given. */
 export const DEFAULT_SWITCH_GAP_FT = 400;
-export const SPOT_LENGTH_FT = DEFAULT_CAR_LENGTH_FT;
+/** Spot pitch (convention 6). Fixed at 60 ft; it does not follow the plan's car length. */
+export const SPOT_LENGTH_FT = 60;
 
 export type Heading = "up" | "down";
 
@@ -190,6 +191,9 @@ function measureTracks(plan: PlanReading, switches: Map<Id, SwitchInfo>, mainId:
       });
       continue;
     }
+    // TODO (tier 2): a branch that rejoins keeps 290 + lengthFt as its total. The
+    // real gap between its two switches on the parent is ignored, so the branch
+    // length and the main length between the switches do not yet agree.
     const totalFt = CLEAR_FT + (track.lengthFt ?? DEFAULT_BRANCH_USABLE_FT);
     const [first, second] = leadingTo.get(track.id) ?? [];
     const start: End = first ? { kind: "switch", switch: first.id } : { kind: "buffer" };
@@ -345,8 +349,25 @@ function trace(index: GraphIndex, from: Pos, heading: Heading, o: TraceOptions):
     return viaSwitch !== undefined && (viaSwitch.to === s.to || index.chain(viaSwitch.on).has(s.id));
   };
 
+  const leavesThisWay = (s: SwitchInfo): boolean =>
+    (s.approach === "facing" && cur.dir === 1) || (s.approach === "trailing" && cur.dir === -1);
+  /**
+   * The starting position may sit exactly on a switch: a branch's ft 0 is the same
+   * point as its switch's atFt on the parent. On the first hop a zero-distance
+   * event counts when it changes track: leaving a branch through its switch, or
+   * diverging at points the walk wants. After the first hop the cursor has just
+   * been placed on an event, so zero-distance events are never retaken.
+   */
+  const zeroOkAtStart = (e: TrackEvent): boolean =>
+    e.kind === "leave" || (leavesThisWay(e.switch) && wantsBranch(e.switch));
+  const zeroNever = (): boolean => false;
+
+  if (!o.stopAtTarget && remaining <= 0) {
+    return { segments: [{ track: cur.track, fromFt: cur.ft, toFt: cur.ft }], switches: passed, reachedTarget: false, viaMet: pending.length === 0 };
+  }
+
   for (let hop = 0; hop < MAX_HOPS; hop += 1) {
-    const event = nextEvent(index, cur);
+    const event = nextEvent(index, cur, hop === 0 ? zeroOkAtStart : zeroNever);
     const distToEvent = event ? Math.abs(event.atFt - cur.ft) : Infinity;
 
     if (o.stopAtTarget && o.target && o.target.track === cur.track) {
@@ -366,15 +387,14 @@ function trace(index: GraphIndex, from: Pos, heading: Heading, o: TraceOptions):
       return { segments, switches: passed, reachedTarget: false, viaMet: pending.length === 0 };
     }
 
-    push(cur.track, cur.ft, event.atFt);
+    if (distToEvent > 0) push(cur.track, cur.ft, event.atFt);
     remaining -= distToEvent;
     cur.ft = event.atFt;
 
     if (event.kind === "points") {
       const s = event.switch;
       pass(s.id);
-      const leavesThisWay = (s.approach === "facing" && cur.dir === 1) || (s.approach === "trailing" && cur.dir === -1);
-      if (leavesThisWay && wantsBranch(s)) {
+      if (leavesThisWay(s) && wantsBranch(s)) {
         cur.track = s.to;
         cur.ft = 0;
         cur.dir = 1;
@@ -393,11 +413,16 @@ function trace(index: GraphIndex, from: Pos, heading: Heading, o: TraceOptions):
 
 type TrackEvent = { kind: "points"; atFt: number; switch: SwitchInfo } | { kind: "leave"; atFt: number; switch: SwitchInfo };
 
-/** The nearest thing strictly ahead on the current track: switch points, or the branch's own switch at ft 0 or at a rejoin end. */
-function nextEvent(index: GraphIndex, cur: Cursor): TrackEvent | undefined {
+/**
+ * The nearest thing ahead on the current track: switch points, or the branch's own
+ * switch at ft 0 or at a rejoin end. Events behind the cursor are ignored; one at
+ * the cursor itself counts only when `zeroOk` says so.
+ */
+function nextEvent(index: GraphIndex, cur: Cursor, zeroOk: (e: TrackEvent) => boolean): TrackEvent | undefined {
   let best: TrackEvent | undefined;
   const consider = (e: TrackEvent): void => {
-    if ((e.atFt - cur.ft) * cur.dir <= 0) return;
+    const ahead = (e.atFt - cur.ft) * cur.dir;
+    if (ahead < 0 || (ahead === 0 && !zeroOk(e))) return;
     if (!best || Math.abs(e.atFt - cur.ft) < Math.abs(best.atFt - cur.ft)) best = e;
   };
   for (const s of index.switchesOn.get(cur.track) ?? []) consider({ kind: "points", atFt: s.atFt, switch: s });

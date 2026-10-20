@@ -165,6 +165,40 @@ describe("graph: routes and walks on the demo", () => {
     expect(segs).toEqual([{ track: "MAIN", fromFt: 100, toFt: -200 }]);
   });
 
+  test("starting exactly on SPUR1 ft 0 and walking down goes straight onto the main", () => {
+    const segs = buildGraph(demoM).walk({ track: "SPUR1", ft: 0 }, "down", 100)!;
+    expect(segs).toEqual([{ track: "MAIN", fromFt: 580, toFt: 480 }]);
+  });
+
+  test("starting exactly on the S1 points, a route into SPUR1 takes the switch", () => {
+    const r = buildGraph(demoM).route({ track: "MAIN", ft: 580 }, "up", { track: "SPUR1", ft: 1030 })!;
+    expect(r.switches).toEqual(["S1"]);
+    expect(r.segments).toEqual([{ track: "SPUR1", fromFt: 0, toFt: 1030 }]);
+    expect(r.lengthFt).toBe(1030);
+  });
+
+  test("starting exactly on the S1 points, a walk toward SPUR1 diverges and one without a target goes through", () => {
+    const g = buildGraph(demoM);
+    expect(g.walk({ track: "MAIN", ft: 580 }, "up", 30, undefined, { track: "SPUR1", ft: 1030 })).toEqual([{ track: "SPUR1", fromFt: 0, toFt: 30 }]);
+    expect(g.walk({ track: "MAIN", ft: 580 }, "up", 30)).toEqual([{ track: "MAIN", fromFt: 580, toFt: 610 }]);
+  });
+
+  test("a walk that lands on the points can be routed into the spur from where it ended", () => {
+    const g = buildGraph(demoM);
+    const first = g.walk({ track: "MAIN", ft: 480 }, "up", 100, undefined, { track: "SPUR1", ft: 1030 })!;
+    const lead = first[first.length - 1]!;
+    expect(lead).toEqual({ track: "MAIN", fromFt: 480, toFt: 580 });
+    const r = g.route({ track: lead.track, ft: lead.toFt }, "up", { track: "SPUR1", ft: 1030 })!;
+    expect(r.lengthFt).toBe(1030);
+    expect(r.switches).toEqual(["S1"]);
+  });
+
+  test("walk with zero or negative distance returns one zero-length segment at the start", () => {
+    const g = buildGraph(demoM);
+    expect(g.walk({ track: "MAIN", ft: 480 }, "up", 0)).toEqual([{ track: "MAIN", fromFt: 480, toFt: 480 }]);
+    expect(g.walk({ track: "SPUR1", ft: 730 }, "down", -50)).toEqual([{ track: "SPUR1", fromFt: 730, toFt: 730 }]);
+  });
+
   test("a required via switch that can't be reached returns null", () => {
     const g = buildGraph(demoM);
     expect(g.walk({ track: "MAIN", ft: 480 }, "down", 100, ["S1"])).toBeNull();
@@ -270,6 +304,7 @@ describe("graph: defaults and odd plans", () => {
       { track: "SIDING", fromFt: 1000, toFt: 1090 },
       { track: "MAIN", fromFt: 980, toFt: 990 }
     ]);
+    expect(g.walk({ track: "SIDING", ft: 1090 }, "up", 10)).toEqual([{ track: "MAIN", fromFt: 980, toFt: 990 }]);
   });
 
   test("a branch that says rejoins but has no second switch gets a buffer end", () => {
