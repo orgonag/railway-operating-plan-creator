@@ -35,15 +35,23 @@ First version: a portfolio research piece. It should show clear problem framing,
 
 ## 4. How people use it (three modes)
 
-The app is a static web page. Nothing is stored on a server. A user picks one of three modes:
+The app is a static web page with no backend. Nothing is stored on a server. All model access goes through OpenRouter, and the user signs in with their own OpenRouter account.
+
+**Sign in with OpenRouter.** OpenRouter supports an OAuth PKCE flow that runs entirely in the browser. The app sends the user to OpenRouter, they approve it, and the app receives a key tied to their own account. There's nothing to copy or paste, the project never holds a key, and usage bills to the user's own OpenRouter credits (zero on free models). Pasting a key by hand stays available as a fallback.
 
 | Mode | What happens | Cost to the user | Cost to the project |
 |---|---|---|---|
+| Free (default) | OpenRouter's Free Models Router (`openrouter/free`) picks a free model that supports image input and structured output; the user can also pin a specific `:free` model | Free, within OpenRouter's free rate limits | Free |
+| Pick a model | The user picks any OpenRouter model, open or closed, for better results | Usually well under a cent per document on open models (estimate, see section 9) | Free |
 | No model | Draw or fix the plan by hand on the canvas | Free | Free |
-| Bring your own key | Paste an OpenRouter key (kept in the browser only) and pick a model | Usually well under a cent per document on open models (estimate, see section 9) | Free |
-| Local | Point the app at Ollama running on your own machine | Free | Free |
 
-The public demo ships with pre-run examples so a visitor sees the full flow without a key.
+"Flip it" means the user can switch between free and paid models from a dropdown at any time, and the app records which model produced each plan.
+
+Free model limits (secondary sources, Oct 2026, to confirm in OpenRouter docs): about 20 requests per minute, and 50 requests per day for accounts that have never bought credits or 1,000 per day after a lifetime purchase of $10 or more. One document is one or two requests, so free is plenty for trying the tool. The free router picks at random among eligible models, so results can vary from run to run; the benchmark also tests pinned free models for repeatable numbers.
+
+**Not supported: ChatGPT or Claude subscriptions.** Anthropic's terms say Claude Free, Pro and Max sign-in is only for Claude Code and Claude.ai and may not be used by other apps (reported Feb 2026). OpenAI's "Sign in with ChatGPT" is reported as an identity feature that doesn't let a third-party app spend the user's plan. Both providers' models are still reachable through OpenRouter with the user's own credits.
+
+The public demo ships with pre-run examples so a visitor sees the full flow without signing in.
 
 ## 5. Architecture
 
@@ -60,7 +68,7 @@ upload ─> ingest ─> extract ─> adapter (model or none) ─> validate ─> 
 | `schema` | OpPlan types, JSON Schema, version | nothing |
 | `ingest` | Turn a file into pages: page image (PNG), plus vector primitives and text with coordinates when the file has them. PDF via pdf.js, PPTX by reading the slide XML directly, images as is | pdf.js, a zip reader |
 | `extract` | Turn primitives into a candidate track graph: snap line ends, find junctions, guess switches, attach text labels to nearest features | `schema`, `ingest` output |
-| `adapters` | One interface, `extract(doc, options) -> { plan, usage, warnings }`. Implementations: `none`, `openrouter`, `ollama` | `schema` |
+| `adapters` | One interface, `extract(doc, options) -> { plan, usage, warnings }`. Implementations: `none` and `openrouter` (OAuth PKCE sign-in, free router or a chosen model) | `schema` |
 | `validate` | JSON Schema check, then topology and step checks (section 6.3) | `schema` |
 | `render` | Draw an OpPlan as SVG in the demo's visual language | `schema` |
 | `player` | Compute unit positions per step and animate along track paths | `schema`, `render` |
@@ -76,7 +84,7 @@ The benchmark compares three ways to get from a document to an OpPlan. Picking o
 
 - **A. Vector first.** `ingest` pulls lines, shapes and text from the PPTX or PDF. `extract` builds the graph with plain geometry code. A model (text only, or text plus a small page image) only labels things: which track is the main line, which box is the facility, how many cars, and what the steps are. Only works when the file has vectors.
 - **B. Vision first.** The page image goes to a vision-language model, which returns the whole OpPlan, coordinates included (on a 0 to 1000 grid, then scaled). Works on anything, including scans and photos.
-- **C. Hybrid (marked primitives).** The model gets the page image plus a numbered list of the primitives `extract` found, and answers by referring to primitive ids instead of inventing coordinates. If there are no vectors, a cheap pre-pass (Florence-2 OCR with regions, or the VLM itself) supplies text label boxes to anchor on.
+- **C. Hybrid (marked primitives).** The model gets the page image plus a numbered list of the primitives `extract` found, and answers by referring to primitive ids instead of inventing coordinates. If there are no vectors, a cheap first call asks the vision model only for text label boxes to anchor on.
 
 Prior work on P&ID and circuit diagrams found hybrids beat model-only approaches (see `docs/research/prior-art.md`), which is why C is in the set. The benchmark decides.
 
@@ -139,7 +147,7 @@ Errors block export; warnings show in the editor. The editor always opens, even 
 
 - Model returns invalid JSON: one repair retry with the validator messages fed back. If it still fails, keep every part that parses, mark the rest as warnings, and open the editor.
 - Model times out or the key is rejected: show the message and offer no-model mode with whatever `extract` found.
-- Ollama blocked by the browser (CORS): show the one-line setting to allow the app's origin.
+- Free model rate limit hit (HTTP 429): say so plainly, show when to retry, and offer a paid model or no-model mode.
 - Unsupported file (e.g. an encrypted PDF, or PPTX with only an embedded picture): fall back to the page image and pipeline B.
 
 ## 8. Benchmark design
@@ -174,7 +182,7 @@ Each run also records input and output tokens, cost in USD (from the provider's 
 
 | Group | Models (first pass) | Where |
 |---|---|---|
-| Local, open | Qwen3-VL 8B, Qwen3.5 9B, Gemma 4 E4B (4-bit) | Ollama on an RTX 3060, 12 GB |
+| Free | `openrouter/free` (random free model), plus 2 or 3 pinned `:free` vision models | OpenRouter, free tier |
 | Cheap hosted, open | Qwen3-VL 32B, Gemma 4 31B, Qwen3-VL 235B-A22B | OpenRouter |
 | Ceiling, closed | One frontier model | OpenRouter, reference only |
 
@@ -184,7 +192,7 @@ Pipelines A and C run on PPTX and PDF renders; B and C run on all four renders. 
 
 Rough sizes per document: page image about 1,500 to 3,000 tokens, instructions and schema about 2,000, output about 2,000. At hosted open-model prices seen in Aug to Sep 2026 (about $0.10 to $0.26 per million input tokens and $0.34 to $1.04 per million output; secondary trackers), that is roughly $0.001 to $0.003 per document.
 
-Full first run: about 15 plans x 4 renders x up to 3 pipelines x 3 hosted open models is a few hundred calls, about $1 to $3. The frontier ceiling adds maybe $5 to $10. **Proposed cap: $15 for the first benchmark, and nothing is spent without a go-ahead and a per-run estimate.** Local runs cost nothing but need Ollama installed.
+Full first run: about 15 plans x 4 renders x up to 3 pipelines x 3 hosted open models is a few hundred calls, about $1 to $3. The frontier ceiling adds maybe $5 to $10. **Proposed cap: $15 for the first benchmark, and nothing is spent without a go-ahead and a per-run estimate.** Free-tier runs cost nothing but are rate limited, so the free group runs slowly over a day or two.
 
 ## 10. Canvas and animation
 
@@ -209,7 +217,7 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 | P0 Spec | This doc, research notes, schema v0.1, demo fixture | Reviewed and approved |
 | P1 Schema and player | Types, validator, SVG renderer, step player | The demo fixture JSON plays the same 7 steps as the hand-built demo |
 | P2 Ingest and extract | PDF and PPTX readers, vector primitives, graph builder | Tier 1 PPTX and PDF renders give the right topology with no model |
-| P3 Adapters and first benchmark | none, OpenRouter and Ollama adapters; bench CLI; fixtures; first results table | Results table published in `docs/results/` |
+| P3 Adapters and first benchmark | none and OpenRouter adapters (with sign-in); bench CLI; fixtures; first results table | Results table published in `docs/results/` |
 | P4 Editor | Snapping edits, panels, step editor, undo/redo, validation panel | A tier 2 plan can be fixed from a model baseline to valid without touching JSON |
 | P5 Publish | Exports, share link, deployed static site, portfolio branch line | Portfolio links to a live plan under Industrial Development (2020 to 2023) |
 
@@ -229,13 +237,14 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 | OpenRouter providers differ in schema enforcement | Always validate locally; record provider per run |
 | PPTX shapes are grouped, rotated or use connectors | Flatten group transforms in `ingest`; test with all three |
 | Licences change (Gemma, Qwen, tldraw) | Record the licence per model in results; re-check before going public |
-| Small local models run out of VRAM on big images | Cap image size; tile only if needed |
+| Free models change or vanish without notice | Record the exact model id per run; re-run the free group before publishing results |
+| Free endpoints may log or train on prompts | Say so in the app before a free run; fixtures are synthetic, so the benchmark exposes nothing |
 
 ## 15. Open questions
 
 1. Licence when the repo goes public: MIT or Apache 2.0? (Apache 2.0 matches most of the models.)
 2. Which frontier model to use as the ceiling?
-3. OK to install Ollama locally for the local runs?
+3. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
 4. Hosting for the public demo: GitHub Pages or Cloudflare Pages?
 
 ## 16. Related docs

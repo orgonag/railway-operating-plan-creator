@@ -4,7 +4,9 @@ Compiled 2026-10-20 from web research. "Verified" means checked on a primary pag
 
 ## Recommendation
 
-Start the benchmark with **Qwen3-VL** (8B local, 32B and 235B-A22B hosted). It has the most mature tooling (Ollama, vLLM, llama.cpp), explicit 2D grounding, and an Apache 2.0 licence. Run **Qwen3.5** (9B local) and **Gemma 4** (E4B local, 31B hosted) beside it, since both are Apache 2.0 and cheap to host. Keep **Florence-2** (MIT, under 1B) as an optional label-finding pre-pass for pipeline C on raster images. **Molmo 2** is the strongest open pointing model, but its card notes some training data is non-commercial only, so treat it as a research comparison.
+All model access goes through OpenRouter (no local models; see spec section 4). The default is the free tier: OpenRouter's Free Models Router (`openrouter/free`, accepts images, released Feb 2026) plus whichever pinned `:free` vision models exist when the benchmark runs. Free model ids change often, so check the list on the day.
+
+For the cheap paid group, start with **Qwen3-VL** (32B and 235B-A22B). It has explicit 2D grounding and an Apache 2.0 licence. Run **Gemma 4 31B** beside it, since it's also Apache 2.0 and cheap to host. **Florence-2** (MIT, under 1B) would make a good label-finding pre-pass, but it isn't on OpenRouter, so pipeline C asks the vision model itself for label boxes instead. **Molmo 2** is the strongest open pointing model, but its card notes some training data is non-commercial only, so treat it as a research comparison.
 
 Avoid for now: Llama 4 and Llama 3.2 Vision (custom licence with an EU clause on multimodal use) and Gemma 3 (Gemma Terms of Use). Check the MiniCPM-V 4.5 LICENSE file before using it; sources disagree.
 
