@@ -1,6 +1,6 @@
 # Railway Operating Plan Creator: research spec
 
-Status: draft for review, 2026-10-20. Revised through a walkthrough with the owner: human-led editing, a forgiving engine, individual cars in side view.
+Status: draft for review, 2026-10-20. Revised through a walkthrough with the owner (human-led editing, a forgiving engine, individual cars in side view), then checked against an outside review, whose agreed points are folded in.
 Owner: Orgo Nag, P.Eng
 
 ## 1. Problem
@@ -26,7 +26,7 @@ You build the plan yourself, on the canvas, and the tool looks over every move a
 
 - Surveyed geometry or CAD accuracy. Track lengths are to scale, but the layout is a clean schematic, not a map.
 - Signals, interlocking, speed restrictions, timetables or multi-train conflict checks. A step can still include a stop with a callout that explains it, for example "stop clear of S1 and wait for the signal".
-- Accounts, a backend database or server-side storage, in the first release. If a real need comes up, Supabase is available to connect (section 4.3).
+- Accounts, a backend database or server-side storage, in Releases 1 and 2. If a real need comes up, Supabase is available to connect (section 4.3).
 - Any proprietary railway data in the repo or anything published. All public fixtures are synthetic and drawn for this project; real plans are used only privately for testing (section 8.1).
 
 ## 3. Who it is for
@@ -52,18 +52,20 @@ A key placed in browser code is public, so the project key never goes to the bro
 
 At OpenRouter:
 - **The key has a $0 credit limit.** Even if it leaked, it couldn't spend money.
-- **A guardrail allows only the chosen free models.** Any other model returns 403, and OpenRouter enforces this, not our code.
+- **A guardrail allows only the chosen free models.** Any other model returns 403, and OpenRouter enforces this, not our code. The guardrail must actually be assigned to the key; creating it alone restricts nothing.
+- **Every fallback in the ranked list is a free model**, so a fallback can never land on a paid one.
+- **Setup acceptance test:** with the real key, a request for a paid model is refused, a free vision request with an image works, and the fallback list only ever reaches free models.
 
 In the proxy:
-- **Only the app's own site** can call it.
-- **A Cloudflare Turnstile check** blocks bots.
+- **An origin check** so browsers on other sites can't use it. This is one layer only: it doesn't stop scripts outside a browser, which is why Turnstile is the real gate.
+- **A Cloudflare Turnstile check** blocks bots. Tokens are single use and last 5 minutes, so the app gets a fresh token for each import and for any retry.
 - **A per-visitor daily limit**, for example 10 documents.
 - **A cap on request size.**
 - **The model list is fixed server-side.** The browser can't choose a model.
 
 **"Auto-picked to the best"** means the proxy sends a ranked list of free models (best first, then fallbacks), taken from the latest benchmark results. If the top one is down or rate limited, OpenRouter falls back to the next. We update the list when the benchmark is re-run. This replaces OpenRouter's `openrouter/free` router, which picks at random.
 
-**Limits to plan around** (secondary sources, Oct 2026, to confirm in OpenRouter docs): free models allow about 20 requests per minute. The daily cap is **per OpenRouter account, so every visitor shares it**: 50 requests a day if the account has never bought credits, 1,000 a day after a lifetime purchase of $10 or more. The project uses the owner's existing OpenRouter account, which is past that threshold, so the shared cap is 1,000 a day. One document is one or two requests. When the shared cap runs out, the app says so and offers the other modes.
+**Limits to plan around** (confirmed in OpenRouter's limits page, Oct 2026): free models allow about 20 requests per minute. The daily cap is **per OpenRouter account, so every visitor shares it**: 50 requests a day if the account has never bought credits, 1,000 a day after a lifetime purchase of $10 or more. The project uses the owner's existing OpenRouter account, which is past that threshold, so the shared cap is 1,000 a day. One document is one or two requests, plus any repair retry; budget for retries too (an outside review says failed attempts also count, which OpenRouter's limits page doesn't state either way). When the shared cap runs out, the app says so and offers the other modes.
 
 ### 4.2 Sign in with ChatGPT
 
@@ -75,7 +77,7 @@ Claude subscriptions stay out: Anthropic's terms say Claude Free, Pro and Max si
 
 ### 4.3 Supabase, only if needed
 
-The first release needs no database: plans live in the browser and in share links. Supabase is available to connect if a real need appears. Likely uses, in rough order:
+Releases 1 and 2 need no database: plans live in the browser and in share links. Supabase is available to connect if a real need appears. Likely uses, in rough order:
 
 - **Short share links** for plans too big to fit in a URL comfortably.
 - **The proxy,** as a Supabase Edge Function instead of a Cloudflare Worker, if Supabase is already in use.
@@ -88,7 +90,7 @@ Before adding it, check the free plan's limits at the time (for example, free pr
 
 Single repo in TypeScript. The core is a plain TypeScript package with no browser dependency: schema, engine, validate, layout. The app (Vite, React for panels) and the bench CLI (Node) both import that package. The renderer and player are plain SVG and DOM code with no framework, so the same code runs in the app, in the standalone export and in an embeddable player.
 
-What makes this worth noticing isn't that an AI can read a slide. It's that the person can build a plan quickly and the tool understands switching. It animates the plan, and it can point out things worth a second look: 5 cars at 66 ft need 330 ft and the racks have 360, the spur is trailing point for this arrival, the power looks to be on the wrong end for the pull. It points these out; it never stops anyone. Today that gets argued over by eye on a slide. The architecture is built around the editor and that engine; the AI import sits off to one side.
+What makes this worth noticing isn't that an AI can read a slide. It's that the person can build a plan quickly and the tool understands switching. It animates the plan, and it can point out things worth a second look: 5 cars at 60 ft need 300 ft, 330 ft with slack, and the racks have 360, the spur is trailing point for this arrival, the power looks to be on the wrong end for the pull. It points these out; it never stops anyone. Today that gets argued over by eye on a slide. The architecture is built around the editor and that engine; the AI import sits off to one side.
 
 ### 5.1 Data flow
 
@@ -110,7 +112,8 @@ bench CLI scores the import draft, and how well its questions covered its mistak
 | `layout` | Lane assignment and geometry in feet: the main on lane 0, branches on lanes to the arriving train's left or right, switches in order, approach length from the arriving train. Converts engine world states into positions on track paths | `schema`, `engine` |
 | `render` | Draws tracks, facilities, callouts, and cars and locos as side-view silhouettes, as SVG. Applies one feet-to-pixel scale along the track. No framework | `layout` output |
 | `player` | Moves groups along track paths between step states, with play, pause, step and seek. No framework | `render` |
-| `editor` | The main way to make a plan, designed to feel like PowerPoint (section 5.6): track blocks, a step strip, drag to make moves, a properties panel. A command set over an immutable PlanReading with undo and redo, and autosave in the browser. Layout stays automatic | core, `render` |
+| `editor` | The main way to make a plan, designed to feel like PowerPoint (section 5.6): track blocks, a step strip, drag to make moves, a properties panel. Every change goes through one typed command set (section 5.7), with undo and redo and autosave in the browser. Layout stays automatic | core, `render` |
+| `commands` | The editor's commands as a documented tool interface: each command has a name, a JSON Schema for its inputs, a plain-language description and an undo. The editor's buttons and drags call these, and later an agent can call the same ones (section 5.7) | `schema`, `engine` |
 | `ingest` | Turns most common files into what a model can read: page images plus text (section 7.1). One or several files at once, all in the browser | pdf.js, a zip reader |
 | `adapters` | One interface, `read(doc, options) -> { reading, usage, warnings }`. Implementations: `none`, `proxy` (shared free key), `openrouter` (user signs in), later `chatgpt`. The reading comes back with its clarifying questions | `schema` |
 | `questions` | Shows the import's clarifying questions as a short checklist, each with the AI's guess pre-filled. The person answers, accepts the guess or skips; answers are applied as editor commands, so they can be undone | `editor` |
@@ -127,7 +130,7 @@ bench CLI scores the import draft, and how well its questions covered its mistak
 
 ### 5.4 Order of work
 
-Engine and layout with the demo plan first, running as a preview build from the first day it plays. The repo stays private until the first release is done; then it goes public and the site goes live on GitHub Pages. Then the canvas editor, share link and exports: at that point the tool is complete without any AI. Then the import button (ingest, adapter, proxy, questions). Then the small benchmark that picks the import model. Reading PowerPoint and PDF shapes as geometry is a second study, done only if the import results call for it (section 8.4).
+Engine and layout with the demo plan first, running as a preview build from the first day it plays. Then the canvas editor, share link and exports: at that point the tool is complete without any AI, and that's Release 1. The repo stays private until then; then it goes public and the site goes live on GitHub Pages. Then the import button (Release 2) (ingest, adapter, proxy, questions). Then the small benchmark that picks the import model. Reading PowerPoint and PDF shapes as geometry is a second study, done only if the import results call for it (section 8.4).
 
 ### 5.5 What the AI does, and doesn't
 
@@ -137,7 +140,7 @@ The AI has one job: the optional **import** button. It reads the files the perso
 
 The person works through the questions as a short checklist: answer, accept the guess, or skip and fix it later on the canvas. There's an "accept all guesses" button for people in a hurry. Answers become editor commands, so everything is undoable, and nothing reaches the plan without the person seeing it. If an answer changes the picture (for example "there are two spurs, not one"), the person can send the answers back for one more pass.
 
-The AI doesn't build the plan, edit it, run it, or judge whether it works. The person builds and edits; the engine points things out.
+In Releases 1 and 2, the AI doesn't build the plan, edit it, run it, or judge whether it works. The person builds and edits; the engine points things out. Later, an agent may edit through the same commands the person uses (section 5.7), with the person watching and able to undo every change.
 
 ### 5.6 The canvas editor
 
@@ -149,7 +152,9 @@ The people using this are railroaders, customer service and industrial developme
 - **One obvious way to do each thing.** No modes to get stuck in; Esc always cancels.
 - **Plain words.** Railway terms only where railroaders use them. A short tooltip on every button.
 - **Undo is always visible** in the toolbar, not only on a key.
-- **Work is never lost.** The plan saves itself in the browser as you go, and the app reminds you to export or share.
+- **Saving is automatic and visible.** Changes save in this browser as you go, with a small "Saved in this browser" status, and a Download button gives the plan as a file. Opening a share link opens it as a separate copy, so it never replaces a plan already saved.
+- **The drawing holds still while you work.** The scale doesn't change during a drag; the drag shows a preview and commits on release, and Esc puts things back. A **Fit plan** button refits the drawing when you want it. Zoom and pan are in Release 1, so long plans stay readable.
+- **One gesture, one Undo.** If a single drag adds a cut, a move and a second step, one Undo puts all of it back.
 - **Nothing is ever blocked.** People can't think of every situation in advance, and neither can we. The tool lets the person do what they want, and only points things out.
 - **Notes, not errors.** When something looks off, a small note appears next to it in plain words ("Heads up: the racks hold 5 cars and you've moved 6"). Notes are information. They can be dismissed, and they never stop a step, a Play or an export.
 - **Start from a template**: "Single spur", "Spur with runaround", or the demo plan, instead of a blank page.
@@ -162,33 +167,43 @@ The people using this are railroaders, customer service and industrial developme
 - **The tool guesses the turnout's direction, and two flip buttons fix it.** When a turnout is dropped, the engine picks the most likely way for it to face from how the branch is dragged out. If that's wrong, **Flip up/down** (across the horizontal axis) moves the branch to the other side of the track (left and right), and **Flip left/right** (across the vertical axis) turns it to point the other way along the track (facing and trailing). Either flip redraws at once and can be undone.
 - **Drag the end of the branch** to stretch it. It snaps in 10 ft steps and shows its length in feet as you drag, or you can type the length in the properties panel. Dropping a turnout on the new branch builds the next track off it, and so on.
 - **Drag a branch's end onto another track** to join it back (a siding).
-- **Drag a facility onto a track** to place it, and drag its ends to size it along the track. The number of cars it holds at 66 ft each shows as you drag.
+- **Drag a facility onto a track** to place it, and drag its ends to size it along the track. The number of 60 ft cars it holds shows as you drag.
 - **Right-click any track** to rename it, set it as main, siding or spur, set its length, or delete it.
 
 **Placing cars**
-- **Every car is its own car.** Each has a type (boxcar, covered hopper, tank car, gondola and so on, section 6.5) that sets how it looks, loaded or empty, and optionally a reporting mark and number ("ABCX 1234"). Every car plans at 60 ft and every loco at 80 ft whatever the type, plus the 10% slack.
-- **Add cars in groups, handle them one by one.** "Add 5 covered hoppers, loaded" makes 5 separate cars in a row. Any of them can be changed, renumbered or moved on its own.
+- **Every car is its own car.** Each has a type (boxcar, covered hopper, tank car, gondola and so on, section 6.5) that sets how it looks, loaded or empty, and optionally a reporting mark and number ("ABCX 1234"). Every car is drawn and planned at 60 ft and every loco at 80 ft, whatever the type (section 6.5).
+- **Add cars in groups, handle them one by one.** "Add 5 covered hoppers, loaded" makes 5 separate cars in a row, each with its own permanent ID straight away. Any of them can be changed, renumbered or moved on its own.
+- **Three things kept apart:** a car or loco (one piece of equipment, always the same ID), a named group (a handy label for some cars, such as "the loads"), and what's coupled right now (which cars are joined, in order). Switching changes what's coupled; it never changes what a car is or quietly changes what a group name means.
 - **Cars already on site.** A "Place cars" button drops cars straight onto any track or facility before Step 1: empties waiting at the customer, cars stored on a siding, a bad-order car on a spur.
-- **Numbered spots.** A facility shows its spots (1, 2, 3...) along the track, 66 ft each for a default car. Cars dropped at a facility snap to spots, so a step can be "ABCX 1234 to spot 3".
+- **Numbered spots are fixed places.** A facility's spots (1, 2, 3...) are set when the facility is placed, 60 ft apart by default, and can be dragged. They're operating positions, so changing a car's length never moves spot 3. Cars dropped at a facility snap to spots, so a step can be "ABCX 1234 to spot 3".
 
 **Making the steps (like PowerPoint slides with Morph)**
 1. Set the arrival: which way the train is heading (north, south, east or west) and which side of the drawing it comes in from (left or right).
 2. Add the train: the loco or locos, and the cars, with a type, a count, and loaded or empty for each group. Place any cars that are already on site.
 3. **Step 1 is the arrival.** The train stands on the main as it arrives.
-4. **"New step" copies the previous step**, the way duplicating a slide does.
-5. **In the new step, pick the cars and drag them to where they should end up.** Click a car, shift-click to add more, or drag a box around several. Picking a car in the middle of a string means the tool cuts the string there. Cars slide along the track, so they can't be dropped off it. Dragging the loco (alone or with cars) off the edge of the drawing sends it away for other work; dragging it in from the edge brings it back.
+4. **"New step" starts from the previous step's picture**, the way duplicating a slide does. Nothing has changed until you move something.
+5. **In the new step, pick the cars and drag them to where they should end up.** Click a car, shift-click to add more, or drag a box around several. Selecting only selects. If the move needs cars uncoupled first, the tool shows the uncoupling as its own step before the move, so you can see it and change it. Cars slide along the track, so they can't be dropped off it. Dragging the loco (alone or with cars) off the edge of the drawing sends it away for other work; dragging it in from the edge brings it back.
 6. **The tool works out the move.** Power behind the cars is a shove, power in front is a pull, a loco on its own is running light. It writes the caption ("Shove 5 loads to the unloading racks"), which you can edit.
-7. **Small buttons on the train** do the rest: scissors between two cars or the loco to cut off, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main"), and a Note button adds a plain slide where nothing moves.
+7. **Small buttons on the train** do the rest: scissors between any two pieces of equipment to uncouple them there, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main"), and a Note button adds a plain slide where nothing moves.
 8. **The engine looks over each step as you make it.** If something looks off, a small note icon appears on the step with the reason in plain words. The step still works and still plays.
 9. **Play** animates from step to step, like Morph. Steps can be reordered by dragging them in the strip, and the engine looks over the whole plan again.
 
-**One step, one animation.** Each step does exactly one thing: one move, one cut-off, one couple, one load or unload, or one stop. That keeps every step easy to follow on screen and gives the engine one change to check at a time. If someone tries a second thing in the same step (for example dragging a second cut after the first), the tool puts it in a new step and says so; Undo puts it back.
+**One step, one animation.** Each step does exactly one thing: one move, one uncouple, one couple, one load or unload, one stop or one note. That keeps every step easy to follow on screen and gives the engine one change to check at a time. If someone tries a second thing in the same step (for example dragging a second cut after the first), the tool puts it in a new step and says so; Undo puts it back.
 
 **As many steps as people like.** Thirty small steps to show a train easing into a track is fine. A step can also be a plain slide where nothing moves, just a caption or a callout over the current picture.
 
-**Following the path the user took.** While a cut is being dragged, the engine follows the drag along the track. At each turnout, the way the pointer goes decides which route the cars take, so dragging up into the spur takes the spur and dragging along the main stays on the main. The engine records that route, so Play shows the same path the person drew, not just the shortest one. If the drag changes direction partway (pull out past a switch, then shove back into another track), the tool splits it into two steps and says so. If the engine can't follow the move at all, it doesn't refuse: the cars slide straight from where they were to where they were dropped, and the step gets a note saying the tool couldn't follow the route and the person may want to check it.
+**Following the path the user took.** While a cut is being dragged, the engine follows the drag along the track. At each turnout, the way the pointer goes decides which route the cars take, so dragging up into the spur takes the spur and dragging along the main stays on the main. The engine records that route, so Play shows the same path the person drew, not just the shortest one. Small wobbles of the mouse don't count as a reversal; the drag has to clearly turn back (more than about a car length) before it's treated as one. If the drag does change direction (pull out past a switch, then shove back into another track), the tool shows the proposed route and splits it into two steps, and says so. If the engine can't follow the move at all, it doesn't refuse: the cars move to where they were dropped with a dashed, faded transition labelled "Route not established" (section 6.4).
 
-Under the hood, each step is still saved as the verbs in section 6.2, with the route in `via`, so a step made by dragging and a step from the import are the same thing.
+Under the hood, each step is saved as one action in section 6.2, with its route and exact stopping position, so a step made by dragging and a step from the import are the same thing.
+
+### 5.7 Commands an agent can use later
+
+Every change to a plan, whether from a button, a drag or the import, goes through one command set. Designing it this way from the start means a natural-language agent can be added later (for example through Sign in with ChatGPT, or the person's own OpenRouter account) without rebuilding the editor.
+
+- **Typed commands with plain descriptions.** For example `addTurnout(trackId, distanceFt)`, `flipTurnout(switchId, axis)`, `setTrackLength(trackId, ft)`, `placeCars(type, count, state, at)`, `addStep(action)`, `moveCars(carIds, to)`, `uncouple(betweenA, betweenB)`, `reorderStep(stepId, index)`. Each has a JSON Schema for its inputs and a one-line description, so the list can be handed straight to a model as tool definitions.
+- **Read tools too:** get the plan, list the steps, get the engine's notes for a step, get the picture after a step as plain data.
+- **Same rules for everyone.** A command from an agent goes through the same validation, engine notes and undo as one from the person. The agent can't do anything the person couldn't do, and every agent change appears in the step strip and can be undone.
+- **Not in Releases 1 and 2.** The command set ships in Release 1 because the editor needs it anyway; the agent that talks to it comes later.
 
 ## 6. Data: the PlanReading format
 
@@ -216,7 +231,7 @@ PlanReading
   schemaVersion  "0.3"
   title, description?
   arrival        direction (eastbound | westbound | northbound | southbound), enters (left | right), on (main track id), locos (head | rear), text
-  carLength      ft (default 60), allowancePct: the slack factor (always at least 10)
+  carLength      ft (default 60), allowancePct: the engine's internal slack check for fit notes (always at least 10)
   locoLength     ft (default 80)
   tracks[]       id, role (main | siding | spur | yard | lead), name?, lengthFt?, end? (buffer_stop | continues | rejoins)
   switches[]     id, on (track), to (diverging track), side (left | right), approach (facing | trailing), order?, distanceFt?
@@ -225,7 +240,10 @@ PlanReading
                  cuts[] { id, cars (count), carType?, state, carLengthFt?, for?, list[]? }: cars in the arriving train
                  onSite[] { id, cars, carType?, state, at, spot?, list[]? }: cars already on site before the train arrives
                  list[] holds individual cars when they matter: { id, type?, lengthFt?, state?, mark?, number?, spot? }
-  work[]         actor, do, cars? (cut or car ids), to?, spot?, via?, text, callout?
+  work[]         actor, do, cars? (car or group ids), to?, spot?, stop?, between?, via?, text, callout?
+                 stop: { track, ft, end (lead | rear) } or { beyond (switch id), ft, end }: exactly where the move ends
+                 between: [a, b] for uncouple: the two pieces of equipment to split
+  provenance     per field: read (with where in the source), assumed, unknown, or confirmed by the person
   departure      direction, cars?, text
   questions[]    import only: id, about (field path), ask, guess?, options?, basis
   notes[]        anything that didn't fit
@@ -233,9 +251,12 @@ PlanReading
 
 The terms are chosen to match how a railroader would describe the plan:
 - `side` and `approach` are relative to the **arriving** train. "The spur leaves on the left, facing point" is how you'd say it, and it's why a plan is tied to one direction.
-- **Cars can be counted or listed.** "5 loads for the racks" is a cut with a count, which is how most plans and most imports describe them. When specific cars matter, the cut's `list` names each one, with type, reporting mark and number, and its spot. A step's `cars` can name whole cuts or single cars, and `spot` says which numbered spot at the facility the first car goes to.
-- **Lengths are in feet and to scale, kept general on purpose.** Every car defaults to 60 ft and every loco to 80 ft, whatever its type. A **10% slack factor is always added** on top as a safety margin, so a car plans as 66 ft and a loco as 88 ft. The factor can be raised but never goes below 10%. A length can still be changed for one car or one cut when someone knows better. Track lengths the document doesn't give are left out and the editor asks for them.
-- **`questions`** appear only on an import draft. They make every AI guess visible and put the decision with the person (section 5.5). Once answered, they are removed from the saved plan. A field path is `collection.id.field`, for example `tracks.SPUR1.lengthFt`.
+- **Cars can be counted or listed in the file, but always become individual cars.** "5 loads for the racks" is a group with a count, which is how most imports describe them. When the plan is opened, every counted car gets its own ID. If a group gives both a count and a list, the list wins and a mismatch becomes a question. Lists run from the head end of the arriving train, or from the switch end of the track for cars on site. With several locos, each loco has its own ID too, and a step names which ones move.
+- **Where a move stops** is saved in railway terms, never screen positions: a facility spot, a distance along a track with which end of the moving group is placed there ("the rear car 50 ft past S1"), or `offstage` with the edge it leaves by. A loco that leaves and comes back keeps its ID and which way it faces.
+- **Lengths are in feet and to scale, kept general on purpose.** Every car is drawn and counted at 60 ft and every loco at 80 ft, whatever its type. These are planning assumptions, not measured lengths, and fit notes say so. A length can be changed for one car or one cut when someone knows better.
+- **A 10% slack check runs inside the engine.** It isn't added to the drawing or the spots. The engine uses it only when deciding whether to raise a fit note, and the note explains it: "5 cars at 60 ft = 300 ft, plus 10% for slack = 330 ft; the racks have 360 ft." The check never goes below 10%.
+- **Track lengths mean usable standing length**, the length cars can actually stand on. A facility's length means its loading or unloading frontage along the track. Track lengths the document doesn't give are left out and the editor asks for them.
+- **`questions`** appear only on an import draft. They make every AI guess visible and put the decision with the person (section 5.5). Once answered, the question is removed but its **provenance** stays: a guess the person accepted is marked "confirmed by the person", never "read from the drawing". The engine ignores provenance; the editor shows it. A field path is `collection.id.field`, for example `tracks.SPUR1.lengthFt`.
 
 Names follow OpenStreetMap railway tagging where it fits (track roles, switch side). Concepts follow railML and RailTopoModel, but we don't copy railML's schema because of its licence (CC BY-NC-ND, see research notes).
 
@@ -245,12 +266,12 @@ Names follow OpenStreetMap railway tagging where it fits (track roles, switch si
 |---|---|---|
 | railroad | `shove` | Push cars ahead of the power |
 | railroad | `pull` | Draw cars behind the power |
-| railroad | `cut_off` | Uncouple the power and leave the cars |
+| railroad | `uncouple` | Split the equipment between two named pieces (`between`); `cut_off` is the same thing between the power and its cars |
 | railroad | `couple` | Couple to cars |
 | railroad | `run_light` | Move the power alone |
-| railroad | `runaround` | Get the power to the other end of its cars |
-| railroad | `set_out` | Leave cars on a track |
-| railroad | `pick_up` | Collect cars from a track |
+| railroad | `runaround` | Shortcut: inserts the steps to get the power to the other end of its cars |
+| railroad | `set_out` | Shortcut: inserts a move and an uncouple to leave cars on a track |
+| railroad | `pick_up` | Shortcut: inserts a couple and a move to collect cars from a track |
 | railroad | `stop` | Stop and hold, with a callout saying why (signal, derail, crew, customer gate) |
 | customer | `load` / `unload` | The customer loads or unloads cars where they sit |
 | customer | `move_cars` | The customer moves cars with their own equipment |
@@ -260,7 +281,7 @@ Each step has exactly one `do`, `cars` (cut or car ids), `to` (a track, a facili
 
 Any step can also carry a **`callout`**: `{ text, at? }`, where `at` is a switch, track or facility id. The canvas pins it to that spot during the step, for example "Stop clear of S1. Wait for the signal before entering the main." A `stop` step needs a callout.
 
-**Verbs are shorthand for primitives.** The engine works on six primitives: `arrive`, `move`, `couple`, `uncouple`, `set_state` and `depart`. Each verb above expands into them with stated defaults. For example, `set_out` is a `shove` or `pull` followed by `cut_off`; `pick_up` is `couple` followed by `pull`; a move stops clear of the last switch it passed unless `to` says otherwise. Because two readings can describe the same work in different words, scoring compares what the plan does, not which words it uses (section 8.2).
+**Shortcuts become ordinary steps.** `set_out`, `pick_up` and `runaround` do several things, so they're never saved as one step. When the person picks one, or the import reads one, it's expanded into the separate steps it stands for, each with its own animation and each correctable. A saved plan only ever holds single actions. Under those, the engine works on six primitives: `arrive`, `move`, `couple`, `uncouple`, `set_state` and `depart`. Scoring compares the expanded actions and routes, so a reading that said "set out" and one that said "shove, then cut off" compare as equal (section 8.2).
 
 ### 6.3 Layout: from reading to canvas
 
@@ -271,7 +292,7 @@ The `layout` module draws a clean schematic in the demo's style. It never tries 
 3. Switches go on their track in `order`, spaced by `distanceFt` when given, otherwise evenly. The approach before the first switch isn't read from the document: layout makes it long enough for the whole arriving train to stand on the main, to scale, plus a margin.
 4. A turnout is drawn to scale at about 240 ft from the points to where the branch runs parallel. A branch leaves at a fixed angle, then runs parallel to its parent. Facing switches diverge forward and trailing switches diverge back toward the arrival end. A siding that `rejoins` closes back onto its parent at its second switch.
 5. One scale (feet to pixels) fits the longest lane to the canvas width, and every track is drawn to that scale. Tracks with no length get a default and a visible "length needed" marker.
-6. Facilities sit along their track at `startFt`, or at the far end. Spots are numbered and laid out by each car's length plus the 10% slack (66 ft for a default car).
+6. Facilities sit along their track at `startFt`, or at the far end. Their spots are fixed, numbered positions, 60 ft apart by default.
 7. **Cars and locos are drawn in side view**, as realistic silhouettes of their type, to scale along the track (section 6.5). To make room for them, the gap between parallel tracks is stretched beyond scale; lengths along the track stay true. On the angled part of a turnout, cars tilt to follow the track.
 8. Callouts are drawn as a labelled marker at their `at` feature, kept clear of the track, and shown only during their step.
 9. Unit positions for each step come from the engine's world states, not from layout's own reasoning.
@@ -289,21 +310,29 @@ Two kinds of checks. Neither one stops the person; the first only tidies files o
 4. Every `via` switch is on a real path between where the move starts and its `to`.
 
 **Notes from the engine** apply to everything, and never block a step, a Play or an export. The engine can't foresee every situation, so these are things to look at, not rules:
-5. **Fit.** A note when cars may not fit where they're sent, with the numbers shown: cars × (car length + 10% slack) against the facility or track, e.g. "6 × 66 ft = 396 ft, the racks have 360 ft".
-6. **Clear of switches.** Kept simple on purpose. Turnouts are drawn to scale at about 240 ft, so people can see when cars are sitting in a switch. If cars stop within about 290 ft of a switch they aren't using (the 240 ft switch plus about 50 ft to get clear), a note says it looks like they may be fouling it. It still shows and plays exactly as placed. The exact clear point really depends on the switch type and track spacing, so this is a rule of thumb, not a calculation.
+5. **Fit.** A note when cars may not fit where they're sent. It looks at everything that will stand there: cars already on site, the cars being moved, and the loco if it stays coupled. The 10% slack check is applied inside, and the note shows the numbers and the assumption: "6 cars at 60 ft = 360 ft, plus 10% for slack = 396 ft; the racks have 360 ft. Lengths are the general 60 ft planning length."
+6. **Clear of switches.** Kept simple on purpose. Turnouts are drawn to scale at about 240 ft, so people can see when cars are sitting in a switch. If any part of a group (its far end as well as its near end) stops within about 290 ft of a switch it isn't using (the 240 ft switch plus about 50 ft to get clear), a note says it looks like they may be fouling it. It still shows and plays exactly as placed. The exact clear point really depends on the switch type and track spacing, so this is a rule of thumb, not a calculation.
 7. **Buffer stops.** A note when cars are moved past the end of a track.
-8. **Power on the right end.** A note when the power looks to be on the wrong end: a `pull` has the power ahead of the cut, a `shove` has it behind. A trailing-point spur usually needs a runaround (or a different plan) to be served as drawn.
+8. **Power on the right end.** A note when the power looks to be on the wrong end for the move being made. The engine judges this from the actual order of equipment, the direction of this move and the route available, not from a blanket rule. Facing and trailing are fixed relative to the arrival, but each move can go either way, so a head-end train can pull past a trailing-point spur and then shove back into it with no runaround.
 9. **Runaround.** A note when a runaround has no siding with two switches, or no room for the power.
-10. **Unclear move.** The engine couldn't follow the route, so the step slides straight to the end position.
+10. **Unclear move.** The engine couldn't establish a route. The step still saves, plays and exports, but its transition is shown differently so nobody mistakes it for a worked-out move.
 11. **Work sequence.** A note when the order looks off: the power moving cars it isn't coupled to, a customer unloading empty cars, or cars listed for departure that aren't on the train.
 
-Notes show on their steps and in one list the person can open or ignore. Exports and share links leave notes out unless the person chooses to include them.
+How each step is shown:
 
-**Plan metrics** come from the same engine run: number of moves, switch throws, feet travelled, times the main is fouled, couplings. They let two versions of a plan for the same customer be compared side by side (section 12.3).
+| Engine result | Shown as |
+|---|---|
+| Route understood | Equipment follows the track |
+| Route understood, with a note | Normal animation, with the note |
+| Route not established | Dashed, faded transition labelled "Route not established" |
+
+Notes show on their steps and in one list the person can open or ignore. Exports and share links leave the detailed notes out unless the person chooses to include them, but always keep the "Route not established" label, because it explains what the viewer is seeing.
+
+**Plan metrics** come from the same engine run, with fixed meanings: a move is one movement of one coupled group, however many steps show it; feet travelled is counted for the locos and for each car separately; switch throws count changes from the switch's normal position at the start; couplings count couple steps. A step with no established route makes the plan's totals "incomplete", never silently zero. They let two versions of a plan for the same customer be compared side by side (section 12.3).
 
 ### 6.5 Car and locomotive types
 
-**Planning lengths are general: 60 ft for every car and 80 ft for every loco, plus the 10% slack factor (66 ft and 88 ft).** The type only changes the silhouette, so a tank car looks like a tank car, but it plans at the same 60 ft as a boxcar. This keeps plans simple and errs on the safe side.
+**Planning lengths are general: 60 ft for every car and 80 ft for every loco.** The type only changes the silhouette, so a tank car looks like a tank car, but it's drawn and counted at the same 60 ft as a boxcar. This keeps plans simple. It is a planning assumption, not a safe upper bound: some cars are much longer (an autorack is about 94 ft), so fit notes always state the assumption, and the 10% slack check inside the engine adds a margin. Anyone who knows the real equipment can set an exact length on a car.
 
 The typical real lengths below, from car builder, lessor and reference sources (`docs/research/car-lengths.md`), are kept for reference and for anyone who wants to set an exact length on a car. They are lengths over couplers, rounded to the foot.
 
@@ -334,6 +363,15 @@ First set of types: 50 ft boxcar, 60 ft high-cube boxcar, small covered hopper (
 
 Loaded and empty look different where it's visible from the side (coal or scrap showing in a gondola or open hopper, a load on a flatcar), and every car also carries a small loaded or empty marker. Reporting marks show as a label that can be turned on or off.
 
+### 6.6 Editing and replay
+
+The saved plan is the starting picture plus the ordered steps. The picture after each step is always worked out again from those; it's never saved on its own. So:
+
+- **Changing or reordering a step** recalculates every step after it. Later steps keep what they were meant to do (which equipment, where to, by what route). Any step whose meaning is now in doubt (say Step 5 picks up cars that an edited Step 2 no longer puts there) is highlighted for review and still plays as best it can. Nothing is silently invented to fill the gap.
+- **Deleting a track or car that steps refer to** leaves those steps in place, marked as needing attention and editable, with the gap shown plainly.
+- **Files with broken references** (duplicate IDs, links to things that don't exist) are opened as an incomplete draft: everything recoverable is kept, and what was repaired or left unresolved is listed.
+- **Acceptance test:** move the same cars three different distances along one track in three steps, save, reopen, and get exactly the same three positions and routes.
+
 ## 7. The import: problems and files
 
 - Model returns invalid JSON: one repair retry with the validator messages fed back. If it still fails, keep every part that parses, turn what's missing into questions for the person, and open the editor.
@@ -342,23 +380,12 @@ Loaded and empty look different where it's visible from the side (coal or scrap 
 - Unsupported or encrypted file: say so, suggest a format that works (section 7.1), and remind the person they can build the plan by hand.
 - The import returns too many questions (more than about 20): show the most important first, grouped by section, and let the person stop and edit on the canvas.
 - Files disagree (the slide shows 5 cars, the spreadsheet says 6): the import doesn't pick one silently; it asks, showing both values and where each came from.
-- Long documents: a PDF or deck with many pages shows page thumbnails and the person ticks the pages that hold the plan (up to about 5), so the model isn't sent a 40-page document.
+- Long documents: a PDF shows page thumbnails and a deck shows slide numbers and titles, and the person ticks the pages that hold the plan (up to about 5), so the model isn't sent a 40-page document.
 - Too big: files over about 20 MB in total are refused with a plain message, before anything is sent.
 
 ### 7.1 Files the import accepts
 
 All reading happens in the browser. One or several files can be dropped at once, for example a slide plus a spreadsheet of car counts. The libraries for reading Word and Excel files must have open licences (to check at build time).
-
-### 7.2 Privacy: strip private data, send only the drawing
-
-Anything sent to a model goes to OpenRouter and the model's provider, and free models in particular may log or train on what they receive. So the import is built to send as little as possible:
-
-1. **A clear warning before every free import:** "This uses a free AI model. What you send may be shared with the model's provider. Only the drawing is sent, and you can check it first."
-2. **Only the drawing is sent.** The pages the person ticked go as images. For PowerPoint and Visio, the slide's shape list (the drawing's own lines, boxes and labels) goes as text, and it appears on the preview where any label can be edited or removed. Text from Word and Excel files is left out unless the person ticks it on the preview. Document details are stripped before anything leaves the browser: file names, author and company metadata, speaker notes, comments, hidden slides, and email addresses and phone numbers in the text.
-3. **The person sees exactly what will be sent** on a preview screen, and can cover up anything else with a black box (a customer name, a logo, an address) before pressing Send.
-4. **Nothing is sent without that Send press.** The person can always skip the import and build the plan by hand.
-
-The same stripping and preview apply when the person uses their own OpenRouter account; only the warning's wording changes.
 
 | File | How it's read |
 |---|---|
@@ -376,6 +403,21 @@ The same stripping and preview apply when the person uses their own OpenRouter a
 Scanned PDFs and images go straight to the vision model, which reads the text itself. There's no separate OCR step and no extra cost: a scanned page costs the same as any other page image, and nothing on the free models.
 
 Reading the shape list from PowerPoint or Visio is lighter than the vector pipeline in section 8.4. We don't build a track graph from geometry; we only describe the shapes in text and let the model interpret them, with questions where it's unsure.
+
+### 7.2 Privacy: the preview is exactly what gets sent
+
+Anything sent to a model goes to OpenRouter and the model's provider, and free models in particular may log or train on what they receive. The rule is simple: **the preview shows the complete content that will be sent, and nothing else is sent.**
+
+1. **A clear warning before every free import:** "This uses a free AI model. What you send may be shared with the model's provider. Only the drawing is sent, and you can check it first."
+2. **Every piece is listed on the preview.** Each thing that will go out appears as its own item: page images, each embedded picture, a PDF's text layer, a slide's shape labels, a table from a spreadsheet. Items can be removed one by one.
+3. **Cover-up boxes are burned in.** Covering a name on an image re-draws that image with the area blacked out before it's sent. If the same words also appear in a text item (a PDF text layer, a shape label), those text items are flagged too, and they're removed from the request unless the person edits and keeps them.
+4. **Text is off by default.** PDF text layers and Word or Excel text go only if the person ticks them. Shape labels from PowerPoint and Visio are shown as an editable list.
+5. **Stripped automatically:** file names, author and company metadata, speaker notes, comments, hidden slides, and email addresses and phone numbers in any text.
+6. **Nothing is sent without the Send press.** The person can always skip the import and build by hand.
+
+**PowerPoint and Visio, honestly.** The app doesn't draw slides, so for these files the preview is the list of what will actually be sent: the shape labels as text, and each embedded picture as its own image, with cover-up boxes on those pictures. There's no pretend slide thumbnail. Slides are picked by number and title. For a faithful picture of the whole slide, the app suggests exporting it as PDF.
+
+The same rules apply when the person uses their own OpenRouter account (only the warning's wording changes), and to the private test set in section 8.1: those files are also sent to hosted models when tested, so they go through the same preview and stripping.
 
 ## 8. Benchmark design
 
@@ -401,17 +443,23 @@ Scoring compares the model's PlanReading with the true one. No coordinates are i
 | `topology` | Tracks matched by role and by how they connect (graph match); switch side and facing/trailing correct; track lengths within 5% when the document states them |
 | `facilities` | Facility on the right track, name match, length and spot count |
 | `consist` | Loco count; cars with the right counts, types, states and destinations; reporting marks and spots where the document shows them; cars already on site |
-| `sequence` | Arrival direction and power position, then **outcome based**: run both readings through the engine and compare the world state after each step (which cuts are where, coupled to what, loaded or empty), plus departure direction and cars. A reading that says `set_out` where the truth says `shove` then `cut_off` scores the same, because it does the same thing |
+| `sequence` | Arrival direction and power position, then both readings are expanded to single actions and compared on those actions, their routes, and the picture after each one (which cars are where, coupled to what, loaded or empty), plus departure direction and cars. A reading that says `set_out` where the truth says `shove` then `cut_off` scores the same, because it expands to the same thing |
 | `overall` | 0.35 topology + 0.15 facilities + 0.15 consist + 0.35 sequence, and 0 if not valid |
 
-Each fixture records which fields its drawing actually shows and which it leaves out (for example, the spur length is labelled in one render and missing in another). Fields left out are the ones a good import should ask about. That list is what the question scores below are measured against.
+Each fixture records which fields its drawing actually shows, which it leaves out, and which it shows unclearly (blurred, ambiguous or contradicting another label). Fields left out or unclear are the ones a good import should ask about. That list is what the question scores below are measured against.
+
+- **Held-out plans.** A few plans are set aside and not looked at while prompts and file reading are being tuned, and are only run at the end, so the results aren't just a test of examples the code was tuned on.
+- **Reported per plan, not just per image.** Five renders of one plan test robustness, but they're one arrangement, not five; results are shown both ways.
+- **Hand-checked engine examples.** Because the same engine draws the fixtures and scores them, a few plans also have their step-by-step states worked out by hand, so a shared engine mistake can't make the results look better than they are.
 
 Question quality, the measure that matters most for a human-led tool:
 
 | Score | How |
 |---|---|
 | `silent errors` | Fields the draft got wrong **without** asking about them, per plan. The target is zero; this is the headline number |
-| `question precision` | Share of questions that were about something the document really doesn't say, so the person isn't buried in needless questions |
+| `unsupported guesses` | Fields the draft filled in without the document supporting them and without asking, even when the guess happened to be right |
+| `question precision` | Share of questions that were about something the document doesn't say or shows unclearly, so the person isn't buried in needless questions |
+| `correction effort` | Number of edits needed to turn the answered draft into the true plan. A high score can still hide one missing connection that makes a draft tedious to fix; this shows it |
 | `after answers` | `overall` again after applying the true answers to the questions. Shows how close the draft gets once the person has done the checklist |
 
 **Usable** means `valid` and `overall` of at least 0.8 after answers, with silent errors near zero: a first draft the user only needs to touch up. This threshold is a starting guess; we'll check it by timing a few real fix-ups.
@@ -462,35 +510,33 @@ Visual language follows the portfolio demo (ink background, gold facility boxes 
 
 ## 12. First release, phases, and what comes after
 
-### 12.1 First release
+### 12.1 Releases
 
-In:
+**Release 1: the editor (goes public).** Everything needed to build, play and share a plan with no AI:
 - PlanReading v1 as the one public format, with migration from v0.2 and v0.3.
-- Engine (plan state, primitives, verb expansion, notes and metrics), validate, and layout for tier 1 and tier 2. Render and player with no framework, with side-view silhouettes for the car and loco types in section 6.5.
-- The canvas editor in section 5.6 as the main tool: track blocks and flip buttons, drag to stretch track, facilities with numbered spots, individual cars and Place cars, steps made like slides by dragging (including leaving and returning off the edge), the engine naming each move and adding notes where something looks off, templates, autosave, undo and redo.
-- Share link, standalone HTML export, SVG per step, PlanReading JSON export and import.
-- One optional import button accepting the files in section 7.1, with page picking, the privacy warning and preview with cover-up boxes (section 7.2), and clarifying questions shown as a checklist.
-- The import behind the adapter interface, with the `none`, `proxy` and `openrouter` adapters, and the proxy on a Cloudflare Worker.
-- A small bench CLI for the import across the renders and the model groups in section 8.3, scoring silent errors and outcome-based sequence, and a results page.
-- Three pre-run examples, including the portfolio demo.
-- At the end of the first release: the repo goes public under Apache 2.0 and the site goes live on GitHub Pages. Until then it runs as a private preview build.
+- Engine (plan state, primitives, shortcut expansion, notes, metrics, replay), validate, and layout for tier 1 and tier 2. Render and player with no framework, with side-view silhouettes for the car and loco types in section 6.5.
+- The canvas editor in section 5.6, built on the command set in section 5.7: track blocks and flip buttons, stretch track, facilities with fixed numbered spots, individual cars and Place cars, steps made like slides by dragging (including leaving and returning off the edge), engine notes and "Route not established" transitions, templates, zoom and pan, autosave with visible status, undo and redo.
+- Share link, standalone HTML export, SVG per step, PlanReading JSON download and open.
+- Three example plans, including the portfolio demo.
+- At the end of Release 1: the repo goes public under Apache 2.0 and the site goes live on GitHub Pages.
 
-Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT, the gallery, any AI beyond the import button. Not planned at all: CAD files and hand-drawn sketches as import input. Compare mode goes in if the engine makes it trivial.
+**Release 2: the import.** The optional import button for the files in section 7.1, with page picking, the full privacy preview (section 7.2), clarifying questions and provenance; the `none`, `proxy` and `openrouter` adapters; the proxy on a Cloudflare Worker; and the small benchmark that picks the import model. Formats can land one at a time inside this release, each with its own checks, so a slow parser doesn't hold up the others.
+
+Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT, a natural-language agent (the command set it would use is in Release 1), the gallery. Not planned at all: CAD files and hand-drawn sketches as import input. Compare mode goes in if the engine makes it trivial.
 
 ### 12.2 Phases
 
 | Phase | Delivers | Done when |
 |---|---|---|
-| P0 Spec | This doc, research notes, PlanReading schema, demo example | Reviewed and approved |
-| P1 Engine and player | Schema v1 and migration, engine, validate, layout (tier 1), render with silhouettes, player; preview build | The demo plan plays step by step in the preview build, and the engine shows its fit note at the racks |
-| P2 Editor and sharing | Canvas editor with undo, share link, standalone HTML, SVG, JSON import and export; tier 2 layout | Someone who uses PowerPoint but not CAD can build the demo plan from the "Single spur" template in under 10 minutes without help, and share it by link, with no AI |
-| P3 Import | Ingest for the section 7.1 files, page picking, privacy warning and preview, adapter, clarifying questions checklist, proxy with Turnstile and limits, Sign in with OpenRouter | A PowerPoint slide of a tier 1 plan becomes a draft plus questions; after answering them it plays in the preview build, on the free mode (the proxy is deployed and allows the preview's address) |
-| P4 Benchmark | Fixtures (layout-drawn and messy PowerPoint), bench CLI, outcome-based scoring, results page; proxy model list set from results | Results table published in `docs/results/` |
-| P5 Release and portfolio | Three pre-run examples, plan metrics; repo made public, site live on GitHub Pages, proxy switched to the live address; portfolio branch line | Portfolio links to a live plan under Industrial Development (2020 to 2023) |
+| P0 Spec | This doc, research notes, PlanReading schema, demo example, and the demo's expected-state table (section 13) | Reviewed and approved |
+| P1 Engine and player | Schema v1 and migration, engine with replay, validate, layout (tier 1), render with silhouettes, player; private preview build | The demo plan plays step by step and matches its expected-state table, and the engine shows its fit note at the racks |
+| P2 Editor and sharing (Release 1) | Command set, canvas editor, undo, zoom and pan, share link, standalone HTML, SVG, JSON download and open; tier 2 layout; repo public, site live on GitHub Pages; portfolio branch line | Someone who uses PowerPoint but not CAD can build the demo plan from the "Single spur" template, and edit an existing plan, in under 10 minutes each without help, and share it by link, with no AI. The acceptance scenarios in section 13 pass |
+| P3 Import (Release 2) | Ingest for the section 7.1 files, page picking, privacy preview, adapter, questions and provenance, proxy with Turnstile and limits, Sign in with OpenRouter | A PDF of a tier 1 plan becomes a draft plus questions; after answering them it plays on the live site, on the free mode. Other formats follow one by one |
+| P4 Benchmark | Fixtures (layout-drawn, messy PowerPoint, held-out), bench CLI, scoring, results page; proxy model list set from results | Results table published in `docs/results/` |
 
-### 12.3 After the first release, ranked by impact against effort
+### 12.3 After Releases 1 and 2, ranked by impact against effort
 
-The engine's notes, the switching know-how rail people will talk about, are already in the first release. After it:
+The engine's notes, the switching know-how rail people will talk about, are already in Release 1. After that:
 
 1. **Plan metrics and compare two plans:** same customer, two orders of work, numbers side by side. That's how a plan gets sold to a customer and a crew. Low effort once the engine exists.
 2. **The open format:** name it, publish the schema at a stable URL, a one-page description with three examples, under Apache 2.0.
@@ -507,21 +553,40 @@ The engine's notes, the switching know-how rail people will talk about, are alre
 - Golden test for the demo, on what it means rather than its coordinates (the hand-built demo isn't to scale): same tracks and switch, the same order of work, cars at the racks after the shove, the empties on the train at departure.
 - Privacy tests for the import: metadata, notes, comments, hidden slides, emails and phone numbers are gone from what's sent, and covered-up areas are blank in the images.
 - One browser smoke test for the player, and browser tests for the main editor actions (place a turnout, flip it, stretch a track, place cars, make a step by dragging, undo).
-- Hallway test before the first release: two or three people who use PowerPoint but not CAD build the demo plan while we watch, without help. Anything they get stuck on gets fixed or simplified.
+- Hallway test before Release 1: two or three people who use PowerPoint but not CAD build the demo plan while we watch, without help. Anything they get stuck on gets fixed or simplified.
 - The benchmark runs on demand, never in CI (it can cost money).
+
+**Demo expected-state table.** Before P1 code, write a table for the demo plan showing, after each step: every car and loco ID, where it is (track and distance), the order, what's coupled, loaded or empty, and the notes expected. It's the reference for both building and review.
+
+**Acceptance scenarios** (must pass before Release 1):
+
+| Scenario | What must be shown |
+|---|---|
+| Three partial moves along one track | Every stopping position survives saving and reopening |
+| An earlier step is changed or reordered | Later steps recalculate predictably and affected steps are highlighted |
+| One middle car is separated and moved | IDs, order and couplings survive Undo, Redo and reopening |
+| A plan with a trailing-point spur is mirrored left to right | It still means the same moves |
+| Loads are moved toward cars already on site | The fit note counts both groups |
+| A car is given a longer length than 60 ft | The fit note changes and still states its assumptions |
+| The loco leaves and comes back | The same loco, facing the same way, returns through a named edge |
+| A route can't be established | The step still saves, plays and exports, labelled "Route not established" |
+| A share link is opened while another plan is saved | The saved plan is kept; the link opens as a copy |
+| One drag adds an uncouple, a move and a second step | One Undo restores everything |
+
+Release 2 adds: **a covered-up import**, where the covered content is absent from every outgoing piece (image, text layer, shape labels).
 
 ## 14. Risks
 
 | Risk | Mitigation |
 |---|---|
 | The engine's switching rules are harder than they look (power end, facing versus trailing, runarounds) | Write them once in the engine with tests and property tests; nothing else re-implements them |
-| Layout breaks on branches off branches, rejoining sidings or crowded sides | Lane assignment from the start; tier 3 yards stay out of the first release |
+| Layout breaks on branches off branches, rejoining sidings or crowded sides | Lane assignment from the start; tier 3 yards stay out of Releases 1 and 2 |
 | Saved plans and share links break when the schema changes | Version tag on every file and link; a `migrate` function per version from day one |
 | Synthetic fixtures flatter the model | Messy PowerPoint fixtures, reported separately |
 | Free models change provider, ignore JSON schema or refuse images | Validate locally; record the exact model and provider on every plan and show it in the UI |
 | Shared free quota used up by a few heavy users or bots | Turnstile verified server side, per-visitor daily limit, payload cap, images downscaled; the app falls back to the other modes |
 | Project key abused | Key never reaches the browser; $0 credit limit and a guardrail model allowlist at OpenRouter |
-| A user's own OpenRouter key sits in the browser | Strict Content Security Policy, no third-party scripts, key kept in memory or session storage, clear sign-out |
+| A user's own OpenRouter key sits in the browser | Strict Content Security Policy that allows only our own scripts plus Cloudflare Turnstile's, key kept in memory or session storage, clear sign-out |
 | Free endpoints may log or train on prompts | Warning before every free import; only the drawing is sent, with private details stripped and a preview with cover-up boxes (section 7.2); fixtures are synthetic, so the benchmark exposes nothing |
 | People with low computer confidence get lost in the editor | PowerPoint-like design (section 5.6), templates, the hallway test before release |
 | A share link or export passes a plan around further than intended | The share dialog says the link contains the whole plan; nothing is stored on a server |
@@ -532,8 +597,10 @@ The engine's notes, the switching know-how rail people will talk about, are alre
 Decided with the owner (2026-10-20):
 
 **Product**
-- The person does most of the work. Canvas editing is the main tool and is in the first release. AI is one optional import button; no chat editing or AI explanations.
-- Nothing is blocked. The engine's findings are notes the person can ignore; unclear moves still play; any number of steps, including static ones, is fine.
+- The person does most of the work. Canvas editing is the main tool. In Releases 1 and 2, AI is at most one optional import button. The editor's commands are designed as a tool interface so a natural-language agent can be added later (section 5.7).
+- Release 1 is the editor, with no AI, and goes public; the import is Release 2.
+- Nothing is blocked. The engine's findings are notes the person can ignore; unclear moves still play, shown as "Route not established"; any number of steps, including static ones, is fine.
+- Steps save exact stopping positions in railway terms; the picture after each step is recalculated, and edits to earlier steps flag affected later ones (section 6.6).
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
 - Licence: Apache 2.0, for the patent grant and clear trademark terms that larger organisations look for.
 
@@ -541,7 +608,7 @@ Decided with the owner (2026-10-20):
 - The editor feels like PowerPoint: automatic, to-scale drawing, track built by dragging turnout blocks and stretching track ends, steps made like slides by dragging the train to where it ends up (section 5.6).
 - Turnout direction: the engine guesses it when a turnout is placed; Flip up/down changes left and right, and Flip left/right changes facing and trailing.
 - The train arrives from the left or the right of the drawing, with the compass heading labelled at the ends of the main and by the train; everything else is drawn relative to that.
-- Each step shows one animation (one move, cut-off, couple, load or unload, stop or note). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
+- Each step shows one animation (one move, uncouple, couple, load or unload, stop or note). Shortcuts like set out, pick up and runaround expand into single steps. The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
 - Leaving and coming back: dragging the loco (alone or with cars) off the edge of the drawing sends it away for other work, with a callout if needed; dragging it in from the edge brings it back. In the data, the reserved target `offstage`.
 - Cars and locos are drawn in side view, as realistic silhouettes per type, to scale along the track, with the gap between tracks stretched beyond scale to fit them.
 
@@ -549,7 +616,7 @@ Decided with the owner (2026-10-20):
 - One plan per arrival direction. Sections: arrival, spotting and yard work, departure, with optional customer steps anywhere.
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
 - Individual cars: every car can be placed, numbered, typed and spotted on its own; counts stay as a shortcut. Cars already on site are placed before Step 1. Facilities have numbered spots.
-- Track lengths to scale in feet. All cars plan at 60 ft and all locos at 80 ft, whatever the type, plus an always-applied 10% slack factor as a safety margin (66 ft and 88 ft). The factor can be raised, never lowered below 10%. The 80 ft loco rounds up from modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in).
+- Track lengths to scale in feet, meaning usable standing length. All cars are drawn and counted at 60 ft and all locos at 80 ft, whatever the type. A 10% slack check runs inside the engine for fit notes only, explained in the note when it matters; it's not added to the drawing. The 80 ft loco rounds up from modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in).
 - Switches are drawn about 240 ft long, to scale. Cars stopped within about 290 ft of a switch they aren't using get a "may be fouling the switch" note, but are still shown as placed. No per-switch clearance settings.
 - Clean auto-layout from the track connections. The AI sends no coordinates.
 
@@ -558,13 +625,13 @@ Decided with the owner (2026-10-20):
 - The project key lives on the owner's existing OpenRouter account, which already qualifies for the 1,000 requests a day free cap. No credit purchase needed.
 - Privacy: a clear warning before every free import; only the drawing is sent, with private details stripped and a preview where the person can cover anything up (section 7.2).
 - The import asks a clarifying question for every assumption it makes.
-- The import does not accept CAD files (DWG, DXF) or hand-drawn sketches. Scans of printed plans are supported; there's no separate OCR cost.
+- The import keeps all the formats in section 7.1, with a preview that lists every piece that will be sent (section 7.2). It does not accept CAD files (DWG, DXF) or hand-drawn sketches. Scans of printed plans are supported; there's no separate OCR cost.
 - No local models and no Ollama. Sign in with ChatGPT is planned for later, after applying for a client ID.
 - Accuracy ceiling in the benchmark: Claude Opus 5.5, called through OpenRouter, as a reference point only.
 - Real op plans found online form a private test set only: never committed or published, aggregate scores only. The public benchmark is synthetic.
 
 **Hosting**
-- The repo stays private until the first release is done. Then it goes public and the demo goes live on GitHub Pages; until then, a private preview build.
+- The repo stays private until Release 1 (the editor) is done. Then it goes public and the demo goes live on GitHub Pages; until then, a private preview build.
 - Proxy on Cloudflare Workers, free plan. Supabase stays an option for storage later.
 
 Open: none at the moment.

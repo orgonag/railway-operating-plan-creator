@@ -65,7 +65,7 @@
       }
     },
     "carLength": {
-      "description": "General planning length for every car, whatever its type. A slack factor of at least 10% is always added as a safety margin, so 60 ft plans as 66 ft.",
+      "description": "General planning length for every car, whatever its type. Drawn and counted at this length. The engine applies a slack check of at least allowancePct (10%) only when deciding fit notes.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -78,12 +78,12 @@
           "type": "number",
           "minimum": 10,
           "default": 10,
-          "description": "Slack factor, always applied to cars and locos. Never below 10."
+          "description": "Slack check used inside the engine for fit notes only. Not added to the drawing. Never below 10."
         }
       }
     },
     "locoLength": {
-      "description": "General planning length for every loco, whatever its type. The same slack factor is added, so 80 ft plans as 88 ft.",
+      "description": "General planning length for every loco, whatever its type.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -451,6 +451,31 @@
         }
       }
     },
+    "provenance": {
+      "description": "Where each field came from. Keys are field paths (collection.id.field). The engine ignores this; the editor shows it.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "read",
+              "assumed",
+              "unknown",
+              "confirmed"
+            ]
+          },
+          "source": {
+            "description": "For read: where in the source, e.g. page 1, label 'Track 2'.",
+            "type": "string"
+          }
+        }
+      }
+    },
     "notes": {
       "description": "Anything in the document that didn't fit the fields above.",
       "type": "array",
@@ -492,10 +517,11 @@
           "const": "railroad"
         },
         "do": {
-          "description": "shove: push cars ahead of the power. pull: draw cars behind the power. cut_off: uncouple the power and leave cars. couple: couple to cars. run_light: move the power alone. runaround: get the power to the other end of its cars. set_out: leave cars on a track. pick_up: collect cars from a track. stop: stop and hold; needs a callout saying why.",
+          "description": "shove, pull, run_light: moves. uncouple: split between two named pieces of equipment; cut_off: uncouple the power from its cars. couple: couple to cars. stop: stop and hold, needs a callout. runaround, set_out, pick_up: shortcuts, expanded into single steps before saving.",
           "enum": [
             "shove",
             "pull",
+            "uncouple",
             "cut_off",
             "couple",
             "run_light",
@@ -507,7 +533,7 @@
         },
         "cars": {
           "$ref": "#/$defs/ids",
-          "description": "Cut ids or individual car ids."
+          "description": "Car, loco or group ids."
         },
         "to": {
           "description": "Facility or track id the move ends at, or the reserved value \"offstage\" when the power (alone or with cars) leaves the drawing for other work.",
@@ -530,6 +556,18 @@
           "description": "Numbered spot at the facility for the first car moved.",
           "type": "integer",
           "minimum": 1
+        },
+        "stop": {
+          "$ref": "#/$defs/stop"
+        },
+        "between": {
+          "description": "For uncouple: the two adjacent pieces of equipment to split.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
         }
       },
       "allOf": [
@@ -585,6 +623,9 @@
           "description": "Numbered spot, for move_cars.",
           "type": "integer",
           "minimum": 1
+        },
+        "stop": {
+          "$ref": "#/$defs/stop"
         }
       }
     },
@@ -690,6 +731,74 @@
           "minimum": 1
         }
       }
+    },
+    "stop": {
+      "description": "Exactly where a move ends, in railway terms.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "track",
+            "ft",
+            "end"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "track": {
+              "$ref": "#/$defs/id"
+            },
+            "ft": {
+              "type": "number"
+            },
+            "end": {
+              "enum": [
+                "lead",
+                "rear"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "beyond",
+            "ft",
+            "end"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "beyond": {
+              "description": "Switch id.",
+              "$ref": "#/$defs/id"
+            },
+            "ft": {
+              "type": "number",
+              "minimum": 0
+            },
+            "end": {
+              "enum": [
+                "lead",
+                "rear"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "offstage"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "offstage": {
+              "enum": [
+                "left",
+                "right"
+              ]
+            }
+          }
+        }
+      ]
     }
   }
 }

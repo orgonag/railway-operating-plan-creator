@@ -124,7 +124,10 @@
       "via": [
         "S1"
       ],
-      "text": "It pulls back out through the turnout and leaves for other work."
+      "text": "It pulls back out through the turnout and leaves for other work.",
+      "stop": {
+        "offstage": "left"
+      }
     },
     {
       "actor": "customer",
@@ -141,7 +144,12 @@
       "via": [
         "S1"
       ],
-      "text": "Later, the locomotive returns, running back in through the turnout to the empty cars."
+      "text": "Later, the locomotive returns, running back in through the turnout to the empty cars.",
+      "stop": {
+        "track": "SPUR1",
+        "ft": 435,
+        "end": "lead"
+      }
     },
     {
       "actor": "railroad",
@@ -161,7 +169,12 @@
       "via": [
         "S1"
       ],
-      "text": "It pulls them back out onto the main line."
+      "text": "It pulls them back out onto the main line.",
+      "stop": {
+        "beyond": "S1",
+        "ft": 300,
+        "end": "rear"
+      }
     }
   ],
   "departure": {
@@ -197,5 +210,20 @@
       ],
       "basis": "Step 7 shows the train heading back toward the left edge."
     }
-  ]
+  ],
+  "provenance": {
+    "tracks.SPUR1.lengthFt": {
+      "status": "assumed"
+    },
+    "facilities.RACKS.lengthFt": {
+      "status": "assumed"
+    },
+    "switches.S1.side": {
+      "status": "read",
+      "source": "Drawing: spur leaves above the main"
+    },
+    "departure.direction": {
+      "status": "assumed"
+    }
+  }
 }
