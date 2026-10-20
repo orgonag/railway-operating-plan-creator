@@ -85,7 +85,7 @@
     {
       "actor": "railroad",
       "do": "run_light",
-      "to": "MAIN",
+      "to": "offstage",
       "via": [
         "S1"
       ],

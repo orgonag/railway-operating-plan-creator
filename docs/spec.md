@@ -169,7 +169,7 @@ The people using this are railroaders, customer service and industrial developme
 2. Add the train: the loco and the cuts of cars, with a count and loaded or empty for each cut.
 3. **Step 1 is the arrival.** The train stands on the main as it arrives.
 4. **"New step" copies the previous step**, the way duplicating a slide does.
-5. **In the new step, drag the train or a cut to where it should end up.** It slides along the track, so it can't be dropped off it.
+5. **In the new step, drag the train or a cut to where it should end up.** Dragging the loco (alone or with cars) off the edge of the drawing sends it away for other work; dragging it in from the edge brings it back. It slides along the track, so it can't be dropped off it.
 6. **The tool works out the move.** Power behind the cars is a shove, power in front is a pull, a loco on its own is running light. It writes the caption ("Shove 5 loads to the unloading racks"), which you can edit.
 7. **Small buttons on the train** do the rest: scissors between two cars or the loco to cut off, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main").
 8. **The engine looks over each step as you make it.** If something looks off, a small note icon appears on the step with the reason in plain words. The step still works and still plays.
@@ -279,7 +279,7 @@ Two kinds of checks, and only the first kind ever stops anything.
 
 **Notes from the engine** apply to everything, and never block a step, a Play or an export. The engine can't foresee every situation, so these are things to look at, not rules:
 5. **Fit.** Every cut fits where it's sent. Cars × (car length + allowance) must be no longer than the facility or track, with the numbers shown, e.g. "5 × 66 ft = 330 ft of 360 ft at the racks: fits".
-6. **Clear of switches.** After every move, every group stands clear of every switch it isn't using, by a default clearance distance that the user can change.
+6. **Clear of switches.** After every move, every group stands clear of every switch it isn't using. Each turnout has a clearance point marker, placed at a default distance from the switch and draggable along the branch, and the note compares cars against that marker. No single published figure fits every turnout (it depends on turnout size and track centres; AREMA and each railway's standard plans govern), so the default is a starting value the person adjusts.
 7. **Buffer stops.** Nothing is shoved past the end of a track.
 8. **Power on the right end.** A `pull` needs the power on the far side of the cut from where it's going; a `shove` needs it behind. A trailing-point spur needs a runaround (or a different plan) to be served as drawn.
 9. **Runaround.** A runaround needs a siding with two switches and room for the power.
@@ -470,6 +470,8 @@ Decided (2026-10-20):
 - Track lengths to scale in feet. Cars default to 60 ft plus an always-shown 10% allowance (66 ft), overridable.
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
+- **Leaving and coming back.** When the loco, alone or with cars, is done for now, the person drags it off the edge of the drawing and it leaves for other work, with a callout if needed. Dragging it back in from the edge brings it back. In the data, a move to the reserved target `offstage` means it leaves the drawing.
+- **Loco length default: 74 ft plus the 10% allowance (about 81 ft).** That's typical of modern six-axle road units (EMD SD70ACe 74 ft 3 in; GE ES44AC 73 ft 2 in; GE ET44AC 74 ft 6 in). A "Four-axle" preset (GP38-2, 59 ft 2 in) is offered for locals and yard work, and any length can be typed.
 - Each step shows one animation (one move, cut-off, couple, load or unload, or stop). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
 - Nothing is blocked. The engine's findings are notes the person can ignore; unclear moves still play; any number of steps, including static ones, is fine.
 - The train can arrive from the left or the right of the drawing, with the compass heading labelled at the ends of the main and by the train; everything else is drawn relative to that.
@@ -479,10 +481,9 @@ Decided (2026-10-20):
 Open:
 1. Licence when the repo goes public: MIT or Apache 2.0 (recommended).
 2. Buy $10 of OpenRouter credits once, to lift the shared free cap from 50 to 1,000 requests a day? The review recommends it as the cheapest capacity in the project. Your call; it's a spend.
-3. How should a plan say the power leaves the drawing and comes back later (demo steps 3 and 5)? Options: `run_light` to a special `offstage` target, or two new verbs such as `leave` and `return`.
-4. Default switch clearance distance and default loco length, when the document doesn't give them.
-5. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
-6. Proxy host: Cloudflare Workers (recommended, free plan) or a Supabase Edge Function, if we end up using Supabase for anything else.
+3. Default clearance point distance for each turnout (see the clearance note in section 6.4).
+4. Should the app warn users before sending a real plan to a free endpoint that may log prompts?
+5. Proxy host: Cloudflare Workers (recommended, free plan) or a Supabase Edge Function, if we end up using Supabase for anything else.
 
 ## 16. Related docs
 

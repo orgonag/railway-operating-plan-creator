@@ -246,7 +246,8 @@
             },
             "lengthFt": {
               "type": "number",
-              "exclusiveMinimum": 0
+              "exclusiveMinimum": 0,
+              "description": "Defaults to 74 ft (typical modern six-axle road unit). The car allowance applies on top, so it plans as about 81 ft."
             }
           }
         },
@@ -469,7 +470,7 @@
           "$ref": "#/$defs/ids"
         },
         "to": {
-          "description": "Facility or track id the move ends at.",
+          "description": "Facility or track id the move ends at, or the reserved value \"offstage\" when the power (alone or with cars) leaves the drawing for other work.",
           "$ref": "#/$defs/id"
         },
         "via": {
