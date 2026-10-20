@@ -13,3 +13,5 @@ Status: research spec, no code yet.
 - Research notes: [models](docs/research/models.md), [prior art](docs/research/prior-art.md), [canvas and ingestion](docs/research/canvas.md), [architecture review](docs/research/architecture-review.md)
 
 All example plans are synthetic. The project uses no proprietary railway data.
+
+Licensed under the [Apache License 2.0](LICENSE).

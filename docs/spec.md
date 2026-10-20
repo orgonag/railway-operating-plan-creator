@@ -528,6 +528,7 @@ Decided (2026-10-20):
 - Accuracy ceiling: Claude Opus 5.5, called through OpenRouter, as a reference point only.
 - No local models and no Ollama.
 - The project key lives on the owner's existing OpenRouter account, which already qualifies for the 1,000 requests a day free cap. No credit purchase needed.
+- Licence: Apache 2.0, for the patent grant and clear trademark terms that larger organisations look for.
 - Privacy: a clear warning before every free import; only the drawing is sent, with private details stripped and a preview where the person can cover anything up (section 7.2).
 - Proxy host: Cloudflare Workers on the free plan. Supabase stays an option for storage later.
 - Real op plans found online form a private test set only: never committed or published, aggregate scores only. The public benchmark is synthetic.
@@ -552,8 +553,7 @@ Decided (2026-10-20):
 - The editor feels like PowerPoint: automatic, to-scale drawing, track built by dragging turnout blocks and stretching track ends, steps made like slides by dragging the train to where it ends up (section 5.6).
 - The person does most of the work. Canvas editing is the main tool and is in the first release. AI is one optional import button that accepts most common files and asks a clarifying question for every assumption. No chat editing or AI explanations.
 
-Open:
-1. Licence when the repo goes public: MIT or Apache 2.0 (recommended).
+Open: none at the moment.
 
 ## 16. Related docs
 
