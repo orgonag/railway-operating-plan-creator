@@ -1,0 +1,22 @@
+{
+  "name": "railway-operating-plan-creator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build a rail operating plan, play it step by step, and share it.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.app.json --noEmit",
+    "dev": "vite app",
+    "build": "npm run typecheck && vite build app",
+    "check-schema": "node scripts/check-schema.mjs"
+  },
+  "devDependencies": {
+    "ajv": "8.17.1",
+    "happy-dom": "15.11.0",
+    "typescript": "5.6.3",
+    "vite": "5.4.10",
+    "vitest": "2.1.4"
+  }
+}

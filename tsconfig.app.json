@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "files": [],
+  "include": ["src/render", "src/player", "app", "tests/render", "tests/player"]
+}

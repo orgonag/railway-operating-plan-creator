@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "0.2",
+  "title": "A 0.2 draft of the demo",
+  "arrival": {
+    "direction": "eastbound",
+    "on": "MAIN",
+    "locos": "rear",
+    "text": "A local train arrives on the main line with the customer's loaded cars."
+  },
+  "carLength": { "ft": 60, "allowancePct": 10 },
+  "tracks": [
+    { "id": "MAIN", "role": "main", "name": "Main line", "end": "continues" },
+    { "id": "SPUR1", "role": "spur", "name": "Customer siding", "lengthFt": 800, "end": "buffer_stop" }
+  ],
+  "switches": [
+    { "id": "S1", "on": "MAIN", "to": "SPUR1", "side": "left", "approach": "facing", "order": 1 }
+  ],
+  "facilities": [
+    { "id": "RACKS", "name": "Unloading racks", "kind": "unloading_racks", "track": "SPUR1", "lengthFt": 360, "spots": 5 }
+  ],
+  "consist": {
+    "locos": { "count": 1 },
+    "cuts": [
+      { "id": "LOADS", "cars": 5, "state": "loaded", "for": "RACKS", "carType": "hopper" }
+    ]
+  },
+  "work": [
+    { "actor": "railroad", "do": "shove", "cars": ["LOADS"], "to": "RACKS", "via": ["S1"], "text": "The locomotive shoves the loaded cars to the racks." },
+    { "actor": "railroad", "do": "cut_off", "cars": ["LOADS"], "text": "The locomotive cuts off." },
+    { "actor": "railroad", "do": "run_light", "to": "MAIN", "via": ["S1"], "text": "It pulls back out onto the main." }
+  ],
+  "departure": {
+    "direction": "westbound",
+    "cars": ["LOADS"],
+    "text": "The train departs."
+  },
+  "unsure": ["tracks.SPUR1.lengthFt", "facilities.RACKS.lengthFt"]
+}

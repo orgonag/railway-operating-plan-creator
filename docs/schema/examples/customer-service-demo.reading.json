@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "0.3",
+  "schemaVersion": "1",
   "title": "How a Train Services a Customer",
   "description": "The portfolio demo as the AI would send it. Track and facility lengths are illustrative; the original drawing has none.",
   "arrival": {
@@ -100,6 +100,7 @@
   },
   "work": [
     {
+      "id": "W1",
       "actor": "railroad",
       "do": "shove",
       "cars": [
@@ -113,6 +114,7 @@
       "spot": 5
     },
     {
+      "id": "W2",
       "actor": "railroad",
       "do": "cut_off",
       "cars": [
@@ -121,6 +123,7 @@
       "text": "The locomotive cuts off, leaving the loaded cars at the facility."
     },
     {
+      "id": "W3",
       "actor": "railroad",
       "do": "run_light",
       "to": "offstage",
@@ -133,6 +136,7 @@
       }
     },
     {
+      "id": "W4",
       "actor": "customer",
       "do": "unload",
       "cars": [
@@ -141,6 +145,7 @@
       "text": "While the locomotive is away, the customer unloads the cars."
     },
     {
+      "id": "W5",
       "actor": "railroad",
       "do": "run_light",
       "to": "SPUR1",
@@ -155,6 +160,7 @@
       }
     },
     {
+      "id": "W6",
       "actor": "railroad",
       "do": "couple",
       "cars": [
@@ -163,6 +169,7 @@
       "text": "It couples to the empties."
     },
     {
+      "id": "W7",
       "actor": "railroad",
       "do": "pull",
       "cars": [

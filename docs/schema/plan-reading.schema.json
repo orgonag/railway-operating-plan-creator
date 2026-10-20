@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/orgonag/railway-operating-plan-creator/docs/schema/plan-reading.schema.json",
   "title": "PlanReading",
-  "description": "What the AI sends after reading an operating plan document. Railway terms only, no coordinates. Code turns this into the canvas plan. Version 0.3.",
+  "description": "What the AI sends after reading an operating plan document. Railway terms only, no coordinates. Code turns this into the canvas plan. Version 1.",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -18,7 +18,7 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
-      "const": "0.3"
+      "const": "1"
     },
     "title": {
       "type": "string"
@@ -58,6 +58,10 @@
             "head",
             "rear"
           ]
+        },
+        "stop": {
+          "description": "Where the arriving train stands on the main before work begins. Leave out to start with the head 100 ft short of the first switch.",
+          "$ref": "#/$defs/stop"
         },
         "text": {
           "type": "string"
@@ -263,11 +267,14 @@
               "description": "Overrides the general loco length for these locos. The slack factor still applies."
             },
             "type": {
-              "enum": [
-                "six_axle",
-                "four_axle",
-                "switcher"
-              ]
+              "$ref": "#/$defs/locoType"
+            },
+            "list": {
+              "description": "Individual locos, in order from the head end. If present, its length should match count.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/loco"
+              }
             }
           }
         },
@@ -507,12 +514,17 @@
     "railroadStep": {
       "type": "object",
       "required": [
+        "id",
         "actor",
         "do",
         "text"
       ],
       "additionalProperties": false,
       "properties": {
+        "id": {
+          "description": "Permanent step id. Notes and share links point at it.",
+          "$ref": "#/$defs/id"
+        },
         "actor": {
           "const": "railroad"
         },
@@ -553,7 +565,7 @@
           "$ref": "#/$defs/callout"
         },
         "spot": {
-          "description": "Numbered spot at the facility for the first car moved.",
+          "description": "Numbered spot at the facility: the leading unit's front goes to this spot's far edge.",
           "type": "integer",
           "minimum": 1
         },
@@ -590,12 +602,16 @@
     "customerStep": {
       "type": "object",
       "required": [
+        "id",
         "actor",
         "do",
         "text"
       ],
       "additionalProperties": false,
       "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
         "actor": {
           "const": "customer"
         },
@@ -620,7 +636,7 @@
           "$ref": "#/$defs/callout"
         },
         "spot": {
-          "description": "Numbered spot, for move_cars.",
+          "description": "Numbered spot, for move_cars: the leading unit's front goes to this spot's far edge.",
           "type": "integer",
           "minimum": 1
         },
@@ -649,12 +665,16 @@
     "noteStep": {
       "type": "object",
       "required": [
+        "id",
         "do",
         "text"
       ],
       "additionalProperties": false,
       "description": "A plain slide: nothing moves, just a caption and an optional callout.",
       "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
         "actor": {
           "enum": [
             "railroad",
@@ -692,6 +712,33 @@
         "well_car",
         "reefer"
       ]
+    },
+    "locoType": {
+      "enum": [
+        "six_axle",
+        "four_axle",
+        "switcher"
+      ]
+    },
+    "loco": {
+      "description": "One loco, when specific locos matter.",
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "$ref": "#/$defs/locoType"
+        },
+        "lengthFt": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
     },
     "car": {
       "description": "One car, when specific cars matter.",
@@ -791,9 +838,10 @@
           "additionalProperties": false,
           "properties": {
             "offstage": {
+              "description": "Which end of the main the equipment leaves by. Named by the main's logical boundary, never by a screen side, so mirroring the drawing cannot change the meaning.",
               "enum": [
-                "left",
-                "right"
+                "arrival_end",
+                "far_end"
               ]
             }
           }

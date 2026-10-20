@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1",
+  "title": "Two tracks share the id MAIN",
+  "arrival": {
+    "direction": "eastbound",
+    "enters": "left",
+    "on": "MAIN",
+    "locos": "head",
+    "text": "A train arrives."
+  },
+  "tracks": [
+    { "id": "MAIN", "role": "main", "name": "Main line", "end": "continues" },
+    { "id": "MAIN", "role": "main", "name": "Main line again", "end": "continues" },
+    { "id": "SPUR1", "role": "spur", "lengthFt": 500, "end": "buffer_stop" }
+  ],
+  "switches": [
+    { "id": "S1", "on": "MAIN", "to": "SPUR1", "side": "left", "approach": "facing" }
+  ],
+  "facilities": [],
+  "consist": {
+    "locos": { "count": 1 },
+    "cuts": [
+      { "id": "CUT1", "cars": 2, "state": "loaded" }
+    ]
+  },
+  "work": [
+    { "id": "W1", "actor": "railroad", "do": "shove", "cars": ["CUT1"], "to": "SPUR1", "text": "Shove the cars into the spur." }
+  ],
+  "departure": {
+    "direction": "westbound",
+    "text": "The train departs."
+  }
+}

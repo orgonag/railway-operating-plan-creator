@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "0.3",
+  "title": "A 0.3 plan whose loco leaves by the left edge",
+  "arrival": {
+    "direction": "eastbound",
+    "enters": "left",
+    "on": "MAIN",
+    "locos": "rear",
+    "text": "A local train arrives on the main line."
+  },
+  "tracks": [
+    { "id": "MAIN", "role": "main", "end": "continues" },
+    { "id": "SPUR1", "role": "spur", "lengthFt": 800, "end": "buffer_stop" }
+  ],
+  "switches": [
+    { "id": "S1", "on": "MAIN", "to": "SPUR1", "side": "left", "approach": "facing", "order": 1 }
+  ],
+  "facilities": [
+    { "id": "RACKS", "name": "Unloading racks", "kind": "unloading_racks", "track": "SPUR1", "lengthFt": 360, "spots": 5 }
+  ],
+  "consist": {
+    "locos": { "count": 1 },
+    "cuts": [
+      { "id": "LOADS", "cars": 5, "state": "loaded", "for": "RACKS" }
+    ]
+  },
+  "work": [
+    { "actor": "railroad", "do": "shove", "cars": ["LOADS"], "to": "RACKS", "via": ["S1"], "text": "Shove the loads to the racks.", "spot": 5 },
+    { "actor": "railroad", "do": "cut_off", "cars": ["LOADS"], "text": "Cut off." },
+    { "actor": "railroad", "do": "run_light", "to": "offstage", "via": ["S1"], "text": "Leave for other work.", "stop": { "offstage": "left" } }
+  ],
+  "departure": {
+    "direction": "westbound",
+    "text": "The train departs."
+  }
+}
