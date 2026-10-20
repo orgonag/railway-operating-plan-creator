@@ -16,7 +16,12 @@
  * - The second step of an expansion gets `<originalId>b`, or the next letter
  *   that does not collide.
  * - `runaround` stays one step in P1.
+ * - The authored text stays on the first step of an expansion: the move for
+ *   `set_out`, the couple for `pick_up`. The second step gets an empty text.
+ * - The two steps of an expansion share no arrays or objects; each gets its
+ *   own copy of cars, via, stop and callout.
  *
+ * Assumes validateFile has already run, so ids are unique on the way in.
  * Idempotent: materializing a materialized plan changes nothing.
  */
 
@@ -173,18 +178,18 @@ function materializeWork(work: WorkStep[], taken: Set<string>): WorkStep[] {
     if (step.actor === "railroad" && step.do === "set_out") {
       const move: RailroadStep = { ...step, do: "shove" };
       const cutOff: RailroadStep = { id: suffixId(step.id, taken), actor: "railroad", do: "cut_off", text: "" };
-      if (step.cars) cutOff.cars = step.cars;
+      if (step.cars) cutOff.cars = [...step.cars];
       out.push(orderFields(move), cutOff);
     } else if (step.actor === "railroad" && step.do === "pick_up") {
       const couple: RailroadStep = { id: step.id, actor: "railroad", do: "couple", text: step.text };
-      if (step.cars) couple.cars = step.cars;
-      if (step.callout) couple.callout = step.callout;
+      if (step.cars) couple.cars = [...step.cars];
+      if (step.callout) couple.callout = cloneJson(step.callout);
       const move: RailroadStep = { id: suffixId(step.id, taken), actor: "railroad", do: "pull", text: "" };
-      if (step.cars) move.cars = step.cars;
+      if (step.cars) move.cars = [...step.cars];
       if (step.to !== undefined) move.to = step.to;
-      if (step.via) move.via = step.via;
+      if (step.via) move.via = [...step.via];
       if (step.spot !== undefined) move.spot = step.spot;
-      if (step.stop) move.stop = step.stop;
+      if (step.stop) move.stop = cloneJson(step.stop);
       out.push(couple, move);
     } else {
       out.push(step);

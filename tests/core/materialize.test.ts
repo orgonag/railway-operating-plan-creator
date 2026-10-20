@@ -241,6 +241,40 @@ describe("materialize: step ids and shortcut expansion", () => {
     expect(m.work.map((w) => w.id)).toEqual(["W1", "W1c", "W1b"]);
   });
 
+  test("expanded steps share no arrays: editing the first leaves the second untouched", () => {
+    const setOut = materialize(
+      plan({ work: [{ id: "W1", actor: "railroad", do: "set_out", cars: ["LOADS"], to: "RACKS", via: ["S1"], text: "Set out." }] })
+    ).plan;
+    const [first, second] = setOut.work as [RailroadStep, RailroadStep];
+    first.cars!.push("EXTRA");
+    expect(second.cars).toEqual(["LOADS"]);
+
+    const pickUp = materialize(
+      plan({
+        work: [
+          {
+            id: "W1",
+            actor: "railroad",
+            do: "pick_up",
+            cars: ["LOADS"],
+            to: "MAIN",
+            via: ["S1"],
+            stop: { beyond: "S1", ft: 50, end: "rear" },
+            callout: { text: "Here" },
+            text: "Pick up."
+          }
+        ]
+      })
+    ).plan;
+    const [couple, move] = pickUp.work as [RailroadStep, RailroadStep];
+    couple.cars!.push("EXTRA");
+    expect(move.cars).toEqual(["LOADS"]);
+    move.cars!.push("MORE");
+    expect(couple.cars).toEqual(["LOADS", "EXTRA"]);
+    expect(move.via).not.toBe(couple.via);
+    expect(move.stop).toEqual({ beyond: "S1", ft: 50, end: "rear" });
+  });
+
   test("runaround is left as one step", () => {
     const p = plan({ work: [{ id: "W1", actor: "railroad", do: "runaround", cars: ["LOADS"], text: "Run around." }] });
     const m = materialize(p).plan;
