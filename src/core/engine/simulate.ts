@@ -13,7 +13,9 @@
  * offstage at that boundary. That is what lets a loco leave and come back.
  *
  * Group paths are kept canonical: the first segment rises, and the units are
- * listed rear to head along it, which is the order `coupled` reports.
+ * listed rear to head along it, which is the order `coupled` reports in every
+ * state, the initial one included (the arriving train, offstage before the
+ * arrival end, is listed the way it will stand on the main).
  *
  * The engine never throws on a schema-valid plan. Problems become step
  * statuses, with precedence needs_attention > route_not_established > past_end
@@ -136,13 +138,6 @@ class Engine {
 
   run(): Simulation {
     const initial = this.snapshot();
-    if (this.arriving.length > 0) {
-      // R2: the initial listing of the arriving train is initialOrder, head first.
-      const members = new Set(this.arriving);
-      initial.coupled = initial.coupled.map((list) =>
-        list.length === members.size && list.every((id) => members.has(id)) ? [...this.arriving] : list
-      );
-    }
     const steps: StepResult[] = [];
     const states: WorldState[] = [];
     const record = (stepId: Id, outcome: Outcome): void => {
@@ -222,7 +217,7 @@ class Engine {
   private snapshot(): WorldState {
     const places: Record<Id, Place> = {};
     for (const group of this.groups) {
-      for (const [id, segs] of this.unitSegments(group)) {
+      for (const [id, segs] of this.lay(group.path, group.units)) {
         const off = this.offstageEnd(segs);
         places[id] = off ? { offstage: off } : { occupies: segs };
       }
@@ -236,18 +231,6 @@ class Engine {
       .sort((a, b) => this.indexOf(a.units[0]) - this.indexOf(b.units[0]))
       .map((group) => [...group.units]);
     return { places: ordered, facing: { ...this.facing }, coupled, loaded: { ...this.loaded } };
-  }
-
-  /** Each unit's slice of its group's path, rear to head. */
-  private unitSegments(group: Group): Map<Id, Segment[]> {
-    const out = new Map<Id, Segment[]>();
-    let at = 0;
-    for (const id of group.units) {
-      const len = this.lengthOf([id]);
-      out.set(id, slicePath(group.path, at, at + len));
-      at += len;
-    }
-    return out;
   }
 
   /** R13: a unit whose whole path lies beyond a main boundary is offstage there. */
@@ -652,7 +635,7 @@ class Engine {
     return { pos: lead, dir };
   }
 
-  /** Each unit's slice of a path laid from its start, keyed by unit. */
+  /** Each unit's slice of a path, laid end to end from the path's start in the given order. */
   private lay(path: Segment[], units: Id[]): Map<Id, Segment[]> {
     const out = new Map<Id, Segment[]>();
     let at = 0;

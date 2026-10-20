@@ -114,13 +114,15 @@ describe("simulate: the demo", () => {
     expect(sim.steps[3]!.moved).toEqual(["L1"]);
   });
 
-  test("the initial state has every unit offstage at the arrival end, coupled as the arriving train", () => {
+  test("the initial state has every unit offstage at the arrival end, coupled as the arriving train in rising-ft order", () => {
     const sim = run(demo);
     for (const id of ["L1", "C1", "C2", "C3", "C4", "C5"]) {
       expect(sim.initial.places[id]).toEqual({ offstage: "arrival_end" });
       expect(sim.initial.facing[id]).toBe("up");
     }
-    expect(sim.initial.coupled).toEqual([["C1", "C2", "C3", "C4", "C5", "L1"]]);
+    // Ruling 12: the same rising-ft order as every other state, so it matches the arrival row.
+    expect(sim.initial.coupled).toEqual([["L1", "C5", "C4", "C3", "C2", "C1"]]);
+    expect(sim.initial.coupled).toEqual(sim.states[0]!.coupled);
     expect(sim.initial.loaded).toEqual({ C1: true, C2: true, C3: true, C4: true, C5: true });
   });
 
@@ -295,6 +297,25 @@ describe("simulate: coupling and selection", () => {
     expect(sim.steps[6]!.status).toBe("needs_attention");
     expect(sim.states[6]!.coupled).toEqual([["L1"], ["C5", "C4", "C3", "C2", "C1"]]);
     expect(sim.states[6]!.places).toEqual(sim.states[5]!.places);
+  });
+
+  test("a stale via the edited shove never reaches is route_not_established, the cars still land where asked, and the couple step is needs_attention", () => {
+    const edited = cloneJson(demo);
+    const shove = edited.work[0]!;
+    if (shove.do !== "shove") throw new Error("demo W1 should be the shove");
+    delete shove.spot;
+    shove.to = "MAIN";
+    shove.stop = { track: "MAIN", ft: 500, end: "lead" };
+    expect(shove.via).toEqual(["S1"]);
+    const sim = run(edited);
+    expect(sim.steps[1]!.status).toBe("route_not_established");
+    expect(sim.steps[1]!.travel).toBeNull();
+    expect(sim.steps[1]!.moved).toEqual(["L1", "C5", "C4", "C3", "C2", "C1"]);
+    expect(occupies(sim.states[1]!, "C1")).toEqual([{ track: "MAIN", fromFt: 440, toFt: 500 }]);
+    expect(occupies(sim.states[1]!, "L1")).toEqual([{ track: "MAIN", fromFt: 120, toFt: 200 }]);
+    expect(sim.steps[6]!.stepId).toBe("W6");
+    expect(sim.steps[6]!.status).toBe("needs_attention");
+    expect(sim.states[6]!.coupled).toEqual([["L1"], ["C5", "C4", "C3", "C2", "C1"]]);
   });
 
   test("two locos: run_light naming L2 moves only L2", () => {

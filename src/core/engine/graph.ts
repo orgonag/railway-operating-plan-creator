@@ -109,7 +109,9 @@ export interface TrackGraph {
    * the branch that leads toward `target` (or the through route without one)
    * and honours `via` in order. It may run past a boundary end (offstage) or a
    * buffer end (past end), returning ft beyond the track's bounds. Returns
-   * null only when a required via switch cannot be reached.
+   * null only when a required via switch cannot be reached. A non-finite
+   * distance returns without the last stretch, so callers that want "as far
+   * as it goes" pass a large finite number.
    */
   walk(from: Pos, heading: Heading, distanceFt: number, via?: Id[], target?: Pos): Segment[] | null;
   /** The path from one position to another, or null when the target cannot be reached that way. */
