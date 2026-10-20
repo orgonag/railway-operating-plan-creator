@@ -325,7 +325,7 @@
       }
     },
     "work": {
-      "description": "Spotting and yard work, in order. Customer steps can appear anywhere.",
+      "description": "Spotting and yard work, in order, one action per step. Customer steps and plain note slides can appear anywhere. Any number of steps.",
       "type": "array",
       "items": {
         "anyOf": [
@@ -334,6 +334,9 @@
           },
           {
             "$ref": "#/$defs/customerStep"
+          },
+          {
+            "$ref": "#/$defs/noteStep"
           }
         ]
       }
@@ -540,6 +543,32 @@
         "at": {
           "description": "Switch, track or facility id to pin the note to.",
           "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "noteStep": {
+      "type": "object",
+      "required": [
+        "do",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "A plain slide: nothing moves, just a caption and an optional callout.",
+      "properties": {
+        "actor": {
+          "enum": [
+            "railroad",
+            "customer"
+          ]
+        },
+        "do": {
+          "const": "note"
+        },
+        "text": {
+          "type": "string"
+        },
+        "callout": {
+          "$ref": "#/$defs/callout"
         }
       }
     }

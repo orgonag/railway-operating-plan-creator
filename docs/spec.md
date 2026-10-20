@@ -16,7 +16,7 @@ You build the plan yourself, on the canvas, and the tool checks every move as yo
 ### Goals
 
 1. Build an operating plan on the canvas by hand: lay out the track, set lengths, place the facility and cars, and add the steps one at a time.
-2. Check that the plan actually works as you build it: cars fit, moves stay clear of switches, nothing is shoved past a buffer stop, the power is on the right end for each move.
+2. Get helpful notes as you build it, never roadblocks: cars that may not fit, a move that may foul a switch, a shove past a buffer stop, power that looks to be on the wrong end.
 3. Play the plan step by step, in the style of the existing demo, and try a different order of work.
 4. Export and share the result: JSON, a share link, a standalone animated HTML page, and SVG.
 5. Optionally, import an existing plan (most common file types) to get a rough draft. The AI asks a clarifying question for every assumption it makes, and the person decides.
@@ -77,7 +77,7 @@ Claude subscriptions stay out: Anthropic's terms say Claude Free, Pro and Max si
 
 Single repo in TypeScript. The core is a plain TypeScript package with no browser dependency: schema, engine, validate, layout. The app (Vite, React for panels) and the bench CLI (Node) both import that package. The renderer and player are plain SVG and DOM code with no framework, so the same code runs in the app, in the standalone export and in an embeddable player.
 
-What makes this worth noticing isn't that an AI can read a slide. It's that the person can build a plan quickly and the tool understands switching. It animates the plan, then tells you that 5 cars at 66 ft need 330 ft and the racks have 360, that the spur is trailing point for this arrival so the plan needs a runaround, or that the power is on the wrong end for the pull. Today that gets argued over by eye on a slide. The architecture is built around the editor and that engine; the AI import sits off to one side.
+What makes this worth noticing isn't that an AI can read a slide. It's that the person can build a plan quickly and the tool understands switching. It animates the plan, and it can point out things worth a second look: 5 cars at 66 ft need 330 ft and the racks have 360, the spur is trailing point for this arrival, the power looks to be on the wrong end for the pull. It points these out; it never stops anyone. Today that gets argued over by eye on a slide. The architecture is built around the editor and that engine; the AI import sits off to one side.
 
 ### 5.1 Data flow
 
@@ -94,8 +94,8 @@ bench CLI scores the import draft, and how well its questions covered its mistak
 | Module | Job | Depends on |
 |---|---|---|
 | `schema` | PlanReading types, JSON Schema, version tag, and migrations between versions | nothing |
-| `engine` | The plan as a state machine. Holds units, groups, coupling, power position and track offsets in feet. Expands each railroader verb into primitives (move, couple, uncouple, set state, arrive, depart) with stated defaults, and produces one world state per step. Works the other way too: given where things were before and after a drag in the editor, it finds the route and names the move (shove, pull, run light). Reports feasibility problems as structured findings | `schema` |
-| `validate` | Schema check, reference check, topology rules, then the engine run with its findings. Errors and warnings in one list | `schema`, `engine` |
+| `engine` | The plan as a state machine, and a forgiving one. Holds units, groups, coupling, power position and track offsets in feet. Expands each railroader verb into primitives (move, couple, uncouple, set state, arrive, depart) with stated defaults, and produces one world state per step. Works the other way too: given where things were before and after a drag in the editor, it finds the route and names the move (shove, pull, run light). Reports anything that looks off as notes, never as blocking errors. If it can't make sense of a step, it still produces a step: the cars slide straight to where the person put them | `schema` |
+| `validate` | Schema and reference checks for files coming in (imports, shared links, JSON), then the engine run with its notes | `schema`, `engine` |
 | `layout` | Lane assignment and geometry in feet: the main on lane 0, branches on lanes above or below by side, switches in order, approach length from the arriving train. Converts engine world states into positions on track paths | `schema`, `engine` |
 | `render` | Draws tracks, facilities, callouts and units as SVG in the demo's visual language. Applies one feet-to-pixel scale. No framework | `layout` output |
 | `player` | Moves groups along track paths between step states, with play, pause, step and seek. No framework | `render` |
@@ -139,7 +139,8 @@ The people using this are railroaders, customer service and industrial developme
 - **Plain words.** Railway terms only where railroaders use them. A short tooltip on every button.
 - **Undo is always visible** in the toolbar, not only on a key.
 - **Work is never lost.** The plan saves itself in the browser as you go, and the app reminds you to export or share.
-- **Problems are explained where they happen**, in a sentence, next to the thing that's wrong: "The racks hold 5 cars; you've moved 6."
+- **Nothing is ever blocked.** People can't think of every situation in advance, and neither can we. The tool lets the person do what they want, and only points things out.
+- **Notes, not errors.** When something looks off, a small note appears next to it in plain words ("Heads up: the racks hold 5 cars and you've moved 6"). Notes are information. They can be dismissed, and they never stop a step, a Play or an export.
 - **Start from a template**: "Single spur", "Spur with runaround", or the demo plan, instead of a blank page.
 - **Mouse first.** Big targets, readable at normal zoom. Touch is a nice extra, not a requirement.
 
@@ -159,12 +160,14 @@ The people using this are railroaders, customer service and industrial developme
 4. **In the new step, drag the train or a cut to where it should end up.** It slides along the track, so it can't be dropped off it.
 5. **The tool works out the move.** Power behind the cars is a shove, power in front is a pull, a loco on its own is running light. It writes the caption ("Shove 5 loads to the unloading racks"), which you can edit.
 6. **Small buttons on the train** do the rest: scissors between two cars or the loco to cut off, a link to couple, and Load or Unload on cars at a facility for a customer step. A Stop button adds a stop with a callout ("Wait for the signal before entering the main").
-7. **The engine checks each step as you make it.** A step that can't work turns red in the strip, with the reason in plain words.
-8. **Play** animates from step to step, like Morph. Steps can be reordered by dragging them in the strip, and the engine re-checks the whole plan.
+7. **The engine looks over each step as you make it.** If something looks off, a small note icon appears on the step with the reason in plain words. The step still works and still plays.
+8. **Play** animates from step to step, like Morph. Steps can be reordered by dragging them in the strip, and the engine looks over the whole plan again.
 
-**One step, one animation.** Each step does exactly one thing: one move, one cut-off, one couple, one load or unload, or one stop. That keeps every step easy to follow on screen and gives the engine one change to check at a time. If someone tries a second thing in the same step (for example dragging a second cut after the first), the tool offers to put it in a new step instead.
+**One step, one animation.** Each step does exactly one thing: one move, one cut-off, one couple, one load or unload, or one stop. That keeps every step easy to follow on screen and gives the engine one change to check at a time. If someone tries a second thing in the same step (for example dragging a second cut after the first), the tool puts it in a new step and says so; Undo puts it back.
 
-**Following the path the user took.** While a cut is being dragged, the engine follows the drag along the track. At each turnout, the way the pointer goes decides which route the cars take, so dragging up into the spur takes the spur and dragging along the main stays on the main. The engine records that route, so Play shows the same path the person drew, not just the shortest one. If the drag would change direction partway (pull out past a switch, then shove back into another track), that is two moves, so the tool splits it into two steps and says so. If there's no way for the cars to get there along the track, it shows where they stopped and why.
+**As many steps as people like.** Thirty small steps to show a train easing into a track is fine. A step can also be a plain slide where nothing moves, just a caption or a callout over the current picture.
+
+**Following the path the user took.** While a cut is being dragged, the engine follows the drag along the track. At each turnout, the way the pointer goes decides which route the cars take, so dragging up into the spur takes the spur and dragging along the main stays on the main. The engine records that route, so Play shows the same path the person drew, not just the shortest one. If the drag changes direction partway (pull out past a switch, then shove back into another track), the tool splits it into two steps and says so. If the engine can't follow the move at all, it doesn't refuse: the cars slide straight from where they were to where they were dropped, and the step gets a note saying the tool couldn't follow the route and the person may want to check it.
 
 Under the hood, each step is still saved as the verbs in section 6.2, with the route in `via`, so a step made by dragging and a step from the import are the same thing.
 
@@ -229,8 +232,9 @@ Names follow OpenStreetMap railway tagging where it fits (track roles, switch si
 | railroad | `stop` | Stop and hold, with a callout saying why (signal, derail, crew, customer gate) |
 | customer | `load` / `unload` | The customer loads or unloads cars where they sit |
 | customer | `move_cars` | The customer moves cars with their own equipment |
+| either | `note` | A plain slide: nothing moves, just a caption and an optional callout |
 
-Each step has exactly one `do`, `cars` (cut ids), `to` (a track or facility), optional `via` (switches, in order) and a plain-language `text`, which becomes the step caption. A move never changes direction within a step; a reversal is two steps.
+Each step has exactly one `do`, `cars` (cut ids), `to` (a track or facility), optional `via` (switches, in order) and a plain-language `text`, which becomes the step caption. In the editor, a reversal becomes two steps (section 5.6).
 
 Any step can also carry a **`callout`**: `{ text, at? }`, where `at` is a switch, track or facility id. The canvas pins it to that spot during the step, for example "Stop clear of S1. Wait for the signal before entering the main." A `stop` step needs a callout.
 
@@ -253,24 +257,24 @@ First release covers tier 1 and tier 2 layouts: the main, spurs, one siding that
 
 ### 6.4 Validation and feasibility
 
-Constrained decoding can force the right JSON shape but not the right content. `validate` checks the reading, then runs the engine and collects its findings.
+Two kinds of checks, and only the first kind ever stops anything.
 
-Structure:
+**File checks** apply only to files coming in: an import draft, a shared link or a JSON file. Constrained decoding can force the right JSON shape but not the right content, so these are checked and fixed up on the way in, with the problems listed for the person:
 1. Every id is unique and every reference resolves.
 2. The arrival is on a `main` track, and every switch's `on` and `to` are different tracks.
 3. A spur is reached by one switch; a siding that `rejoins` is reached by two.
 4. Every `via` switch is on a real path between where the move starts and its `to`.
 
-Feasibility, from the engine (this is the headline feature):
+**Notes from the engine** apply to everything, and never block a step, a Play or an export. The engine can't foresee every situation, so these are things to look at, not rules:
 5. **Fit.** Every cut fits where it's sent. Cars × (car length + allowance) must be no longer than the facility or track, with the numbers shown, e.g. "5 × 66 ft = 330 ft of 360 ft at the racks: fits".
 6. **Clear of switches.** After every move, every group stands clear of every switch it isn't using, by a default clearance distance that the user can change.
 7. **Buffer stops.** Nothing is shoved past the end of a track.
 8. **Power on the right end.** A `pull` needs the power on the far side of the cut from where it's going; a `shove` needs it behind. A trailing-point spur needs a runaround (or a different plan) to be served as drawn.
 9. **Runaround.** A runaround needs a siding with two switches and room for the power.
-10. **One thing per step.** Each step has one action, and a move keeps one direction from start to finish.
+10. **Unclear move.** The engine couldn't follow the route, so the step slides straight to the end position.
 11. **Work sequence.** The power is attached before it moves a cut; `cut_off` leaves cars where they are; customer `unload` needs loaded cars at a facility; `departure.cars` are on the train at the end.
 
-Errors and warnings show in one list in the editor. A plan with errors can still be exported and shared, with a visible "Draft, 2 errors" banner, so a user can send a work in progress to a colleague.
+Notes show on their steps and in one list the person can open or ignore. Exports and share links leave notes out unless the person chooses to include them.
 
 **Plan metrics** come from the same engine run: number of moves, switch throws, feet travelled, times the main is fouled, couplings. They let two versions of a plan for the same customer be compared side by side (section 12).
 
@@ -385,7 +389,7 @@ Visual language matches the portfolio demo: ink background, gold facility boxes 
 In:
 - PlanReading v1 as the one public format, with migration from v0.2.
 - Engine (plan state, primitives, verb expansion, feasibility checks and metrics), validate, and layout for tier 1 and tier 2. Render and player with no framework.
-- The canvas editor in section 5.6 as the main tool: track blocks, drag to stretch track, facilities, the train, steps made like slides by dragging, the engine naming and checking each move, templates, autosave, undo and redo.
+- The canvas editor in section 5.6 as the main tool: track blocks, drag to stretch track, facilities, the train, steps made like slides by dragging, the engine naming each move and adding notes where something looks off, templates, autosave, undo and redo.
 - Share link, standalone HTML export, SVG per step, PlanReading JSON export and import.
 - One optional import button accepting the files in section 7.1, with clarifying questions shown as a checklist.
 - The import behind the adapter interface, with the `none`, `proxy` and `openrouter` adapters, and the proxy on a Cloudflare Worker.
@@ -408,7 +412,7 @@ Out for now: vector pipelines A and C, tier 3 yards, WebM, Sign in with ChatGPT,
 
 ### 12.3 After the first release, ranked by impact against effort
 
-1. **Feasibility checks** (in the first release): what rail people will talk about.
+1. **Engine notes** (in the first release): the switching know-how rail people will talk about, offered as notes, never as rules.
 2. **Plan metrics and compare two plans:** same customer, two orders of work, numbers side by side. That's how a plan gets sold to a customer and a crew. Low effort once the engine exists.
 3. **The open format:** name it, publish the schema at a stable URL, a one-page description with three examples, a stated licence.
 4. **Embeddable player:** one script tag, works on any static page including an internal wiki.
@@ -455,6 +459,7 @@ Decided (2026-10-20):
 - Move vocabulary as in section 6.2. Stops and callouts are in; signals and interlocking logic stay out.
 - Architecture and first-release scope as revised after the senior review: engine first, PlanReading as the only public format, vector pipelines as a second study.
 - Each step shows one animation (one move, cut-off, couple, load or unload, or stop). The engine follows the route the user dragged through each turnout and splits a direction change into two steps.
+- Nothing is blocked. The engine's findings are notes the person can ignore; unclear moves still play; any number of steps, including static ones, is fine.
 - The editor feels like PowerPoint: automatic, to-scale drawing, track built by dragging turnout blocks and stretching track ends, steps made like slides by dragging the train to where it ends up (section 5.6).
 - The person does most of the work. Canvas editing is the main tool and is in the first release. AI is one optional import button that accepts most common files and asks a clarifying question for every assumption. No chat editing or AI explanations.
 
