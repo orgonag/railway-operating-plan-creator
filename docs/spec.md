@@ -354,7 +354,7 @@ All reading happens in the browser. One or several files can be dropped at once,
 Anything sent to a model goes to OpenRouter and the model's provider, and free models in particular may log or train on what they receive. So the import is built to send as little as possible:
 
 1. **A clear warning before every free import:** "This uses a free AI model. What you send may be shared with the model's provider. Only the drawing is sent, and you can check it first."
-2. **Only the drawing is sent.** The pages the person ticked go as images. Document details are stripped before anything leaves the browser: file names, author and company metadata, speaker notes, comments, hidden slides, and email addresses and phone numbers in the text.
+2. **Only the drawing is sent.** The pages the person ticked go as images. For PowerPoint and Visio, the slide's shape list (the drawing's own lines, boxes and labels) goes as text, and it appears on the preview where any label can be edited or removed. Text from Word and Excel files is left out unless the person ticks it on the preview. Document details are stripped before anything leaves the browser: file names, author and company metadata, speaker notes, comments, hidden slides, and email addresses and phone numbers in the text.
 3. **The person sees exactly what will be sent** on a preview screen, and can cover up anything else with a black box (a customer name, a logo, an address) before pressing Send.
 4. **Nothing is sent without that Send press.** The person can always skip the import and build the plan by hand.
 
