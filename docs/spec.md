@@ -341,10 +341,13 @@ Loaded and empty look different where it's visible from the side (coal or scrap 
 - Free model rate limit hit (HTTP 429): say so plainly, show when to retry, and offer the person's own OpenRouter account or building by hand.
 - Unsupported or encrypted file: say so, suggest a format that works (section 7.1), and remind the person they can build the plan by hand.
 - The import returns too many questions (more than about 20): show the most important first, grouped by section, and let the person stop and edit on the canvas.
+- Files disagree (the slide shows 5 cars, the spreadsheet says 6): the import doesn't pick one silently; it asks, showing both values and where each came from.
+- Long documents: a PDF or deck with many pages shows page thumbnails and the person ticks the pages that hold the plan (up to about 5), so the model isn't sent a 40-page document.
+- Too big: files over about 20 MB in total are refused with a plain message, before anything is sent.
 
 ### 7.1 Files the import accepts
 
-All reading happens in the browser. One or several files can be dropped at once, for example a slide plus a spreadsheet of car counts.
+All reading happens in the browser. One or several files can be dropped at once, for example a slide plus a spreadsheet of car counts. What gets sent to the model (page images and extracted text) goes to OpenRouter and the model's provider, and the app says so on the import button before anything is sent. The libraries for reading Word and Excel files must have open licences (to check at build time).
 
 | File | How it's read |
 |---|---|
@@ -389,12 +392,14 @@ Scoring compares the model's PlanReading with the true one. No coordinates are i
 | `sequence` | Arrival direction and power position, then **outcome based**: run both readings through the engine and compare the world state after each step (which cuts are where, coupled to what, loaded or empty), plus departure direction and cars. A reading that says `set_out` where the truth says `shove` then `cut_off` scores the same, because it does the same thing |
 | `overall` | 0.35 topology + 0.15 facilities + 0.15 consist + 0.35 sequence, and 0 if not valid |
 
+Each fixture records which fields its drawing actually shows and which it leaves out (for example, the spur length is labelled in one render and missing in another). Fields left out are the ones a good import should ask about. That list is what the question scores below are measured against.
+
 Question quality, the measure that matters most for a human-led tool:
 
 | Score | How |
 |---|---|
 | `silent errors` | Fields the draft got wrong **without** asking about them, per plan. The target is zero; this is the headline number |
-| `question precision` | Share of questions that were about something actually uncertain in the document, so the person isn't buried in needless questions |
+| `question precision` | Share of questions that were about something the document really doesn't say, so the person isn't buried in needless questions |
 | `after answers` | `overall` again after applying the true answers to the questions. Shows how close the draft gets once the person has done the checklist |
 
 **Usable** means `valid` and `overall` of at least 0.8 after answers, with silent errors near zero: a first draft the user only needs to touch up. This threshold is a starting guess; we'll check it by timing a few real fix-ups.
