@@ -6,7 +6,7 @@ If you already have a plan in PowerPoint, PDF, an image or another common format
 
 A small benchmark picks the free model the import uses, and measures how often it guesses wrong without asking.
 
-Status: research spec, no code yet.
+Status: P1 is built, the engine and the player, as a private preview. Run `npm install`, then `npm test` for the tests, `npm run typecheck` for the types and `npm run dev` for the preview page at http://localhost:5173. The demo plan's state after every step is written out in [docs/reference/demo-expected-states.md](docs/reference/demo-expected-states.md).
 
 - [Research spec](docs/spec.md)
 - What the AI sends: [PlanReading schema](docs/schema/plan-reading.schema.json), with the [demo as an example](docs/schema/examples/customer-service-demo.reading.json)
