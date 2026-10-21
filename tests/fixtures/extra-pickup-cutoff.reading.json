@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "1",
+  "title": "Pick up an empty and cut off",
+  "description": "A light engine collects an empty car already standing at the racks, pulls it out to the main, then cuts off and leaves it there.",
+  "arrival": {
+    "direction": "eastbound",
+    "enters": "left",
+    "on": "MAIN",
+    "locos": "head",
+    "text": "A light engine arrives on the main line to collect an empty car from the customer."
+  },
+  "carLength": { "ft": 60, "allowancePct": 10 },
+  "locoLength": { "ft": 80 },
+  "tracks": [
+    { "id": "MAIN", "role": "main", "name": "Main line", "end": "continues" },
+    { "id": "SPUR1", "role": "spur", "name": "Customer siding", "lengthFt": 800, "end": "buffer_stop" }
+  ],
+  "switches": [
+    { "id": "S1", "on": "MAIN", "to": "SPUR1", "side": "left", "approach": "facing", "order": 1 }
+  ],
+  "facilities": [
+    { "id": "RACKS", "name": "Unloading racks", "kind": "unloading_racks", "track": "SPUR1", "lengthFt": 360, "spots": 5 }
+  ],
+  "consist": {
+    "locos": { "count": 1, "type": "six_axle" },
+    "cuts": [],
+    "onSite": [
+      {
+        "id": "EMPTIES",
+        "cars": 1,
+        "state": "empty",
+        "at": "RACKS",
+        "spot": 1,
+        "carType": "covered_hopper_large",
+        "list": [
+          { "id": "E1", "mark": "ABCX", "number": "2001" }
+        ]
+      }
+    ]
+  },
+  "work": [
+    {
+      "id": "W1",
+      "actor": "railroad",
+      "do": "run_light",
+      "to": "SPUR1",
+      "via": ["S1"],
+      "text": "The engine runs light through the turnout and up to the empty car at spot 1.",
+      "stop": { "track": "SPUR1", "ft": 730, "end": "lead" }
+    },
+    {
+      "id": "W2",
+      "actor": "railroad",
+      "do": "couple",
+      "cars": ["E1"],
+      "text": "It couples to the empty."
+    },
+    {
+      "id": "W3",
+      "actor": "railroad",
+      "do": "pull",
+      "cars": ["EMPTIES"],
+      "to": "MAIN",
+      "via": ["S1"],
+      "text": "It pulls the empty out through the turnout onto the main line.",
+      "stop": { "beyond": "S1", "ft": 50, "end": "rear" }
+    },
+    {
+      "id": "W4",
+      "actor": "railroad",
+      "do": "cut_off",
+      "cars": ["EMPTIES"],
+      "text": "The engine cuts off, leaving the empty on the main for the next train."
+    }
+  ],
+  "departure": {
+    "direction": "westbound",
+    "text": "The engine leaves westbound. The empty stays behind on the main."
+  }
+}

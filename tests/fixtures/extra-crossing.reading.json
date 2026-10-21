@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1",
+  "title": "A shove that stops across the switch",
+  "description": "The demo's first move, stopped with the leading car's head 30 ft into the siding, so C1 stands across S1.",
+  "arrival": {
+    "direction": "eastbound",
+    "enters": "left",
+    "on": "MAIN",
+    "locos": "rear",
+    "text": "A local train arrives on the main line with the customer's loaded cars."
+  },
+  "carLength": { "ft": 60, "allowancePct": 10 },
+  "locoLength": { "ft": 80 },
+  "tracks": [
+    { "id": "MAIN", "role": "main", "name": "Main line", "end": "continues" },
+    { "id": "SPUR1", "role": "spur", "name": "Customer siding", "lengthFt": 800, "end": "buffer_stop" }
+  ],
+  "switches": [
+    { "id": "S1", "on": "MAIN", "to": "SPUR1", "side": "left", "approach": "facing", "order": 1 }
+  ],
+  "facilities": [
+    { "id": "RACKS", "name": "Unloading racks", "kind": "unloading_racks", "track": "SPUR1", "lengthFt": 360, "spots": 5 }
+  ],
+  "consist": {
+    "locos": { "count": 1, "type": "six_axle" },
+    "cuts": [
+      {
+        "id": "LOADS",
+        "cars": 5,
+        "state": "loaded",
+        "for": "RACKS",
+        "carType": "covered_hopper_large",
+        "list": [
+          { "id": "C1", "mark": "ABCX", "number": "1001" },
+          { "id": "C2", "mark": "ABCX", "number": "1002" },
+          { "id": "C3", "mark": "ABCX", "number": "1003" },
+          { "id": "C4", "mark": "ABCX", "number": "1004" },
+          { "id": "C5", "mark": "ABCX", "number": "1005" }
+        ]
+      }
+    ]
+  },
+  "work": [
+    {
+      "id": "W1",
+      "actor": "railroad",
+      "do": "shove",
+      "cars": ["LOADS"],
+      "to": "SPUR1",
+      "via": ["S1"],
+      "text": "The locomotive shoves the cars toward the siding and stops with the first car across the switch.",
+      "stop": { "track": "SPUR1", "ft": 30, "end": "lead" }
+    }
+  ],
+  "departure": {
+    "direction": "westbound",
+    "cars": ["LOADS"],
+    "text": "The train backs out and departs westbound with the cars still on it."
+  }
+}
