@@ -47,7 +47,7 @@ export interface Frame {
 }
 
 export function renderOptions(over: Partial<RenderOptions> = {}): RenderOptions {
-  return { pxPerFt: 1, laneGapPx: DEFAULT_LANE_GAP_PX, showMarks: true, ...over };
+  return { pxPerFt: 1, laneGapPx: DEFAULT_LANE_GAP_PX, showMarks: false, ...over };
 }
 
 /** The x and lane extent of everything the drawing places. */

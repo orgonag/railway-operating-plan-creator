@@ -361,7 +361,7 @@ Several figures came from search summaries rather than a sheet read in full, and
 
 First set of types: 50 ft boxcar, 60 ft high-cube boxcar, small covered hopper (cement, sand), large covered hopper (grain), plastics covered hopper, open-top hopper, gondola, general service tank car, pressure tank car, bulkhead flatcar, centerbeam flatcar, 89 ft flatcar, autorack, double-stack well car, reefer, and a generic car. Locos: six-axle road unit, four-axle (GP38-2 class), and switcher, all planned at 80 ft.
 
-Loaded and empty look different where it's visible from the side (coal or scrap showing in a gondola or open hopper, a load on a flatcar), and every car also carries a small loaded or empty marker. Reporting marks show as a label that can be turned on or off.
+Loaded and empty look different where it's visible from the side (coal or scrap showing in a gondola or open hopper, a load on a flatcar), and every car also carries a small loaded or empty marker. Cars are not labelled on the drawing. Each car keeps an internal ID so the engine can track it, and an optional reporting mark and number in the data, but nothing is written on or under the cars by default.
 
 ### 6.6 Editing and replay
 
