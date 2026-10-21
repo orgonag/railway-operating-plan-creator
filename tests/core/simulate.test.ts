@@ -416,3 +416,58 @@ describe("simulate: coupling and selection", () => {
     expect(sim.states[2]!.coupled).toEqual([["C1", "C2", "C3", "C4", "C5", "L1"]]);
   });
 });
+
+describe("simulate: final review fixes", () => {
+  test("a via naming a switch that is not in the plan is needs_attention with a plain reason, and nothing moves", () => {
+    const sim = run(plan({
+      work: [{ id: "W1", actor: "railroad", do: "shove", cars: ["LOADS"], to: "SPUR1", via: ["S9"], text: "", stop: { track: "SPUR1", ft: 600, end: "lead" } }]
+    }));
+    expect(sim.steps[1]!.status).toBe("needs_attention");
+    expect(sim.steps[1]!.reason).toBe('switch "S9" is not in this plan');
+    expect(sim.steps[1]!.moved).toEqual([]);
+    expect(sim.states[1]!.places).toEqual(sim.states[0]!.places);
+  });
+
+  test("an expanded set_out shoves the cars to the spot and then cuts the loco off", () => {
+    const sim = run(demoWith([{ id: "W1", actor: "railroad", do: "set_out", cars: ["LOADS"], to: "RACKS", via: ["S1"], spot: 5, text: "Set out." }]));
+    expect(sim.steps.map((s) => s.stepId)).toEqual(["arrival", "W1", "W1b", "departure"]);
+    expect(sim.steps.map((s) => s.verb)).toEqual(["arrival", "shove", "cut_off", "departure"]);
+    expect(sim.steps.map((s) => s.status)).toEqual(["ok", "ok", "ok", "needs_attention"]);
+    expect(occupies(sim.states[1]!, "C1")).toEqual([{ track: "SPUR1", fromFt: 970, toFt: 1030 }]);
+    expect(occupies(sim.states[1]!, "L1")).toEqual([{ track: "SPUR1", fromFt: 650, toFt: 730 }]);
+    expect(sim.states[1]!.coupled).toEqual([["L1", "C5", "C4", "C3", "C2", "C1"]]);
+    expect(sim.states[2]!.coupled).toEqual([["L1"], ["C5", "C4", "C3", "C2", "C1"]]);
+    expect(sim.states[2]!.places).toEqual(sim.states[1]!.places);
+  });
+
+  test("an expanded pick_up couples to the on-site car and then pulls it out beyond the switch", () => {
+    const sim = run(plan({
+      onSite: [{ id: "EMPTIES", cars: 1, state: "empty", at: "SPUR1", list: [{ id: "E1" }] }],
+      work: [
+        { id: "W1", actor: "railroad", do: "cut_off", text: "" },
+        { id: "W2", actor: "railroad", do: "run_light", to: "SPUR1", via: ["S1"], text: "", stop: { track: "SPUR1", ft: 1030, end: "lead" } },
+        { id: "W3", actor: "railroad", do: "pick_up", cars: ["EMPTIES"], to: "MAIN", via: ["S1"], text: "Pick up.", stop: { beyond: "S1", ft: 50, end: "rear" } }
+      ]
+    }));
+    expect(sim.steps.map((s) => s.stepId)).toEqual(["arrival", "W1", "W2", "W3", "W3b", "departure"]);
+    expect(sim.steps.map((s) => s.verb)).toEqual(["arrival", "cut_off", "run_light", "couple", "pull", "departure"]);
+    expect(sim.steps.map((s) => s.status)).toEqual(["ok", "ok", "ok", "ok", "ok", "ok"]);
+    expect(sim.states[3]!.coupled).toEqual([["L1", "E1"], ["C5", "C4", "C3", "C2", "C1"]]);
+    // The rear (E1's far end) stops 50 ft short of S1 on the main; the loco leads 140 ft ahead of it.
+    expect(occupies(sim.states[4]!, "E1")).toEqual([{ track: "MAIN", fromFt: 470, toFt: 530 }]);
+    expect(occupies(sim.states[4]!, "L1")).toEqual([{ track: "MAIN", fromFt: 390, toFt: 470 }]);
+    expect(sim.states[4]!.coupled).toEqual([["L1", "E1"], ["C5", "C4", "C3", "C2", "C1"]]);
+  });
+
+  test("an offstage end that cannot be reached in one move says so, naming the end and the main", () => {
+    const p = plan({
+      work: [{ id: "W1", actor: "railroad", do: "shove", cars: ["LOADS"], to: "SPUR1", via: ["S1"], text: "", stop: { track: "SPUR1", ft: 600, end: "lead" } }]
+    });
+    p.departure = { direction: "eastbound", text: "Departs." };
+    const sim = run(p);
+    const dep = sim.steps[2]!;
+    expect(dep.stepId).toBe("departure");
+    expect(dep.status).toBe("route_not_established");
+    expect(dep.reason).toBe("no route to the far end of MAIN in one move; a reversal is a separate step");
+  });
+});

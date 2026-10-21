@@ -274,13 +274,16 @@ class Engine {
     const moved: Id[] = [];
     let travel: Segment[] | null = null;
     let worst: StepStatus = "ok";
+    let reason: string | undefined;
     for (const group of locoGroups) {
       const outcome = this.performMove(group, this.candidates(group), [{ kind: "offstage", name: boundary }], [], {});
       moved.push(...outcome.moved);
       if (travel === null && outcome.travel) travel = outcome.travel;
+      if (reason === undefined && outcome.reason !== undefined) reason = outcome.reason;
       worst = worse(worst, outcome.status);
     }
     const result: Outcome = { verb: "departure", status: worst, moved, travel };
+    if (reason !== undefined) result.reason = reason;
     if (named.unknown.length > 0) {
       result.status = "needs_attention";
       result.reason = `${quoteList(named.unknown)} is not in this plan`;
@@ -386,6 +389,8 @@ class Engine {
 
   /** Resolve the destination and perform the move, trying both ends of the group (R6). */
   private move(group: Group, spec: MoveSpec, verb: string, via: Id[]): Outcome {
+    const unknownVia = via.find((id) => !this.g.switches.has(id));
+    if (unknownVia !== undefined) return { ...this.attention(verb, `switch "${unknownVia}" is not in this plan`), requested: requestedOf(spec) };
     const resolved = this.resolveWanted(spec);
     if ("error" in resolved) return { ...this.attention(verb, resolved.error), requested: requestedOf(spec) };
     const outcome = this.performMove(group, this.candidates(group), resolved.wanted, this.viaAhead(via, group.path), spec);
@@ -494,12 +499,15 @@ class Engine {
     if (!best) {
       const target = this.authoredTarget(wanted[0]!, group);
       this.placeAsAuthored(group, target);
+      const reason = target.offstage
+        ? `no route to the ${target.offstage === "far_end" ? "far end" : "arrival end"} of ${this.main} in one move; a reversal is a separate step`
+        : `no route to ${describe(target.pos)}; the equipment is drawn there as authored`;
       return {
         verb: "",
         status: "route_not_established",
         moved: [...group.units],
         travel: null,
-        reason: `no route to ${describe(target.pos)}; the equipment is drawn there as authored`,
+        reason,
         requested: requestedOf(spec)
       };
     }

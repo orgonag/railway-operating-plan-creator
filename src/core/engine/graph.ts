@@ -157,7 +157,8 @@ function placeSwitches(plan: PlanReading, byId: Map<Id, Track>, mainId: Id, trai
     byTrack.set(s.on, list);
   }
   for (const [trackId, list] of byTrack) {
-    const sorted = [...list].sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+    // Two switches with no order give Infinity - Infinity = NaN; `|| 0` keeps them in authored order.
+    const sorted = [...list].sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || 0);
     let previous: number | undefined;
     for (const s of sorted) {
       let atFt: number;

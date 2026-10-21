@@ -352,4 +352,23 @@ describe("graph: defaults and odd plans", () => {
     const g = buildGraph(plan({ tracks: [{ id: "MAIN", role: "main" }], switches: [] }));
     expect(g.tracks.get("MAIN")!.totalFt).toBe(380 + 200 + 240 + 380);
   });
+
+  test("switches with no order keep their authored order and are spaced 400 ft apart", () => {
+    const g = buildGraph(
+      plan({
+        tracks: [
+          { id: "MAIN", role: "main", end: "continues" },
+          { id: "SPUR1", role: "spur", lengthFt: 800, end: "buffer_stop" },
+          { id: "SPUR2", role: "spur", lengthFt: 500, end: "buffer_stop" },
+          { id: "SPUR3", role: "spur", lengthFt: 500, end: "buffer_stop" }
+        ],
+        switches: [
+          { id: "S1", on: "MAIN", to: "SPUR1", side: "left", approach: "facing" },
+          { id: "S2", on: "MAIN", to: "SPUR2", side: "right", approach: "trailing" },
+          { id: "S3", on: "MAIN", to: "SPUR3", side: "left", approach: "facing" }
+        ]
+      })
+    );
+    expect([g.switches.get("S1")!.atFt, g.switches.get("S2")!.atFt, g.switches.get("S3")!.atFt]).toEqual([580, 980, 1380]);
+  });
 });
