@@ -26,6 +26,8 @@ export interface RenderOptions {
   pxPerFt: number;
   laneGapPx: number;
   showMarks: boolean;
+  /** Draw each facility's spot ticks and numbers. Off by default: spots place cars but clutter the drawing. */
+  showSpots: boolean;
 }
 
 export const DEFAULT_LANE_GAP_PX = 90;
@@ -47,7 +49,7 @@ export interface Frame {
 }
 
 export function renderOptions(over: Partial<RenderOptions> = {}): RenderOptions {
-  return { pxPerFt: 1, laneGapPx: DEFAULT_LANE_GAP_PX, showMarks: false, ...over };
+  return { pxPerFt: 1, laneGapPx: DEFAULT_LANE_GAP_PX, showMarks: false, showSpots: false, ...over };
 }
 
 /** The x and lane extent of everything the drawing places. */
@@ -187,6 +189,7 @@ function facility(f: DrawnFacility, o: RenderOptions, frame: Frame): SVGGElement
   label.textContent = f.name;
   g.appendChild(label);
 
+  if (!o.showSpots) return g;
   for (const s of f.spots) {
     const sa = toScreen({ xFt: s.fromXFt, lane: f.lane }, o, frame);
     const sb = toScreen({ xFt: s.toXFt, lane: f.lane }, o, frame);

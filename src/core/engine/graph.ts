@@ -12,7 +12,9 @@
  * 3. The fouling zone runs from the points 290 ft toward the frog on both the
  *    through and the diverging track.
  * 4. The first switch on the main sits (train length + 200) from the arrival
- *    end; the main runs past its last switch by (240 + train length).
+ *    end; the main runs past its last switch by (240 + train length), or
+ *    further, so it reaches at least the furthest branch end: the main is
+ *    continuous across the whole canvas.
  * 6. Spots are 60 ft each from the facility start, spot 1 nearest the switch.
  *    A facility with no startFt sits at the far end of its track.
  *
@@ -126,6 +128,7 @@ export function buildGraph(plan: PlanReading): TrackGraph {
 
   const switches = placeSwitches(plan, byId, mainId, trainLengthFt);
   const tracks = measureTracks(plan, switches, mainId, trainLengthFt);
+  extendMainToBranches(tracks, switches, mainId);
   const facilities = placeFacilities(plan, tracks);
 
   const index = new GraphIndex(tracks, switches);
@@ -204,6 +207,36 @@ function measureTracks(plan: PlanReading, switches: Map<Id, SwitchInfo>, mainId:
     out.set(track.id, { id: track.id, role: track.role, totalFt, ends: { start, end } });
   }
   return out;
+}
+
+/**
+ * The main line is continuous: it always runs at least as far as the furthest
+ * branch end, so it spans the whole drawing and the far end of the main is the
+ * far edge of the canvas. Branch ends are measured in main ft the same way
+ * layout draws them (a facing branch runs on toward rising ft, a trailing one back).
+ */
+function extendMainToBranches(tracks: Map<Id, TrackInfo>, switches: Map<Id, SwitchInfo>, mainId: Id): void {
+  const main = tracks.get(mainId);
+  if (!main) return;
+  const placed = new Map<Id, { x0: number; sign: number }>([[mainId, { x0: 0, sign: 1 }]]);
+  let furthest = main.totalFt;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const s of switches.values()) {
+      const parent = placed.get(s.on);
+      const branch = tracks.get(s.to);
+      // Only the switch a branch starts at places it; a rejoining siding's second switch does not.
+      if (!parent || !branch || placed.has(s.to)) continue;
+      if (branch.ends.start.kind !== "switch" || branch.ends.start.switch !== s.id) continue;
+      const x0 = parent.x0 + parent.sign * s.atFt;
+      const sign = parent.sign * (s.approach === "facing" ? 1 : -1);
+      placed.set(s.to, { x0, sign });
+      furthest = Math.max(furthest, x0 + sign * branch.totalFt);
+      changed = true;
+    }
+  }
+  main.totalFt = furthest;
 }
 
 function placeFacilities(plan: PlanReading, tracks: Map<Id, TrackInfo>): Map<Id, FacilityInfo> {

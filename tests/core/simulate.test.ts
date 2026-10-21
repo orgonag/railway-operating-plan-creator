@@ -391,7 +391,8 @@ describe("simulate: coupling and selection", () => {
     expect(dep.status).toBe("ok");
     expect(sim.states[1]!.places.L1).toEqual({ offstage: "far_end" });
     expect(sim.states[1]!.places.C1).toEqual({ offstage: "far_end" });
-    expect(dep.travel).toEqual([{ track: "MAIN", fromFt: 480, toFt: 1580 }]);
+    // The lead runs from 480 to the main's far end (1670, where SPUR1 ends) plus the 380 ft train: 2050.
+    expect(dep.travel).toEqual([{ track: "MAIN", fromFt: 480, toFt: 2050 }]);
   });
 
   test("a trailing switch flips facing: cars shoved down through S2 onto SPUR2 face down", () => {

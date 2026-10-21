@@ -75,9 +75,9 @@ describe("graph: demo geometry", () => {
     expect(racks.spots[4]).toEqual({ n: 5, fromFt: 970, toFt: 1030 });
   });
 
-  test("MAIN total is 580 + 240 + 380 = 1200, start is arrival_end, end is far_end", () => {
+  test("MAIN total is max(580 + 240 + 380, SPUR1's end at 580 + 1090) = 1670, start is arrival_end, end is far_end", () => {
     const main = buildGraph(demoM).tracks.get("MAIN")!;
-    expect(main.totalFt).toBe(1200);
+    expect(main.totalFt).toBe(1670);
     expect(main.role).toBe("main");
     expect(main.ends.start).toEqual({ kind: "boundary", name: "arrival_end" });
     expect(main.ends.end).toEqual({ kind: "boundary", name: "far_end" });
@@ -230,11 +230,12 @@ describe("graph: fouling zones", () => {
 });
 
 describe("graph: trailing switches", () => {
-  test("switches on the main are 400 ft apart by default and MAIN runs 240 + train past the last", () => {
+  test("switches on the main are 400 ft apart by default and MAIN runs to the furthest branch end when that is past 240 + train", () => {
     const g = buildGraph(twoSwitchPlan());
     expect(g.switches.get("S1")!.atFt).toBe(580);
     expect(g.switches.get("S2")!.atFt).toBe(980);
-    expect(g.tracks.get("MAIN")!.totalFt).toBe(980 + 240 + 380);
+    // 240 + train past S2 would be 1600; SPUR1 ends at 580 + 1090 = 1670, further on. SPUR2 runs back and ends at 190.
+    expect(g.tracks.get("MAIN")!.totalFt).toBe(1670);
   });
 
   test("distanceFt spaces a later switch from the one before it", () => {
@@ -323,7 +324,35 @@ describe("graph: defaults and odd plans", () => {
     );
     expect(g.switches.has("S9")).toBe(false);
     expect(g.switches.get("S1")!.atFt).toBe(580);
+    // The skipped switch does not move the last-switch point: the main is still SPUR1's end, 580 + 1090.
+    expect(g.tracks.get("MAIN")!.totalFt).toBe(1670);
+  });
+
+  test("a branch that ends short of 240 + train past the last switch leaves the main at that default", () => {
+    const g = buildGraph(plan({ tracks: [{ id: "MAIN", role: "main" }, { id: "SPUR1", role: "spur", lengthFt: 100, end: "buffer_stop" }] }));
+    // SPUR1 ends at 580 + 290 + 100 = 970; the default 580 + 240 + 380 = 1200 is further.
+    expect(g.tracks.get("SPUR1")!.totalFt).toBe(390);
     expect(g.tracks.get("MAIN")!.totalFt).toBe(1200);
+  });
+
+  test("a nested facing branch that reaches furthest sets the main's length", () => {
+    const g = buildGraph(
+      plan({
+        tracks: [
+          { id: "MAIN", role: "main", end: "continues" },
+          { id: "SPUR1", role: "spur", lengthFt: 800, end: "buffer_stop" },
+          { id: "SPUR2", role: "spur", lengthFt: 400, end: "buffer_stop" }
+        ],
+        switches: [
+          { id: "S1", on: "MAIN", to: "SPUR1", side: "left", approach: "facing", order: 1 },
+          { id: "S2", on: "SPUR1", to: "SPUR2", side: "left", approach: "facing", order: 1, distanceFt: 300 }
+        ]
+      })
+    );
+    // S2 sits at SPUR1 ft 290 + 300 = 590, which is main ft 580 + 590 = 1170; SPUR2 is 290 + 400 long and ends at 1860.
+    expect(g.switches.get("S2")!.atFt).toBe(590);
+    expect(g.tracks.get("SPUR2")!.totalFt).toBe(690);
+    expect(g.tracks.get("MAIN")!.totalFt).toBe(1860);
   });
 
   test("a facility with no spots count gets floor(length / 60) spots and startFt is honoured", () => {

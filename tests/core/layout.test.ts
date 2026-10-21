@@ -35,12 +35,12 @@ function track(d: Drawing, id: string) {
 }
 
 describe("layout: the demo", () => {
-  test("demo: MAIN on lane 0 from x 0 to 1200; SPUR1 rises to lane 1 over 240 ft from x 580, ends at x 1670", () => {
+  test("demo: MAIN on lane 0 from x 0 to 1670, the full width; SPUR1 rises to lane 1 over 240 ft from x 580, ends at x 1670", () => {
     const d = layout(demoM, g);
-    expect(d.widthFt).toBe(1200);
+    expect(d.widthFt).toBe(1670);
     expect(track(d, "MAIN").points).toEqual([
       { xFt: 0, lane: 0 },
-      { xFt: 1200, lane: 0 }
+      { xFt: 1670, lane: 0 }
     ]);
     expect(track(d, "MAIN").role).toBe("main");
     expect(track(d, "SPUR1").points).toEqual([
@@ -63,25 +63,27 @@ describe("layout: the demo", () => {
     mirrored.arrival.enters = "right";
     const gm = buildGraph(mirrored);
     const d = layout(mirrored, gm);
-    expect(d.widthFt).toBe(1200);
+    // x' = 1670 - x: MAIN 0..1670 becomes 1670..0, SPUR1 580, 820, 1670 becomes 1090, 850, 0.
+    expect(d.widthFt).toBe(1670);
     expect(track(d, "MAIN").points).toEqual([
-      { xFt: 1200, lane: 0 },
+      { xFt: 1670, lane: 0 },
       { xFt: 0, lane: 0 }
     ]);
     expect(track(d, "SPUR1").points).toEqual([
-      { xFt: 620, lane: 0 },
-      { xFt: 380, lane: -1 },
-      { xFt: -470, lane: -1 }
+      { xFt: 1090, lane: 0 },
+      { xFt: 850, lane: -1 },
+      { xFt: 0, lane: -1 }
     ]);
-    expect(d.bufferStops).toEqual([{ xFt: -470, lane: -1 }]);
+    expect(d.bufferStops).toEqual([{ xFt: 0, lane: -1 }]);
     expect(d.compass).toEqual({ left: "East", right: "West" });
     expect(d.arrivalArrow).toEqual({ side: "right", label: "Eastbound" });
     expect(d.boundaries).toEqual({ arrival_end: "right", far_end: "left" });
     const racks = d.facilities.find((f) => f.id === "RACKS")!;
     expect(racks.lane).toBe(-1);
-    expect(racks.fromXFt).toBe(-470);
-    expect(racks.toXFt).toBe(-110);
-    expect(racks.spots[0]).toEqual({ n: 1, fromXFt: -170, toXFt: -110 });
+    // Racks 1310..1670 become 0..360; spot 1 at 1310..1370 becomes 300..360.
+    expect(racks.fromXFt).toBe(0);
+    expect(racks.toXFt).toBe(360);
+    expect(racks.spots[0]).toEqual({ n: 1, fromXFt: 300, toXFt: 360 });
 
     // The mirror is a drawing concern only: the engine sees the same plan.
     const left = simulate(demoM, g);
@@ -91,7 +93,8 @@ describe("layout: the demo", () => {
 
     // A sprite on the mirrored drawing points the other way.
     const sprite = placeUnits(d, gm, right.states[1]!, unitMap(mirrored)).find((s) => s.id === "C1")!;
-    expect(sprite.centre).toEqual({ xFt: -380, lane: -1 });
+    // C1 stands at x 1580 unmirrored, so at 1670 - 1580 = 90 here.
+    expect(sprite.centre).toEqual({ xFt: 90, lane: -1 });
     expect(sprite.tangent).toEqual({ dxFt: -1, dLane: 0 });
   });
 
@@ -249,7 +252,8 @@ describe("placeUnits", () => {
   test("a unit partly beyond the main's boundary is placed by its on-drawing part; one entirely beyond is omitted", () => {
     const state = cloneJson(sim.states[0]!);
     state.places.L1 = { occupies: [{ track: "MAIN", fromFt: -40, toFt: 40 }] };
-    state.places.C5 = { occupies: [{ track: "MAIN", fromFt: 1300, toFt: 1360 }] };
+    // The main is 1670 ft in the demo, so 1700 to 1760 is entirely past its far end.
+    state.places.C5 = { occupies: [{ track: "MAIN", fromFt: 1700, toFt: 1760 }] };
     const sprites = placeUnits(d, g, state, units);
     expect(sprites.find((s) => s.id === "L1")!.centre).toEqual({ xFt: 20, lane: 0 });
     expect(sprites.find((s) => s.id === "C5")).toBeUndefined();

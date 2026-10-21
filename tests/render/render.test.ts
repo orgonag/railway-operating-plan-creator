@@ -14,6 +14,7 @@ import {
   fitPxPerFt,
   frameOf,
   renderDrawing,
+  renderOptions,
   renderSprites,
   screenAngleDeg,
   toScreen,
@@ -29,7 +30,7 @@ const drawing = layout(demoM, g);
 const units = new Map(unitsOf(demoM).map((u) => [u.id, u]));
 const sim = simulate(demoM, g);
 
-const o: RenderOptions = { pxPerFt: 1, laneGapPx: 90, showMarks: true };
+const o: RenderOptions = { pxPerFt: 1, laneGapPx: 90, showMarks: true, showSpots: false };
 
 function svgEl(): SVGSVGElement {
   return document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -70,10 +71,10 @@ describe("renderDrawing", () => {
     expect(paths.length).toBe(2);
     const ids = [...paths].map((p) => p.getAttribute("data-id")).sort();
     expect(ids).toEqual(["MAIN", "SPUR1"]);
-    // MAIN runs from x 0 to x 1200 on lane 0: the path starts at the margin on the baseline.
+    // MAIN runs from x 0 to x 1670 on lane 0, the full width: the path starts at the margin on the baseline.
     const frame = frameOf(drawing, o);
     const main = svg.querySelector('path.track[data-id="MAIN"]')!;
-    expect(main.getAttribute("d")).toBe(`M ${MARGIN_PX} ${frame.baselinePx} L ${1200 + MARGIN_PX} ${frame.baselinePx}`);
+    expect(main.getAttribute("d")).toBe(`M ${MARGIN_PX} ${frame.baselinePx} L ${1670 + MARGIN_PX} ${frame.baselinePx}`);
     expect(main.getAttribute("stroke")).toBe(theme.rail);
 
     const boxes = svg.querySelectorAll("g.facilities rect.facility");
@@ -87,7 +88,9 @@ describe("renderDrawing", () => {
     const label = svg.querySelector("g.facilities text.facility-label")!;
     expect(label.textContent).toBe("Unloading racks");
     expect(label.getAttribute("fill")).toBe(theme.gold);
-    expect(svg.querySelectorAll("g.facilities .spot").length).toBe(5);
+    // Spots are not drawn unless asked for: the box and its name are enough.
+    expect(svg.querySelectorAll("g.facilities .spot").length).toBe(0);
+    expect(svg.querySelectorAll("g.facilities .spot-number").length).toBe(0);
     // The drawing calls renderDrawing twice without doubling anything.
     renderDrawing(svg, drawing, o);
     expect(svg.querySelectorAll("path.track").length).toBe(2);
@@ -96,6 +99,29 @@ describe("renderDrawing", () => {
     expect(svg.getAttribute("font-family")).toContain("monospace");
     expect(svg.getAttribute("viewBox")).toBeTruthy();
     expect(svg.querySelector("rect.background")!.getAttribute("fill")).toBe(theme.ink);
+  });
+
+  test("renderOptions leaves spots off; showSpots draws a tick and a number for each of the five spots", () => {
+    expect(renderOptions().showSpots).toBe(false);
+    expect(renderOptions().showMarks).toBe(false);
+    const off = rendered(drawing, renderOptions({ pxPerFt: 1, laneGapPx: 90 }));
+    expect(off.querySelectorAll("g.facilities rect.facility").length).toBe(1);
+    expect(off.querySelector("g.facilities text.facility-label")!.textContent).toBe("Unloading racks");
+    expect(off.querySelectorAll("g.facilities .spot").length).toBe(0);
+    expect(off.querySelectorAll("g.facilities .spot-number").length).toBe(0);
+
+    const on = rendered(drawing, { ...o, showSpots: true });
+    const ticks = on.querySelectorAll("g.facilities rect.spot");
+    const numbers = on.querySelectorAll("g.facilities text.spot-number");
+    expect(ticks.length).toBe(5);
+    expect(numbers.length).toBe(5);
+    expect([...numbers].map((n) => n.textContent)).toEqual(["1", "2", "3", "4", "5"]);
+    // Spot 1 spans x 1310 to 1370 at 1 px/ft: the tick is inset 1 px each side.
+    const first = ticks[0]!;
+    expect(first.getAttribute("data-n")).toBe("1");
+    expect(Number(first.getAttribute("x"))).toBe(1310 + MARGIN_PX + 1);
+    expect(Number(first.getAttribute("width"))).toBe(58);
+    expect(first.getAttribute("fill")).toBe(theme.gold);
   });
 
   test("labels the compass points and the arrival arrow", () => {
@@ -146,8 +172,8 @@ describe("renderDrawing", () => {
 
 describe("screenAngleDeg", () => {
   test("screenAngleDeg for the 240 ft turnout is about 20.6 at 1 px/ft and about 36.9 at 0.5 px/ft with a 90 px gap", () => {
-    expect(screenAngleDeg({ dxFt: 240, dLane: 1 }, { pxPerFt: 1, laneGapPx: 90, showMarks: false })).toBeCloseTo(-20.56, 1);
-    expect(screenAngleDeg({ dxFt: 240, dLane: 1 }, { pxPerFt: 0.5, laneGapPx: 90, showMarks: false })).toBeCloseTo(-36.87, 1);
+    expect(screenAngleDeg({ dxFt: 240, dLane: 1 }, { pxPerFt: 1, laneGapPx: 90, showMarks: false, showSpots: false })).toBeCloseTo(-20.56, 1);
+    expect(screenAngleDeg({ dxFt: 240, dLane: 1 }, { pxPerFt: 0.5, laneGapPx: 90, showMarks: false, showSpots: false })).toBeCloseTo(-36.87, 1);
     expect(screenAngleDeg({ dxFt: 1, dLane: 0 }, o)).toBe(0);
     // A mirrored flat tangent is a half turn either way round.
     expect(Math.abs(screenAngleDeg({ dxFt: -1, dLane: 0 }, o))).toBe(180);
