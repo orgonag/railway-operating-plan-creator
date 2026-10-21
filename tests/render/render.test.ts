@@ -21,7 +21,7 @@ import {
   MARGIN_PX,
   type RenderOptions
 } from "../../src/render/render";
-import { silhouette, SILHOUETTE_HEIGHT_PX } from "../../src/render/silhouettes";
+import { couplerInsetPx, silhouette, SILHOUETTE_HEIGHT_PX } from "../../src/render/silhouettes";
 import { theme } from "../../src/render/theme";
 
 const demoM = materialize(validateFile(demoJson).plan as PlanReading).plan;
@@ -46,6 +46,18 @@ function spriteLayer(svg: SVGSVGElement): SVGGElement {
   const layer = svg.querySelector("g.sprites");
   if (!layer) throw new Error("no sprite layer");
   return layer as SVGGElement;
+}
+
+/** The x extent of a rect, or of every absolute x coordinate in a path's d. */
+function xRange(node: Element): [number, number] {
+  if (node.tagName.toLowerCase() === "rect") {
+    const x = Number(node.getAttribute("x"));
+    return [x, x + Number(node.getAttribute("width"))];
+  }
+  const d = node.getAttribute("d") ?? "";
+  const xs: number[] = [];
+  for (const m of d.matchAll(/([MLH])\s*(-?[\d.]+)/g)) xs.push(Number(m[2]));
+  return [Math.min(...xs), Math.max(...xs)];
 }
 
 function car(over: Partial<Sprite> = {}): Sprite {
@@ -205,12 +217,14 @@ describe("silhouette", () => {
   });
 
   test("a sprite is drawn at its length in px", () => {
-    // Generic silhouette: body rect spans the length, centred on the origin.
+    // Generic silhouette: the unit is 120 px over the couplers, centred on the
+    // origin; the body rect is inset 5 px (2.5 ft of a 60 ft car) at each end.
     const el = silhouette("generic", "car", 120, true);
     expect(el.getAttribute("data-length-px")).toBe("120");
+    expect(couplerInsetPx(120, "car")).toBe(5);
     const body = el.querySelector("rect.body")!;
-    expect(Number(body.getAttribute("x"))).toBe(-60);
-    expect(Number(body.getAttribute("width"))).toBe(120);
+    expect(Number(body.getAttribute("x"))).toBe(-55);
+    expect(Number(body.getAttribute("width"))).toBe(110);
     expect(Number(body.getAttribute("y"))).toBeLessThan(0);
     expect(Number(body.getAttribute("height"))).toBeLessThanOrEqual(SILHOUETTE_HEIGHT_PX);
 
@@ -238,6 +252,62 @@ describe("silhouette", () => {
     expect(Number(rotate![1])).toBeCloseTo(screenAngleDeg({ dxFt: 1, dLane: 1 / 240 }, two), 1);
     expect(Number(rotate![1])).toBeCloseTo(-10.62, 1);
     expect(diag.getAttribute("transform")).toContain(`translate(${700 * 2 + MARGIN_PX} ${frame.baselinePx - 45})`);
+  });
+
+  test("couplerInsetPx is 2.5 ft of the planning length, at least 3 px and at most 15% of the length", () => {
+    // Small scale: the 3 px floor wins for both a 60 ft car and an 80 ft loco.
+    expect(couplerInsetPx(60 * 0.57, "car")).toBe(3);
+    expect(couplerInsetPx(80 * 0.57, "loco")).toBe(3);
+    // 2 px/ft: 2.5 ft is 5 px for either kind.
+    expect(couplerInsetPx(120, "car")).toBe(5);
+    expect(couplerInsetPx(160, "loco")).toBe(5);
+    // A tiny unit is capped so the body keeps at least 70% of the length.
+    expect(couplerInsetPx(10, "car")).toBeCloseTo(1.5, 6);
+    expect(couplerInsetPx(10, "loco")).toBeCloseTo(1.5, 6);
+  });
+
+  test("every silhouette has a body inset from each end and a knuckle coupler reaching the unit's end", () => {
+    const cases: Array<[string, "loco" | "car", number]> = [
+      ["generic", "car", 120],
+      ["covered_hopper_large", "car", 120],
+      ["tank_general", "car", 120],
+      ["boxcar_50", "car", 120],
+      ["six_axle", "loco", 160],
+      ["no_such_type", "loco", 160]
+    ];
+    for (const [type, kind, L] of cases) {
+      const el = silhouette(type, kind, L, true);
+      const inset = couplerInsetPx(L, kind);
+      expect(Number(el.getAttribute("data-coupler-inset-px"))).toBeCloseTo(inset, 2);
+
+      // The body's x range sits strictly inside the unit by the inset at each end.
+      const body = el.querySelector(".body")!;
+      const [x0, x1] = xRange(body);
+      expect(x0).toBeGreaterThanOrEqual(-L / 2 + inset - 0.01);
+      expect(x1).toBeLessThanOrEqual(L / 2 - inset + 0.01);
+      expect(x0).toBeGreaterThan(-L / 2);
+      expect(x1).toBeLessThan(L / 2);
+      expect(x1 - x0).toBeGreaterThanOrEqual(L * 0.7 - 4);
+
+      // Two couplers in steel, one per end, whose outermost points are the unit's ends.
+      const couplers = el.querySelectorAll(".coupler");
+      expect(couplers.length).toBe(2);
+      const reaches = [...couplers].map((c) => {
+        const head = c.querySelector("rect.knuckle")!;
+        const bar = c.querySelector("line.draft-bar")!;
+        expect(head.getAttribute("fill")).toBe(theme.steel);
+        expect(bar.getAttribute("stroke")).toBe(theme.steel);
+        // The bar starts at the body end and the coupler sits above the wheel tops.
+        const barX = [Number(bar.getAttribute("x1")), Number(bar.getAttribute("x2"))];
+        expect(Math.min(...barX.map(Math.abs))).toBeCloseTo(L / 2 - inset, 2);
+        expect(Number(bar.getAttribute("y1"))).toBeLessThan(-4.8);
+        expect(Number(bar.getAttribute("y1"))).toBeGreaterThan(-SILHOUETTE_HEIGHT_PX);
+        const hx = Number(head.getAttribute("x"));
+        const hw = Number(head.getAttribute("width"));
+        return hx < 0 ? hx : hx + hw;
+      });
+      expect(reaches.sort((a, b) => a - b)).toEqual([-L / 2, L / 2]);
+    }
   });
 
   test("loaded and empty cars differ in fill", () => {

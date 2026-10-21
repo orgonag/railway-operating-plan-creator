@@ -6,6 +6,10 @@
  * The unit is drawn at its length in px and a fixed height; the renderer
  * translates and rotates the group onto the track.
  *
+ * The unit's length is its planning length, measured over the couplers. The
+ * body is inset from each end and a knuckle coupler fills the gap, so two
+ * coupled units meet knuckle to knuckle with daylight between their bodies.
+ *
  * Shapes are recognisable but simple. An unknown type falls back to the
  * generic box. All markup here is application-owned; no user text enters.
  */
@@ -20,6 +24,26 @@ export const SILHOUETTE_HEIGHT_PX = 27;
 /** Clearance between the rail line and the underside of the body. */
 const FLOOR_PX = 5;
 const WHEEL_R_PX = 2.4;
+
+/** Coupler centre line: just above the wheel tops, in the lower part of the body band. */
+const COUPLER_Y_PX = -(FLOOR_PX + 2);
+const COUPLER_HEAD_H_PX = 4;
+
+/** Planning lengths the coupler allowance is scaled from: 2.5 ft at each end. */
+const COUPLER_FT = 2.5;
+const CAR_FT = 60;
+const LOCO_FT = 80;
+
+/**
+ * Room left at each end of a unit for its coupler, in px. At least 3 px so the
+ * coupler is visible at any scale, 2.5 ft of the unit's planning length when
+ * that is more, and never more than 15% of the length per end so the body
+ * keeps at least 70% of it.
+ */
+export function couplerInsetPx(lengthPx: number, kind: "loco" | "car"): number {
+  const ft = kind === "loco" ? LOCO_FT : CAR_FT;
+  return Math.min(Math.max(3, (lengthPx * COUPLER_FT) / ft), lengthPx * 0.15);
+}
 
 export type Shape = "generic" | "covered_hopper_large" | "tank_general" | "boxcar_50" | "six_axle";
 
@@ -42,27 +66,71 @@ export function silhouette(type: string, kind: "loco" | "car", lengthPx: number,
   const paint = kind === "loco" ? { fill: theme.loco, stroke: theme.loco } : loaded ? { fill: theme.loaded, stroke: theme.loaded } : { fill: "none", stroke: theme.empty };
   const L = lengthPx;
   const h = SILHOUETTE_HEIGHT_PX;
+  // The body is drawn centred at its own length, so each body shape is unaware
+  // of the couplers: it just gets a shorter length than the unit.
+  const inset = couplerInsetPx(L, kind);
+  const B = L - 2 * inset;
+  g.setAttribute("data-coupler-inset-px", num(inset));
   switch (shape) {
     case "covered_hopper_large":
-      g.appendChild(hopperBody(L, h, paint));
+      g.appendChild(hopperBody(B, h, paint));
       break;
     case "tank_general":
-      g.appendChild(tankFrame(L));
-      g.appendChild(tankBody(L, h, paint));
-      g.appendChild(tankDome(L, h, paint));
+      g.appendChild(tankFrame(B));
+      g.appendChild(tankBody(B, h, paint));
+      g.appendChild(tankDome(B, h, paint));
       break;
     case "boxcar_50":
-      g.appendChild(box(L, h, paint));
-      g.appendChild(door(L, h, paint));
+      g.appendChild(box(B, h, paint));
+      g.appendChild(door(B, h, paint));
       break;
     case "six_axle":
-      g.appendChild(locoBody(L, h, paint));
+      g.appendChild(locoBody(B, h, paint));
       break;
     case "generic":
-      g.appendChild(box(L, h, paint));
+      g.appendChild(box(B, h, paint));
       break;
   }
+  g.appendChild(coupler(L, inset, -1));
+  g.appendChild(coupler(L, inset, 1));
   g.appendChild(wheels(L, shape === "six_axle" ? 6 : 4, paint.stroke));
+  return g;
+}
+
+/**
+ * A knuckle coupler at one end (side -1 left, 1 right): a draft bar from the
+ * body end outward, finishing in a small knuckle head whose outer face is
+ * exactly at the unit's end. Drawn in steel so it reads as hardware.
+ */
+function coupler(L: number, inset: number, side: -1 | 1): SVGGElement {
+  const g = el("g");
+  g.setAttribute("class", "coupler");
+  g.setAttribute("data-side", side < 0 ? "left" : "right");
+  const end = (side * L) / 2;
+  const bodyEnd = side * (L / 2 - inset);
+  const headW = Math.min(3, inset * 0.5);
+  const headInner = end - side * headW;
+
+  const bar = el("line");
+  bar.setAttribute("class", "draft-bar");
+  bar.setAttribute("x1", num(bodyEnd));
+  bar.setAttribute("x2", num(headInner));
+  bar.setAttribute("y1", num(COUPLER_Y_PX));
+  bar.setAttribute("y2", num(COUPLER_Y_PX));
+  bar.setAttribute("stroke", theme.steel);
+  bar.setAttribute("stroke-width", "1.5");
+  g.appendChild(bar);
+
+  const head = el("rect");
+  head.setAttribute("class", "knuckle");
+  head.setAttribute("x", num(Math.min(end, headInner)));
+  head.setAttribute("y", num(COUPLER_Y_PX - COUPLER_HEAD_H_PX / 2));
+  head.setAttribute("width", num(headW));
+  head.setAttribute("height", num(COUPLER_HEAD_H_PX));
+  head.setAttribute("rx", "0.8");
+  head.setAttribute("fill", theme.steel);
+  head.setAttribute("stroke", "none");
+  g.appendChild(head);
   return g;
 }
 
