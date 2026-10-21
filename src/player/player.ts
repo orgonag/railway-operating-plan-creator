@@ -14,7 +14,7 @@ import { unitsOf } from "../core/engine/materialize";
 import { buildGraph } from "../core/engine/graph";
 import { simulate } from "../core/engine/simulate";
 import { notesFor, type Note } from "../core/engine/notes";
-import type { StepResult, WorldState } from "../core/engine/state";
+import { stepMoves, type StepResult, type WorldState } from "../core/engine/state";
 import { layout } from "../core/layout/layout";
 import { placeUnits } from "../core/layout/place";
 import { fitPxPerFt, renderDrawing, renderOptions, renderSprites, type RenderOptions } from "../render/render";
@@ -33,6 +33,12 @@ export const STEP_MS = 1500;
 /** Used when the mount has no measurable width yet (a hidden or detached node). */
 const FALLBACK_WIDTH_PX = 960;
 
+/**
+ * Mount a player for one plan under `root`. The plan must already be
+ * materialized (see core/engine/materialize): the player runs the engine on
+ * it as given and does not fill defaults, expand set_out or pick_up, or
+ * assign step ids itself.
+ */
 export function createPlayer(root: HTMLElement, plan: PlanReading): Player {
   const g = buildGraph(plan);
   const sim = simulate(plan, g);
@@ -136,7 +142,8 @@ export function createPlayer(root: HTMLElement, plan: PlanReading): Player {
     const after = sim.states[i]!;
     const result = sim.steps[i]!;
     paint(interpolate(before, after, result, 0), result.status);
-    const moves = result.moved.length > 0 && result.travel !== null && result.travel.length > 0;
+    // Decided from the step itself, like interpolate and metrics: a 0 ft move is painted once, like a cut_off.
+    const moves = stepMoves(result);
     const started = now();
     const token = ++run;
     const tick = (): void => {

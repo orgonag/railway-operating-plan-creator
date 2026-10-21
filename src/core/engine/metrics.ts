@@ -1,7 +1,9 @@
 /**
  * Plan metrics from one engine run (spec 6.4). Fixed meanings:
  * - a move is one movement of one coupled group: an arrival, move or departure
- *   step that moved at least one unit with a route (ok or past_end);
+ *   step that moved at least one unit some distance along a route (stepMoves).
+ *   A departure that leaves cars behind is needs_attention but its locos still
+ *   move, and a 0 ft move is ok but is not a move;
  * - feet travelled is the lead's travel length, summed for the locos and for
  *   each car separately over the steps that moved them;
  * - switch throws count changes from normal. Every switch starts normal (the
@@ -15,7 +17,7 @@
 import type { Id, PlanReading } from "../schema/types";
 import type { Segment, SwitchInfo, TrackGraph } from "./graph";
 import { unitsOf } from "./materialize";
-import { pathLength, type Simulation } from "./state";
+import { pathLength, stepMoves, type Simulation } from "./state";
 
 export interface Metrics {
   moves: number;
@@ -43,8 +45,7 @@ export function metricsFor(sim: Simulation, plan: PlanReading, g: TrackGraph): M
   for (const step of sim.steps) {
     if (step.status === "route_not_established") complete = false;
     if (step.verb === "couple" && step.status === "ok") couplings += 1;
-    const routed = step.status === "ok" || step.status === "past_end";
-    if (!routed || step.moved.length === 0 || step.travel === null) continue;
+    if (!stepMoves(step)) continue;
     moves += 1;
     const feet = pathLength(step.travel);
     if (step.moved.some((id) => locos.has(id))) locoFeet += feet;

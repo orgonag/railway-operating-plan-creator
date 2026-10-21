@@ -299,3 +299,34 @@ describe("notes: text", () => {
     expect(allNotes.every((x) => x.text.length > 0)).toBe(true);
   });
 });
+
+describe("notes: moves that go nowhere", () => {
+  test("a 0 ft move gives no fit note and no fouling note", () => {
+    const repeatToRacks = demoWith([
+      { id: "W1", actor: "railroad", do: "shove", cars: ["LOADS"], to: "RACKS", via: ["S1"], text: "", spot: 5 },
+      { id: "W2", actor: "railroad", do: "shove", cars: ["LOADS"], to: "RACKS", text: "", spot: 5 }
+    ]);
+    const racks = notesOf(repeatToRacks);
+    expect(racks.filter((x) => x.stepId === "W1" && x.kind === "fit").length).toBe(1);
+    expect(racks.filter((x) => x.stepId === "W2")).toEqual([]);
+
+    const repeatInZone = plan({
+      work: [
+        { id: "W1", actor: "railroad", do: "shove", cars: ["LOADS"], to: "SPUR1", via: ["S1"], text: "", stop: { track: "SPUR1", ft: 30, end: "lead" } },
+        { id: "W2", actor: "railroad", do: "shove", cars: ["LOADS"], to: "SPUR1", text: "", stop: { track: "SPUR1", ft: 30, end: "lead" } }
+      ]
+    });
+    const zone = notesOf(repeatInZone);
+    expect(zone.filter((x) => x.stepId === "W1" && x.kind === "fouling").length).toBe(1);
+    expect(zone.filter((x) => x.stepId === "W2")).toEqual([]);
+  });
+
+  test("a departure that leaves cars behind keeps its sequence note while the loco goes", () => {
+    const edited = materialize({ ...demo, work: demo.work.slice(0, 2) }).plan;
+    const g = buildGraph(edited);
+    const sim = simulate(edited, g);
+    expect(sim.steps[3]!.moved).toEqual(["L1"]);
+    const notes = notesFor(sim, edited, g).filter((x) => x.stepId === "departure");
+    expect(notes).toEqual([{ stepId: "departure", kind: "sequence", level: "heads_up", text: "Some cars listed for departure are not on the train." }]);
+  });
+});

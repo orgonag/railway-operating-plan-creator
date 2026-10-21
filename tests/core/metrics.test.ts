@@ -103,3 +103,35 @@ describe("metrics", () => {
     });
   });
 });
+
+describe("metrics: what counts as a move", () => {
+  test("a departure that leaves cars behind still counts the loco's move and feet", () => {
+    const edited = materialize({ ...demo, work: demo.work.slice(0, 2) }).plan;
+    const g = buildGraph(edited);
+    const sim = simulate(edited, g);
+    const dep = sim.steps[3]!;
+    expect(dep.stepId).toBe("departure");
+    expect(dep.status).toBe("needs_attention");
+    expect(dep.moved).toEqual(["L1"]);
+    const m = metricsFor(sim, edited, g);
+    // arrival 480, shove 1130, departure: SPUR1 650 to the points, then MAIN 580 back to -80.
+    expect(m.moves).toBe(3);
+    expect(m.feetTravelled.locos).toBe(480 + 1130 + 1310);
+    expect(m.feetTravelled.cars.C1).toBe(480 + 1130);
+    expect(m.complete).toBe(true);
+  });
+
+  test("a no-op shove to where the train already stands is not a move and adds no feet", () => {
+    const p = plan({
+      work: [{ id: "W1", actor: "railroad", do: "shove", cars: ["LOADS"], to: "MAIN", text: "", stop: { track: "MAIN", ft: 480, end: "lead" } }]
+    });
+    const g = buildGraph(p);
+    const sim = simulate(p, g);
+    expect(sim.steps[1]!.status).toBe("ok");
+    expect(sim.steps[1]!.travel).toEqual([{ track: "MAIN", fromFt: 480, toFt: 480 }]);
+    const m = metricsFor(sim, p, g);
+    expect(m.moves).toBe(2);
+    expect(m.feetTravelled.locos).toBe(960);
+    expect(m.feetTravelled.cars.C1).toBe(960);
+  });
+});

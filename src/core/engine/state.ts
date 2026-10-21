@@ -53,6 +53,17 @@ export function pathLength(path: Segment[]): number {
   return path.reduce((sum, s) => sum + segmentLength(s), 0);
 }
 
+/**
+ * Did this step move equipment: it has a travel of some length and at least
+ * one unit moved along it. Read off the step itself, not its status: a
+ * departure that leaves cars behind is needs_attention but its locos still go,
+ * and a 0 ft move is ok but nothing changed. Every reader (metrics, notes,
+ * the player) decides this the same way.
+ */
+export function stepMoves(step: StepResult): step is StepResult & { travel: Segment[] } {
+  return step.travel !== null && step.moved.length > 0 && pathLength(step.travel) > 0;
+}
+
 /** The same path run the other way. */
 export function flipPath(path: Segment[]): Segment[] {
   return [...path].reverse().map((s) => ({ track: s.track, fromFt: s.toFt, toFt: s.fromFt }));

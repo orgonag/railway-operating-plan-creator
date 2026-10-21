@@ -167,6 +167,31 @@ describe("animation frames", () => {
     }
   });
 
+  test("a 0 ft move is painted once: its sprite nodes survive the end of the 1.5 s timer", () => {
+    const demo = open(demoJson);
+    const plan = cloneJson(demo);
+    // W1 stands the head at SPUR1 1030; a second shove to the same spot goes nowhere.
+    plan.work = [plan.work[0]!, { ...plan.work[0]!, id: "W1b", text: "Shove to the same spot." }];
+    const sim = simulate(plan, buildGraph(plan));
+    expect(sim.steps[2]!.status).toBe("ok");
+    expect(sim.steps[2]!.moved.length).toBe(6);
+    expect(sim.steps[2]!.travel).toEqual([{ track: "SPUR1", fromFt: 1030, toFt: 1030 }]);
+    const frames = stubFrames();
+    try {
+      const root = mount();
+      const player = createPlayer(root, plan);
+      player.show(2);
+      const before = root.querySelector('g.unit[data-id="C1"]');
+      expect(before).not.toBeNull();
+      frames.advance(800);
+      frames.advance(800);
+      expect(root.querySelector('g.unit[data-id="C1"]')).toBe(before);
+      player.destroy();
+    } finally {
+      frames.restore();
+    }
+  });
+
   test("a moving step repaints each frame and lands on the after state at the end", () => {
     const demo = open(demoJson);
     const frames = stubFrames();

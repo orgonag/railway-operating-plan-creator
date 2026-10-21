@@ -11,13 +11,16 @@
  *
  * A group that stood offstage (no occupied path to read) is laid straight
  * behind the travel's start on the travel's first track, which is where the
- * engine keeps it. A step with no route (route_not_established) or no travel
- * returns `after`; the renderer shows that state as route-unclear.
+ * engine keeps it. A step with no route (route_not_established) returns
+ * `after`, and the renderer shows that state as route-unclear. Otherwise
+ * whether anything animates is read off the step itself (stepMoves), not its
+ * status: a needs_attention departure that leaves cars behind still runs its
+ * locos out.
  */
 
 import type { Segment } from "../core/engine/graph";
 import type { Id } from "../core/schema/types";
-import { cleanPath, flipPath, pathLength, slicePath, type Place, type StepResult, type WorldState } from "../core/engine/state";
+import { cleanPath, flipPath, pathLength, slicePath, stepMoves, type Place, type StepResult, type WorldState } from "../core/engine/state";
 
 /** Ease-out cubic, as the portfolio demo: 1 - (1 - t)^3. */
 export function ease(t: number): number {
@@ -26,9 +29,9 @@ export function ease(t: number): number {
 }
 
 export function interpolate(before: WorldState, after: WorldState, step: StepResult, progress: number): WorldState {
-  if (step.status === "route_not_established" || step.status === "needs_attention") return copy(after);
+  if (step.status === "route_not_established") return copy(after);
+  if (!stepMoves(step)) return copy(after);
   const travel = step.travel;
-  if (!travel || step.moved.length === 0 || pathLength(travel) === 0) return copy(after);
   if (progress <= 0) return copy(before);
   if (progress >= 1) return copy(after);
 

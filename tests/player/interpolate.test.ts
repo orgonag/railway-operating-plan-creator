@@ -155,3 +155,24 @@ describe("interpolate: offstage and status", () => {
     expect(interpolate(sim.states[0]!, sim.states[1]!, step, 0.5).places).toEqual(sim.states[1]!.places);
   });
 });
+
+describe("interpolate: needs_attention steps that still move", () => {
+  test("a departure that leaves cars behind animates the loco out while the cars stay put", () => {
+    const edited = materialize({ ...demo, work: demo.work.slice(0, 2) }).plan;
+    const s = simulate(edited, buildGraph(edited));
+    const step = s.steps[3]!;
+    expect(step.stepId).toBe("departure");
+    expect(step.status).toBe("needs_attention");
+    expect(step.moved).toEqual(["L1"]);
+    const before = s.states[2]!;
+    const after = s.states[3]!;
+    expect(after.places.L1).toEqual({ offstage: "arrival_end" });
+    const mid = interpolate(before, after, step, 0.5);
+    const l1 = occupies(mid, "L1");
+    expect(l1.reduce((sum, seg) => sum + Math.abs(seg.toFt - seg.fromFt), 0)).toBe(80);
+    expect(l1).not.toEqual(occupies(before, "L1"));
+    for (const id of ["C1", "C2", "C3", "C4", "C5"]) expect(mid.places[id]).toEqual(before.places[id]);
+    expect(interpolate(before, after, step, 0).places).toEqual(before.places);
+    expect(interpolate(before, after, step, 1).places).toEqual(after.places);
+  });
+});

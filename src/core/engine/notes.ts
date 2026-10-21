@@ -11,7 +11,7 @@ import type { Id, PlanReading, WorkStep } from "../schema/types";
 import type { FacilityInfo, Segment, TrackGraph } from "./graph";
 import { groupsOf, unitsOf, type Unit } from "./materialize";
 import { RUNAROUND_REASON } from "./simulate";
-import { segmentLength, type Simulation, type StepResult, type WorldState } from "./state";
+import { pathLength, segmentLength, stepMoves, type Simulation, type StepResult, type WorldState } from "./state";
 
 export type NoteKind = "fit" | "fouling" | "buffer" | "power_end" | "unclear_route" | "sequence" | "runaround";
 export type NoteLevel = "info" | "heads_up";
@@ -118,6 +118,8 @@ class Context {
 
 function fitNotes(ctx: Context, step: StepResult, saved: WorkStep | undefined, after: WorldState): Note[] {
   if (step.moved.length === 0) return [];
+  // A 0 ft move changed nothing, so there is nothing new to fit. A step with no route (travel null) still gets its note: the cars are drawn as authored.
+  if (step.travel !== null && pathLength(step.travel) === 0) return [];
   const facility = ctx.facilityOf(saved);
   if (!facility) return [];
   const { startFt, endFt, track } = facility.info;
@@ -155,8 +157,8 @@ function facilityLabel(name: string): string {
 // ---- 6. fouling ----
 
 function foulingNotes(ctx: Context, step: StepResult, after: WorldState): Note[] {
-  if (step.status !== "ok" && step.status !== "past_end") return [];
-  if (step.moved.length === 0) return [];
+  // Read off the step, not its status: a departure that leaves cars behind still moves its locos; a 0 ft move moves nothing.
+  if (!stepMoves(step)) return [];
   const notes: Note[] = [];
   const seen = new Set<Id>();
   for (const zone of ctx.g.foulingZones()) {
