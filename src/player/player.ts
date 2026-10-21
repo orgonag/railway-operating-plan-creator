@@ -23,6 +23,7 @@ import { ease, interpolate } from "./interpolate";
 export interface Player {
   /** Show a step by its 0-based index, animated from the state before it. */
   show(step: number): void;
+  /** Play on from the current step, one step per STEP_MS, and pause at the last. Play on the last step restarts from step 0. */
   play(): void;
   pause(): void;
   destroy(): void;
@@ -84,6 +85,8 @@ export function createPlayer(root: HTMLElement, plan: PlanReading): Player {
   let current = 0;
   let playing = false;
   let frame: number | undefined;
+  /** Counts show() calls; a frame callback from an earlier run does nothing. */
+  let run = 0;
   let shown: WorldState = sim.initial;
 
   function spriteLayer(): SVGGElement {
@@ -135,15 +138,18 @@ export function createPlayer(root: HTMLElement, plan: PlanReading): Player {
     paint(interpolate(before, after, result, 0), result.status);
     const moves = result.moved.length > 0 && result.travel !== null && result.travel.length > 0;
     const started = now();
+    const token = ++run;
     const tick = (): void => {
+      if (token !== run) return;
       const t = Math.min(1, (now() - started) / STEP_MS);
       if (moves) paint(interpolate(before, after, result, ease(t)), result.status);
       if (t < 1) {
         frame = requestAnimationFrame(tick);
         return;
       }
+      // A step with no movement was painted in full at progress 0 (interpolate returns `after`), so
+      // nothing is repainted here: re-creating the sprites would restart the route-unclear fade.
       frame = undefined;
-      if (!moves) paint(after, result.status);
       if (playing) {
         if (current < total - 1) show(current + 1);
         else pause();

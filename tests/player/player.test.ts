@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import demoJson from "../../docs/schema/examples/customer-service-demo.reading.json";
 import crossingJson from "../fixtures/extra-crossing.reading.json";
@@ -109,6 +109,83 @@ describe("createPlayer with the demo", () => {
     expect(root.querySelector(".step-text b")).toBeNull();
     expect(root.querySelector(".step-text img")).toBeNull();
     player.destroy();
+  });
+});
+
+describe("animation frames", () => {
+  /** Drive the player's requestAnimationFrame loop by hand with a controlled clock. */
+  function stubFrames(): { advance(ms: number): void; restore(): void } {
+    let clock = 0;
+    let nextId = 0;
+    const pending = new Map<number, FrameRequestCallback>();
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      nextId += 1;
+      pending.set(nextId, cb);
+      return nextId;
+    });
+    const caf = vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+      pending.delete(id);
+    });
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => clock);
+    return {
+      advance(ms: number): void {
+        clock += ms;
+        const run = [...pending.values()];
+        pending.clear();
+        for (const cb of run) cb(clock);
+      },
+      restore(): void {
+        raf.mockRestore();
+        caf.mockRestore();
+        nowSpy.mockRestore();
+      }
+    };
+  }
+
+  test("a non-moving step is painted once: its sprite nodes survive the end of the 1.5 s timer", () => {
+    const demo = open(demoJson);
+    const frames = stubFrames();
+    try {
+      const root = mount();
+      const player = createPlayer(root, demo);
+      player.show(2);
+      expect(textOf(root, ".step-text")).toBe(demo.work[1]!.text);
+      const before = root.querySelector('g.unit[data-id="C1"]');
+      expect(before).not.toBeNull();
+      frames.advance(800);
+      frames.advance(800);
+      expect(root.querySelector('g.unit[data-id="C1"]')).toBe(before);
+      // The same holds when a stale frame from the previous step is still delivered (a cancel that was missed).
+      player.show(1);
+      player.show(2);
+      const again = root.querySelector('g.unit[data-id="C1"]');
+      frames.advance(1600);
+      expect(root.querySelector('g.unit[data-id="C1"]')).toBe(again);
+      player.destroy();
+    } finally {
+      frames.restore();
+    }
+  });
+
+  test("a moving step repaints each frame and lands on the after state at the end", () => {
+    const demo = open(demoJson);
+    const frames = stubFrames();
+    try {
+      const root = mount();
+      const player = createPlayer(root, demo);
+      player.show(1);
+      const first = root.querySelector('g.unit[data-id="C1"]');
+      frames.advance(750);
+      const mid = root.querySelector('g.unit[data-id="C1"]');
+      expect(mid).not.toBe(first);
+      expect(mid!.getAttribute("transform")).not.toBe(first!.getAttribute("transform"));
+      frames.advance(800);
+      const end = root.querySelector('g.unit[data-id="C1"]');
+      expect(end!.getAttribute("transform")).not.toBe(mid!.getAttribute("transform"));
+      player.destroy();
+    } finally {
+      frames.restore();
+    }
   });
 });
 
