@@ -517,3 +517,26 @@ dialog.add-cars {
   border-color: var(--gold);
   color: var(--gold);
 }
+
+/* ---- train buttons, offstage tabs, marquee ---- */
+.canvas .train-button {
+  cursor: pointer;
+}
+.canvas .train-button:hover circle {
+  fill: var(--gold);
+}
+.canvas .train-button:hover path {
+  stroke: var(--ink);
+}
+.canvas .offstage-unit {
+  cursor: grab;
+}
+.canvas .marquee {
+  pointer-events: none;
+}
+.canvas g.unit {
+  cursor: grab;
+}
+.step.drop-before {
+  border-top: 3px solid var(--gold);
+}

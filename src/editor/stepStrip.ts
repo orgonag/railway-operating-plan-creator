@@ -2,7 +2,8 @@
  * The step strip: one card per step down the left, like slide thumbnails.
  * Cards show the step number, the verb, the caption, a dot when the engine
  * left a note, and the status when it is not ok. Clicking a card shows that
- * step and selects it.
+ * step and selects it. Dragging a card onto another drops it before that
+ * card (the arrival and departure stay where they are).
  */
 
 import type { StepResult } from "../core/engine/state";
@@ -13,11 +14,30 @@ import type { EditorState } from "./model";
 export interface StepStrip {
   root: HTMLUListElement;
   render(state: EditorState): void;
+  destroy(): void;
 }
 
-export function createStepStrip(onPick: (index: number) => void): StepStrip {
+export function createStepStrip(onPick: (index: number) => void, onReorder?: (from: number, to: number) => void): StepStrip {
   const root = el("ul", "step-strip");
   root.setAttribute("aria-label", "Steps");
+  let dragging: number | undefined;
+  let dropAt: number | undefined;
+
+  function clearDrop(): void {
+    for (const li of root.querySelectorAll("li.step.drop-before")) li.classList.remove("drop-before");
+    dropAt = undefined;
+  }
+
+  const onUp = (): void => {
+    if (dragging === undefined) return;
+    const from = dragging;
+    const to = dropAt;
+    dragging = undefined;
+    clearDrop();
+    if (to !== undefined && to !== from && onReorder) onReorder(from, to);
+  };
+  document.addEventListener("pointerup", onUp);
+
   return {
     root,
     render(state) {
@@ -45,8 +65,25 @@ export function createStepStrip(onPick: (index: number) => void): StepStrip {
         li.appendChild(el("p", "caption", captionFor(state.plan, step)));
         if (step.status !== "ok") li.appendChild(el("span", "status-word", statusWord(step)));
         li.addEventListener("click", () => onPick(i));
+        const movable = step.stepId !== "arrival" && step.stepId !== "departure";
+        li.addEventListener("pointerdown", (e) => {
+          if (e.button !== 0 || !movable) return;
+          dragging = i;
+          dropAt = undefined;
+        });
+        li.addEventListener("pointerover", () => {
+          if (dragging === undefined) return;
+          clearDrop();
+          if (i !== dragging) {
+            dropAt = i;
+            li.classList.add("drop-before");
+          }
+        });
         root.appendChild(li);
       });
+    },
+    destroy() {
+      document.removeEventListener("pointerup", onUp);
     }
   };
 }

@@ -34,6 +34,8 @@ export interface DragStart {
 export interface Leg {
   stop: Stop;
   via: Id[];
+  /** Which end of the group moves first along this leg: "high" is the end of groupPath. */
+  lead: "high" | "low";
   /** The facility when the stop snapped to a spot, "offstage" when the move leaves the drawing. */
   to?: Id;
   spot?: number;
@@ -135,19 +137,19 @@ export function followDrag(d: Drawing, g: TrackGraph, start: DragStart, samples:
   const furthestIndex = reversed ? offsets.indexOf(furthest) + 1 : reduced.length - 1;
 
   if (edge !== undefined && !reversed) {
-    legs.push(offstageLeg(g, d, path, edge));
+    legs.push(offstageLeg(g, d, path, leadHigh ? "high" : "low", edge));
     return { legs, reversed: false };
   }
-  const first = moveLeg(g, path, firstDistance, targetOf(furthestIndex));
+  const first = moveLeg(g, path, leadHigh ? "high" : "low", firstDistance, targetOf(furthestIndex));
   if (first) {
     legs.push(first.leg);
     path = first.path;
   }
   if (reversed) {
     const back = flip(path);
-    if (edge !== undefined) legs.push(offstageLeg(g, d, back, edge));
+    if (edge !== undefined) legs.push(offstageLeg(g, d, back, leadHigh ? "low" : "high", edge));
     else {
-      const second = moveLeg(g, back, secondDistance, targetOf(reduced.length - 1));
+      const second = moveLeg(g, back, leadHigh ? "low" : "high", secondDistance, targetOf(reduced.length - 1));
       if (second) legs.push(second.leg);
     }
   }
@@ -232,7 +234,7 @@ function endOf(path: Segment[]): { pos: Pos; heading: "up" | "down" } {
 }
 
 /** Walk the lead by a distance toward the pointer's target and write the leg; returns the group's new path (trailing to lead). */
-function moveLeg(g: TrackGraph, path: Segment[], distance: number, target: Pos | undefined): { leg: Leg; path: Segment[] } | undefined {
+function moveLeg(g: TrackGraph, path: Segment[], leadEnd: "high" | "low", distance: number, target: Pos | undefined): { leg: Leg; path: Segment[] } | undefined {
   if (distance <= 0) return undefined;
   const { pos, heading } = endOf(path);
   const walk = g.walk(pos, heading, distance, [], target) ?? [{ track: pos.track, fromFt: pos.ft, toFt: pos.ft + (heading === "up" ? distance : -distance) }];
@@ -241,7 +243,7 @@ function moveLeg(g: TrackGraph, path: Segment[], distance: number, target: Pos |
   let next = slicePath(full, distance, distance + len);
   if (next.length === 0) next = [...path];
   const lead = endOf(next).pos;
-  const leg: Leg = { stop: { track: lead.track, ft: lead.ft, end: "lead" }, via: switchesAlong(g, cleanPath(walk)) };
+  const leg: Leg = { stop: { track: lead.track, ft: lead.ft, end: "lead" }, via: switchesAlong(g, cleanPath(walk)), lead: leadEnd };
   const snapped = snapToSpot(g, lead);
   if (snapped) {
     const spot = g.facilities.get(snapped.facility)?.spots.find((s) => s.n === snapped.spot);
@@ -257,7 +259,7 @@ function moveLeg(g: TrackGraph, path: Segment[], distance: number, target: Pos |
 }
 
 /** The leg that leaves the drawing: its via is whatever the lead passes on the way to that boundary. */
-function offstageLeg(g: TrackGraph, d: Drawing, path: Segment[], boundary: OffstageEnd): Leg {
+function offstageLeg(g: TrackGraph, d: Drawing, path: Segment[], leadEnd: "high" | "low", boundary: OffstageEnd): Leg {
   const main = d.tracks.find((t) => t.role === "main")?.id;
   const { pos, heading } = endOf(path);
   let via: Id[] = [];
@@ -270,7 +272,7 @@ function offstageLeg(g: TrackGraph, d: Drawing, path: Segment[], boundary: Offst
       if (walk) via = switchesAlong(g, walk);
     }
   }
-  return { stop: { offstage: boundary }, via, to: "offstage" };
+  return { stop: { offstage: boundary }, via, lead: leadEnd, to: "offstage" };
 }
 
 /**

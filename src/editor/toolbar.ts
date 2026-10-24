@@ -26,6 +26,8 @@ export const TOOLS: readonly ToolSpec[] = [
   { tool: "facility", label: "Facility", title: "Drag onto a track to place a customer facility" },
   { tool: "add-cars", label: "Add cars", title: "Add cars to the arriving train" },
   { tool: "place-cars", label: "Place cars", title: "Place cars already on site before the train arrives" },
+  { tool: "stop", label: "Stop", title: "Add a stop with a callout after this step" },
+  { tool: "note", label: "Note", title: "Add a plain note slide after this step" },
   { tool: "zoom-in", label: "Zoom in", title: "Zoom in (Ctrl and mouse wheel also zooms)" },
   { tool: "zoom-out", label: "Zoom out", title: "Zoom out" },
   { tool: "fit", label: "Fit plan", title: "Fit the whole plan in the window" },

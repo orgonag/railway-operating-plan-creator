@@ -21,6 +21,7 @@ import { attachCarTools } from "./carTools";
 import { button, clear, closeDialog, el, showDialog } from "./dom";
 import { attachKeys } from "./keys";
 import { compute, stepIndexOf, type Computed, type EditorState, type Selection } from "./model";
+import { attachMoveTools } from "./moveTools";
 import { createProperties } from "./properties";
 import { createStepStrip } from "./stepStrip";
 import { attachAutosave, SAVE_STATUS_TEXT } from "./store/autosave";
@@ -63,7 +64,7 @@ export interface Editor {
    * without touching history; `undefined` shows the real plan again. `state()`
    * reports the plan on show.
    */
-  preview(plan: PlanReading | undefined): void;
+  preview(plan: PlanReading | undefined, stepIndex?: number): void;
   /** The layer above the sprites for ghosts, handles and drag labels; emptied on every redraw. */
   overlay(): SVGGElement;
   /** Called after every paint (plan, view, step or selection change); tools repaint their overlay here. */
@@ -121,12 +122,32 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   // ---- DOM ----
   const root = el("div", "editor");
   const toolbar = createToolbar(onTool);
-  const strip = createStepStrip((i) => {
-    stepIndex = i;
-    selection = { kind: "step", id: computed.sim.steps[i]!.stepId };
-    paintSprites();
-    refreshPanels();
-  });
+  const strip = createStepStrip(
+    (i) => {
+      stepIndex = i;
+      selection = { kind: "step", id: computed.sim.steps[i]!.stepId };
+      paintSprites();
+      refreshPanels();
+    },
+    (from, to) => reorderCard(from, to)
+  );
+
+  /** Drop the card at sim index `from` before the card at sim index `to`; the arrival and departure stay put. */
+  function reorderCard(from: number, to: number): void {
+    const steps = computed.sim.steps;
+    const id = steps[from]?.stepId;
+    if (id === undefined || id === "arrival" || id === "departure") return;
+    const work = history.plan.work;
+    const fromWork = work.findIndex((w) => w.id === id);
+    if (fromWork < 0) return;
+    let index: number;
+    if (to <= 0) index = 0;
+    else if (to >= steps.length - 1) index = work.length - 1;
+    else index = fromWork < to - 1 ? to - 2 : to - 1;
+    if (index === fromWork) return;
+    dispatch({ name: "reorderStep", stepId: id, index }, "reorder step");
+    select({ kind: "step", id });
+  }
   const canvas = el("div", "canvas");
   const stage = el("div", "stage");
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -238,10 +259,18 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     return { clientX: s.x - v.panX + r.left, clientY: s.y - v.panY + r.top };
   }
 
-  function preview(plan: PlanReading | undefined): void {
+  /** The step on show before a preview moved it, restored when the preview ends. */
+  let stepBeforePreview: number | undefined;
+  function preview(plan: PlanReading | undefined, atStep?: number): void {
     if (plan === undefined && previewPlan === undefined) return;
+    if (plan !== undefined && previewPlan === undefined) stepBeforePreview = stepIndex;
     previewPlan = plan;
     computed = compute(shownPlan());
+    if (plan === undefined && stepBeforePreview !== undefined) {
+      stepIndex = stepBeforePreview;
+      stepBeforePreview = undefined;
+    }
+    if (atStep !== undefined) stepIndex = atStep;
     stepIndex = Math.min(stepIndex, Math.max(0, computed.sim.steps.length - 1));
     drawAll();
     refreshPanels();
@@ -280,6 +309,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
 
   function afterPlanChange(): void {
     previewPlan = undefined;
+    stepBeforePreview = undefined;
     computed = compute(history.plan);
     stepIndex = Math.min(stepIndex, Math.max(0, computed.sim.steps.length - 1));
     selection = stillValid(selection) ? selection : { kind: "none" };
@@ -618,6 +648,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
 
   function destroy(): void {
     detachTools.forEach((d) => d());
+    strip.destroy();
     unsubscribe();
     detachAutosave?.();
     detachKeys();
@@ -654,7 +685,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   };
 
   // ---- tools ----
-  const detachTools = [attachTrackTools(editor), attachCarTools(editor)];
+  const detachTools = [attachTrackTools(editor), attachCarTools(editor), attachMoveTools(editor)];
   paintSprites();
 
   return editor;

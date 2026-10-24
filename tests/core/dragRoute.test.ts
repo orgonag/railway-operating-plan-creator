@@ -30,14 +30,14 @@ describe("followDrag", () => {
 
   test("dragging the train 400 ft along the main gives one leg on MAIN with the lead at 880", () => {
     const r = followDrag(d, g, train, pts([450, 0], [650, 0], [850, 0]));
-    expect(r).toEqual({ legs: [{ stop: { track: "MAIN", ft: 880, end: "lead" }, via: ["S1"] }], reversed: false });
+    expect(r).toEqual({ legs: [{ stop: { track: "MAIN", ft: 880, end: "lead" }, via: ["S1"], lead: "high" }], reversed: false });
   });
 
   test("dragging up into SPUR1 records via S1 and snaps to spot 5 of RACKS when dropped at the racks", () => {
     // Up the main to the points at 580, onto the diagonal, then along the spur to ft 1010.
     const r = followDrag(d, g, train, pts([450, 0], [580, 0], [700, 0.5], [1000, 1], [1590, 1]));
     expect(r).toEqual({
-      legs: [{ stop: { track: "SPUR1", ft: 1030, end: "lead" }, via: ["S1"], to: "RACKS", spot: 5 }],
+      legs: [{ stop: { track: "SPUR1", ft: 1030, end: "lead" }, via: ["S1"], lead: "high", to: "RACKS", spot: 5 }],
       reversed: false
     });
   });
@@ -45,13 +45,13 @@ describe("followDrag", () => {
   test("a 40 ft wobble back is not a reversal; a 100 ft turn-back splits into two legs", () => {
     expect(REVERSAL_FT).toBe(60);
     const wobble = followDrag(d, g, train, pts([450, 0], [650, 0], [850, 0], [810, 0]));
-    expect(wobble).toEqual({ legs: [{ stop: { track: "MAIN", ft: 840, end: "lead" }, via: ["S1"] }], reversed: false });
+    expect(wobble).toEqual({ legs: [{ stop: { track: "MAIN", ft: 840, end: "lead" }, via: ["S1"], lead: "high" }], reversed: false });
     const back = followDrag(d, g, train, pts([450, 0], [650, 0], [850, 0], [750, 0]));
     // Out 400 ft to a head at 880, then the loco leads 100 ft back from 500 to 400.
     expect(back).toEqual({
       legs: [
-        { stop: { track: "MAIN", ft: 880, end: "lead" }, via: ["S1"] },
-        { stop: { track: "MAIN", ft: 400, end: "lead" }, via: [] }
+        { stop: { track: "MAIN", ft: 880, end: "lead" }, via: ["S1"], lead: "high" },
+        { stop: { track: "MAIN", ft: 400, end: "lead" }, via: [], lead: "low" }
       ],
       reversed: true
     });
@@ -64,7 +64,7 @@ describe("followDrag", () => {
     expect(g2.switches.get("S2")?.atFt).toBe(1400);
     // Past S1 at 580, on to the S2 points at 1400, then up the new spur T1 (on lane 2) to ft 400.
     const r = followDrag(d2, g2, train, pts([450, 0], [1000, 0], [1400, 0], [1500, 0.8], [1800, 2]));
-    expect(r).toEqual({ legs: [{ stop: { track: "T1", ft: 430, end: "lead" }, via: ["S1", "S2"] }], reversed: false });
+    expect(r).toEqual({ legs: [{ stop: { track: "T1", ft: 430, end: "lead" }, via: ["S1", "S2"], lead: "high" }], reversed: false });
     // The engine plays that route.
     const sim = simulate(
       applyCommand(plan, {
@@ -83,23 +83,23 @@ describe("followDrag", () => {
     const r = followDrag(d, g, train, pts([450, 0], [580, 0], [880, 1], [700, 0.5], [500, 0]));
     expect(r!.reversed).toBe(true);
     // The head car at 480 is 100 ft from the points, so 430 ft of travel puts it at SPUR1 330.
-    expect(r!.legs[0]).toEqual({ stop: { track: "SPUR1", ft: 330, end: "lead" }, via: ["S1"] });
+    expect(r!.legs[0]).toEqual({ stop: { track: "SPUR1", ft: 330, end: "lead" }, via: ["S1"], lead: "high" });
     // The group then stands from MAIN 530 up to SPUR1 330; the loco at 530 leads 380 ft back to 150.
-    expect(r!.legs[1]).toEqual({ stop: { track: "MAIN", ft: 150, end: "lead" }, via: [] });
+    expect(r!.legs[1]).toEqual({ stop: { track: "MAIN", ft: 150, end: "lead" }, via: [], lead: "low" });
   });
 
   test("a drag off the arrival edge gives offstage arrival_end; a drag back in gives a stop on the main", () => {
     const out = followDrag(d, g, train, pts([450, 0], [200, 0], [-50, 0]));
-    expect(out).toEqual({ legs: [{ stop: { offstage: "arrival_end" }, via: [], to: "offstage" }], reversed: false });
+    expect(out).toEqual({ legs: [{ stop: { offstage: "arrival_end" }, via: [], lead: "low", to: "offstage" }], reversed: false });
     // A loco standing off the arrival end, grabbed at the edge and dragged in.
     const offstage: DragStart = { groupPath: [{ track: "MAIN", fromFt: -80, toFt: 0 }], grabbed: "L1", units: ["L1"] };
     const back = followDrag(d, g, offstage, pts([-30, 0], [10, 0], [200, 0], [400, 0]));
-    expect(back).toEqual({ legs: [{ stop: { track: "MAIN", ft: 390, end: "lead" }, via: [] }], reversed: false });
+    expect(back).toEqual({ legs: [{ stop: { track: "MAIN", ft: 390, end: "lead" }, via: [], lead: "high" }], reversed: false });
   });
 
   test("a drag off the far edge along the main passes S1 and leaves by the far_end boundary", () => {
     const r = followDrag(d, g, train, pts([450, 0], [900, 0], [1600, 0], [1700, 0]));
-    expect(r).toEqual({ legs: [{ stop: { offstage: "far_end" }, via: ["S1"], to: "offstage" }], reversed: false });
+    expect(r).toEqual({ legs: [{ stop: { offstage: "far_end" }, via: ["S1"], lead: "high", to: "offstage" }], reversed: false });
   });
 
   test("samples that never hit a track return null; a drag that goes nowhere has no legs", () => {

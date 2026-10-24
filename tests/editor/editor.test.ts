@@ -54,6 +54,8 @@ describe("createEditor", () => {
       "facility",
       "add-cars",
       "place-cars",
+      "stop",
+      "note",
       "zoom-in",
       "zoom-out",
       "fit",
