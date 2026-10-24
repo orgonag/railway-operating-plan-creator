@@ -151,7 +151,7 @@ Rules the implementer cannot infer:
 - Unknown ids: the command returns the plan unchanged with one problem `{ path: "<command>.<field>", message: "no <thing> with id <id>", repaired: false }`.
 - `applyCommand` never mutates its input (`cloneJson` first).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test("addTurnout on the demo adds S2 and T1 with a 400 ft spur and a buffer stop", () => {
@@ -202,10 +202,10 @@ test("property: 300 random commands on the demo keep the plan valid and never th
 
 `EXAMPLES` is one literal command per name, in the test file. `ALL_COMMAND_NAMES` is the 20 names above.
 
-- [ ] **Step 2: Run to verify failure:** `npx vitest run tests/core/commands.test.ts`, FAIL (module not found).
-- [ ] **Step 3: Implement `ids.ts`, `commands.ts`, `schemas.ts`.** Schemas are hand-written objects; keep every property's `description` to one plain sentence, since they will be handed to a model as tool definitions later.
-- [ ] **Step 4: Run tests and typecheck:** `npx vitest run tests/core/commands.test.ts && npm run typecheck`, PASS.
-- [ ] **Step 5: Commit:** `git add src/core/commands tests/core/commands.test.ts && git commit -m "feat(commands): typed command set with JSON Schemas"`.
+- [x] **Step 2: Run to verify failure:** `npx vitest run tests/core/commands.test.ts`, FAIL (module not found).
+- [x] **Step 3: Implement `ids.ts`, `commands.ts`, `schemas.ts`.** Schemas are hand-written objects; keep every property's `description` to one plain sentence, since they will be handed to a model as tool definitions later.
+- [x] **Step 4: Run tests and typecheck:** `npx vitest run tests/core/commands.test.ts && npm run typecheck`, PASS.
+- [x] **Step 5: Commit:** `git add src/core/commands tests/core/commands.test.ts && git commit -m "feat(commands): typed command set with JSON Schemas"`.
 
 ---
 
@@ -240,7 +240,7 @@ export const HISTORY_LIMIT = 200;
 export function createHistory(initial: PlanReading): History;
 ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test("dispatching three commands under one label undoes in one step", () => {
@@ -265,10 +265,10 @@ test("the stack is capped at HISTORY_LIMIT entries, oldest dropped", () => {});
 test("undo after deleting a car restores the same car id in the same cut position", () => {});
 ```
 
-- [ ] **Step 2: Run to verify failure.** `npx vitest run tests/core/history.test.ts`, FAIL.
-- [ ] **Step 3: Implement `history.ts`.** Snapshots, not inverse commands: `before` and `after` are the whole plan (plans are a few KB). Equality for the no-op check is `JSON.stringify` of both.
-- [ ] **Step 4: Run tests and typecheck.** PASS.
-- [ ] **Step 5: Commit:** `git commit -m "feat(commands): history with grouped undo and redo"`.
+- [x] **Step 2: Run to verify failure.** `npx vitest run tests/core/history.test.ts`, FAIL.
+- [x] **Step 3: Implement `history.ts`.** Snapshots, not inverse commands: `before` and `after` are the whole plan (plans are a few KB). Equality for the no-op check is `JSON.stringify` of both.
+- [x] **Step 4: Run tests and typecheck.** PASS.
+- [x] **Step 5: Commit:** `git commit -m "feat(commands): history with grouped undo and redo"`.
 
 ---
 
@@ -309,7 +309,7 @@ export function downloadJson(plan: PlanReading, doc?: Document): void;   // Blob
 export function readPlanFile(file: File): Promise<{ plan: PlanReading | null; problems: FileProblem[] }>;  // text -> JSON.parse (a parse error is one problem) -> validateFile -> materialize
 ```
 
-- [ ] **Step 1: Write the failing tests** (`// @vitest-environment happy-dom`)
+- [x] **Step 1: Write the failing tests** (`// @vitest-environment happy-dom`)
 
 ```ts
 test("savePlan then loadPlan round-trips the demo and lists it newest first", () => {});
@@ -324,10 +324,10 @@ test("planFileName of the demo is how-a-train-services-a-customer.reading.json",
 test("readPlanFile rejects garbage with one problem and a null plan", async () => {});
 ```
 
-- [ ] **Step 2: Run to verify failure.** FAIL.
-- [ ] **Step 3: Implement the three files and widen `tsconfig.app.json`.**
-- [ ] **Step 4: Run `npm test && npm run typecheck`.** PASS.
-- [ ] **Step 5: Commit:** `git commit -m "feat(editor): browser storage, autosave and JSON files"`.
+- [x] **Step 2: Run to verify failure.** FAIL.
+- [x] **Step 3: Implement the three files and widen `tsconfig.app.json`.**
+- [x] **Step 4: Run `npm test && npm run typecheck`.** PASS.
+- [x] **Step 5: Commit:** `git commit -m "feat(editor): browser storage, autosave and JSON files"`.
 
 ---
 
@@ -380,7 +380,7 @@ Behaviour fixed here:
 - Keys in `keys.ts`: Ctrl+Z undo, Ctrl+Y and Ctrl+Shift+Z redo, Delete deletes the selected step, car, facility or track (tracks ask "Delete <name> and everything on it?" with `confirm`), Esc clears selection, Ctrl+C and Ctrl+V copy and paste the selected step (paste inserts after the current step with a new id). Keys are ignored while an input has focus.
 - `app/main.ts`: on load, if `location.hash` is empty, open `lastOpenedId()` or, when there is none, the demo template saved under a new local id. New opens a `<dialog class="new-plan">` listing `TEMPLATES` and `listPlans()`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // viewport.test.ts (node)
@@ -400,10 +400,10 @@ test("Fit plan resets the view to fitView", () => {});
 test("Ctrl+Z undoes; Delete on a selected step removes it", () => {});
 ```
 
-- [ ] **Step 2: Run to verify failure.** FAIL.
-- [ ] **Step 3: Implement.** Keep each file to its one job. The editor subscribes to history and does: `computed = compute(plan)`, re-render tracks, re-place sprites, re-fill strip and properties. Replace the P1 picker in `app/main.ts`; the three P1 plans stay reachable through New (demo template) and Open.
-- [ ] **Step 4: Run `npm test && npm run typecheck`, then open `npm run dev` and check: the demo opens, wheel zooms under the pointer, drag pans, Fit refits, strip shows 9 steps, the title edit sticks after a reload.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(editor): shell with viewport, toolbar, step strip and properties"`.
+- [x] **Step 2: Run to verify failure.** FAIL.
+- [x] **Step 3: Implement.** Keep each file to its one job. The editor subscribes to history and does: `computed = compute(plan)`, re-render tracks, re-place sprites, re-fill strip and properties. Replace the P1 picker in `app/main.ts`; the three P1 plans stay reachable through New (demo template) and Open.
+- [x] **Step 4: Run `npm test && npm run typecheck`, then open `npm run dev` and check: the demo opens, wheel zooms under the pointer, drag pans, Fit refits, strip shows 9 steps, the title edit sticks after a reload.**
+- [x] **Step 5: Commit:** `git commit -m "feat(editor): shell with viewport, toolbar, step strip and properties"`.
 
 ---
 
