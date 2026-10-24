@@ -114,16 +114,16 @@ export type Command =
   | { name: "addTurnout"; trackId: Id; distanceFt: number; side: Side; approach: "facing" | "trailing"; branchId?: Id; branchRole?: TrackRole; branchLengthFt?: number }
   | { name: "flipTurnout"; switchId: Id; axis: FlipAxis }
   | { name: "setSwitchDistance"; switchId: Id; distanceFt: number }
-  | { name: "setTrack"; trackId: Id; name?: string; role?: TrackRole; lengthFt?: number; end?: TrackEnd }
+  | { name: "setTrack"; trackId: Id; label?: string; role?: TrackRole; lengthFt?: number; end?: TrackEnd }
   | { name: "deleteTrack"; trackId: Id }
-  | { name: "addFacility"; trackId: Id; startFt: number; lengthFt: number; name: string; kind: FacilityKind; facilityId?: Id }
-  | { name: "setFacility"; facilityId: Id; name?: string; kind?: FacilityKind; startFt?: number; lengthFt?: number; spots?: number }
+  | { name: "addFacility"; trackId: Id; startFt: number; lengthFt: number; label: string; kind: FacilityKind; facilityId?: Id }
+  | { name: "setFacility"; facilityId: Id; label?: string; kind?: FacilityKind; startFt?: number; lengthFt?: number; spots?: number }
   | { name: "deleteFacility"; facilityId: Id }
   | { name: "addCars"; count: number; type: CarType; state: CarState; cutId?: Id; for?: Id }
   | { name: "placeCars"; count: number; type: CarType; state: CarState; at: Id; spot?: number; cutId?: Id }
   | { name: "setCar"; carId: Id; type?: CarType; state?: CarState; mark?: string; number?: string; lengthFt?: number | null }
   | { name: "deleteCar"; carId: Id }
-  | { name: "addStep"; step: Omit<WorkStep, "id"> & { id?: Id }; index?: number }
+  | { name: "addStep"; step: StepInput; index?: number }  // StepInput: any WorkStep shape with id optional (distributive Omit)
   | { name: "setStep"; stepId: Id; patch: Partial<Omit<RailroadStep, "id">> }
   | { name: "deleteStep"; stepId: Id }
   | { name: "reorderStep"; stepId: Id; index: number };
@@ -248,7 +248,7 @@ test("dispatching three commands under one label undoes in one step", () => {
   h.dispatch([
     { name: "addTurnout", trackId: "MAIN", distanceFt: 1400, side: "right", approach: "trailing" },
     { name: "setTrack", trackId: "T1", lengthFt: 600 },
-    { name: "addFacility", trackId: "T1", startFt: 300, lengthFt: 300, name: "Dock", kind: "warehouse" }
+    { name: "addFacility", trackId: "T1", startFt: 300, lengthFt: 300, label: "Dock", kind: "warehouse" }
   ], "add a spur");
   expect(h.plan.tracks).toHaveLength(3);
   expect(h.undo()).toBe(true);
@@ -474,7 +474,7 @@ test("Track end dropped on the main is refused with the status message", () => {
 - Produces: facility end handles `circle.facility-handle[data-facility][data-end=start|end]`; the `Show spots` checkbox sets `EditorState.showSpots` (passed to `renderOptions`).
 
 Behaviour fixed here:
-- Dropping Facility on a track dispatches `addFacility { startFt: max(0, hit.ft - 150), lengthFt: 300, name: "Facility <n>", kind: "other" }`, label "add facility"; `spots` is left unset (the graph derives 60 ft spots).
+- Dropping Facility on a track dispatches `addFacility { startFt: max(0, hit.ft - 150), lengthFt: 300, label: "Facility <n>", kind: "other" }`, label "add facility"; `spots` is left unset (the graph derives 60 ft spots).
 - Dragging either handle previews `setFacility` with `startFt` or `lengthFt` in 10 ft steps (minimum 60 ft), with the drag label "<n> ft, <k> cars" where `k = floor(lengthFt / 60)`.
 - Deleting a facility leaves steps naming it (the engine marks them).
 
