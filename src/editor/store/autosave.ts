@@ -17,11 +17,12 @@ export const SAVE_STATUS_TEXT: Record<SaveStatus, string> = {
   failed: "Could not save in this browser"
 };
 
-/** Returns a detach function. A pending save is dropped on detach. */
+/** Returns a detach function. A pending save is written at once on detach and when the page hides. */
 export function attachAutosave(history: History, localId: string, onStatus: (s: SaveStatus) => void, storage?: Storage): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const flush = (): void => {
+    if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
     try {
       savePlan(localId, history.plan, storage);
@@ -31,15 +32,22 @@ export function attachAutosave(history: History, localId: string, onStatus: (s: 
     }
   };
 
+  const flushPending = (): void => {
+    if (timer !== undefined) flush();
+  };
+
   const unsubscribe = history.subscribe(() => {
     if (timer === undefined) onStatus("saving");
     else clearTimeout(timer);
     timer = setTimeout(flush, SAVE_DELAY_MS);
   });
 
+  const win = typeof window !== "undefined" ? window : undefined;
+  win?.addEventListener("pagehide", flushPending);
+
   return () => {
     unsubscribe();
-    if (timer !== undefined) clearTimeout(timer);
-    timer = undefined;
+    win?.removeEventListener("pagehide", flushPending);
+    flushPending();
   };
 }

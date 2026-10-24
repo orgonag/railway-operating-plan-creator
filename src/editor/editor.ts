@@ -157,13 +157,33 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     renderSprites(spriteLayer(), placeUnits(computed.drawing, computed.g, world, computed.units), renderOpts, step?.status);
   }
 
+  /**
+   * The properties form is rebuilt only when the selection changes or when
+   * nobody is typing in it. While a person tabs from field to field, the form
+   * stays put and is refreshed once focus leaves the panel.
+   */
+  let propsKey = "";
+  let propsStale = false;
   function refreshPanels(): void {
     const s = state();
     strip.render(s);
-    props.render(s);
+    const key = JSON.stringify(s.selection);
+    const typing = props.root.contains(document.activeElement);
+    if (key !== propsKey || !typing) {
+      props.render(s);
+      propsKey = key;
+      propsStale = false;
+    } else propsStale = true;
     toolbar.setEnabled("undo", history.canUndo);
     toolbar.setEnabled("redo", history.canRedo);
   }
+  props.root.addEventListener("focusout", (e) => {
+    const next = e.relatedTarget;
+    if (propsStale && !(next instanceof Node && props.root.contains(next))) {
+      props.render(state());
+      propsStale = false;
+    }
+  });
 
   // ---- plan changes ----
 

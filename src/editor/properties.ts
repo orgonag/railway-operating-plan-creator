@@ -228,7 +228,11 @@ export function createProperties(h: PropertiesHandlers): PropertiesPanel {
     input.value = value === undefined ? "" : String(value);
     input.addEventListener("change", () => {
       const v = Number(input.value);
-      if (input.value.trim() !== "" && Number.isFinite(v)) onChange(Math.max(min, v));
+      if (input.value.trim() === "" || !Number.isFinite(v)) return;
+      // Snap to the field's step (whole locos, 10 ft) so the plan never holds a value its schema refuses.
+      const snapped = Math.max(min, Math.round(v / step) * step);
+      input.value = String(snapped);
+      onChange(snapped);
     });
     field(form, name, label, input);
     return input;

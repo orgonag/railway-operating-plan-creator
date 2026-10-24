@@ -317,3 +317,36 @@ describe("property: random commands", () => {
     }
   });
 });
+
+describe("commands keep the plan schema-valid (review fixes)", () => {
+  test("a command whose inputs break its schema is refused with a problem", () => {
+    const r = applyCommand(demo, { name: "setLocos", count: 1.5 });
+    expect(r.plan).toEqual(demo);
+    expect(r.problems).toHaveLength(1);
+    expect(r.problems[0]!.path).toBe("setLocos.count");
+    expect(applyCommand(demo, { name: "setFacility", facilityId: "RACKS", spots: 2.5 }).problems).toHaveLength(1);
+    expect(validateFile(applyCommand(demo, { name: "setLocos", count: 2 }).plan).plan).not.toBeNull();
+  });
+
+  test("setStep treats null as delete, so JSON commands can remove a field", () => {
+    const r = applyCommand(demo, { name: "setStep", stepId: "W1", patch: { spot: null } as never });
+    expect(r.problems).toEqual([]);
+    expect(r.plan.work[0]).not.toHaveProperty("spot");
+    expect(validateFile(r.plan).plan).not.toBeNull();
+  });
+
+  test("a stop step without a callout is refused, since the plan schema needs one", () => {
+    const r = applyCommand(demo, { name: "addStep", step: { actor: "railroad", do: "stop", text: "Hold" } });
+    expect(r.plan).toEqual(demo);
+    expect(r.problems[0]!.message).toMatch(/callout/);
+    const ok = applyCommand(demo, { name: "addStep", step: { actor: "railroad", do: "stop", text: "Hold", callout: { text: "Wait for the signal" } } });
+    expect(ok.problems).toEqual([]);
+  });
+
+  test("a command that would leave the plan unreadable is refused", () => {
+    // A step id that collides: the second W1 would be dropped on reopen, so the shown plan would differ from the saved one.
+    const r = applyCommand(demo, { name: "addStep", step: { id: "W1", actor: "railroad", do: "note", text: "x" } });
+    expect(r.plan).toEqual(demo);
+    expect(r.problems).toHaveLength(1);
+  });
+});

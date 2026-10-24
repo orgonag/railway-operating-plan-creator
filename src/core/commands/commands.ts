@@ -13,7 +13,11 @@
  *   `created` lists them in the order they were made.
  */
 
+import Ajv2020, { type ValidateFunction } from "ajv/dist/2020.js";
+
 import { cloneJson } from "../schema/clone";
+import { validateFile } from "../schema/validateFile";
+import { COMMANDS } from "./schemas";
 import type {
   Car,
   CarState,
@@ -99,6 +103,11 @@ export function applyCommands(plan: PlanReading, cmds: Command[]): CommandResult
 
 export function applyCommand(plan: PlanReading, cmd: Command): CommandResult {
   const ctx = new Ctx(plan, cmd.name);
+  const shape = checkShape(cmd);
+  if (shape) {
+    ctx.problems.push(shape);
+    return ctx.result(plan);
+  }
   switch (cmd.name) {
     case "setTitle":
       ctx.plan.title = cmd.title;
@@ -146,6 +155,7 @@ export function applyCommand(plan: PlanReading, cmd: Command): CommandResult {
       break;
     case "addFacility": {
       if (!ctx.find("track", ctx.plan.tracks, cmd.trackId, "trackId")) break;
+      if (cmd.facilityId !== undefined && !ctx.claim(cmd.facilityId, "facilityId")) break;
       const id = cmd.facilityId ?? ctx.id("F");
       ctx.plan.facilities.push({ id, name: cmd.label, kind: cmd.kind, track: cmd.trackId, startFt: cmd.startFt, lengthFt: cmd.lengthFt });
       ctx.created.push(id);
@@ -165,6 +175,7 @@ export function applyCommand(plan: PlanReading, cmd: Command): CommandResult {
       }
       break;
     case "addCars": {
+      if (cmd.cutId !== undefined && !ctx.claim(cmd.cutId, "cutId")) break;
       const cut: Cut = { id: cmd.cutId ?? ctx.id("CUT"), cars: cmd.count, state: cmd.state, carType: cmd.type, list: [] };
       if (cmd.for !== undefined) cut.for = cmd.for;
       ctx.created.push(cut.id);
@@ -173,6 +184,7 @@ export function applyCommand(plan: PlanReading, cmd: Command): CommandResult {
       break;
     }
     case "placeCars": {
+      if (cmd.cutId !== undefined && !ctx.claim(cmd.cutId, "cutId")) break;
       const cut: OnSiteCut = { id: cmd.cutId ?? ctx.id("CUT"), cars: cmd.count, state: cmd.state, carType: cmd.type, at: cmd.at, list: [] };
       if (cmd.spot !== undefined) cut.spot = cmd.spot;
       ctx.created.push(cut.id);
@@ -195,6 +207,11 @@ export function applyCommand(plan: PlanReading, cmd: Command): CommandResult {
       if (!deleteCar(ctx.plan, cmd.carId)) ctx.missing("car", cmd.carId, "carId");
       break;
     case "addStep": {
+      if (cmd.step.do === "stop" && !cmd.step.callout) {
+        ctx.problems.push({ path: "addStep.step.callout", message: "a stop step needs a callout saying why the train waits", repaired: false });
+        break;
+      }
+      if (cmd.step.id !== undefined && !ctx.claim(cmd.step.id, "step.id")) break;
       const step = cloneJson(cmd.step) as WorkStep;
       step.id = cmd.step.id ?? ctx.id("ST");
       const at = cmd.index === undefined ? ctx.plan.work.length : clampIndex(cmd.index, ctx.plan.work.length);
@@ -206,8 +223,9 @@ export function applyCommand(plan: PlanReading, cmd: Command): CommandResult {
       const step = ctx.find("step", ctx.plan.work, cmd.stepId, "stepId");
       if (!step) break;
       const target = step as unknown as Record<string, unknown>;
+      // null and undefined both delete: a command that arrives as JSON can only say null.
       for (const [key, value] of Object.entries(cmd.patch)) {
-        if (value === undefined) delete target[key];
+        if (value === undefined || value === null) delete target[key];
         else target[key] = cloneJson(value);
       }
       break;
@@ -227,6 +245,30 @@ export function applyCommand(plan: PlanReading, cmd: Command): CommandResult {
     }
   }
   return ctx.result(plan);
+}
+
+// ---- shape and readability checks ----
+
+const validators = new Map<CommandName, ValidateFunction>();
+let ajv: Ajv2020 | undefined;
+
+/** The command against its own JSON Schema: wrong types, fractions where integers go, missing fields. */
+function checkShape(cmd: Command): FileProblem | undefined {
+  let validate = validators.get(cmd.name);
+  if (!validate) {
+    const doc = COMMANDS.find((c) => c.name === cmd.name);
+    if (!doc) {
+      const name = String((cmd as { name: unknown }).name);
+      return { path: name, message: `unknown command ${name}`, repaired: false };
+    }
+    ajv ??= new Ajv2020({ allErrors: false, strict: true });
+    validate = ajv.compile(doc.schema);
+    validators.set(cmd.name, validate);
+  }
+  if (validate(cmd)) return undefined;
+  const err = validate.errors?.[0];
+  const field = err?.instancePath ? err.instancePath.slice(1).replace(/\//g, ".") : (err?.params as { missingProperty?: string } | undefined)?.missingProperty ?? "command";
+  return { path: `${cmd.name}.${field}`, message: `${field} ${err?.message ?? "is not valid"}`, repaired: false };
 }
 
 // ---- helpers ----
@@ -269,8 +311,25 @@ class Ctx {
     this.problems.push({ path: `${this.command}.${field}`, message: `no ${thing} with id ${id}`, repaired: false });
   }
 
-  /** The unchanged input when anything went wrong, so a failed command is a true no-op. */
+  /** Take an id the caller chose; false (with a problem) when something already has it. */
+  claim(id: Id, field: string): boolean {
+    if (this.used.has(id)) {
+      this.problems.push({ path: `${this.command}.${field}`, message: `the id ${id} is already used`, repaired: false });
+      return false;
+    }
+    this.used.add(id);
+    return true;
+  }
+
+  /**
+   * The unchanged input when anything went wrong, so a failed command is a
+   * true no-op. A result the file check could not read back is refused too:
+   * what is shown must be what is saved.
+   */
   result(input: PlanReading): CommandResult {
+    if (this.problems.length === 0 && validateFile(this.plan).plan === null) {
+      this.problems.push({ path: this.command, message: "this change would make the plan unreadable, so it was not made", repaired: false });
+    }
     if (this.problems.length > 0) return { plan: input, created: [], problems: this.problems };
     return { plan: this.plan, created: this.created, problems: [] };
   }

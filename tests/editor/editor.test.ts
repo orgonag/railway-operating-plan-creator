@@ -173,3 +173,38 @@ describe("createEditor", () => {
     expect(mount.querySelector(".save-status")?.textContent).toBe("Saved in this browser");
   });
 });
+
+describe("review fixes", () => {
+  test("editing one field and tabbing to the next keeps the form in place", () => {
+    const e = open();
+    const title = mount.querySelector<HTMLInputElement>('.properties input[name="title"]')!;
+    const description = mount.querySelector<HTMLInputElement>('.properties input[name="description"]')!;
+    title.focus();
+    title.value = "Renamed";
+    description.focus(); // focus moves before change fires in a real browser
+    title.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(e.state().plan.title).toBe("Renamed");
+    expect(mount.querySelector('.properties input[name="description"]')).toBe(description);
+    expect(document.activeElement).toBe(description);
+    // Once focus leaves the panel, the form refreshes from the plan.
+    description.blur();
+    document.body.focus();
+    description.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
+    expect(mount.querySelector('.properties input[name="description"]')).not.toBe(description);
+  });
+
+  test("a fractional count typed into Locomotives is rounded, not saved as 1.5", () => {
+    const e = open();
+    const count = mount.querySelector<HTMLInputElement>('.properties input[name="locoCount"]')!;
+    count.value = "1.5";
+    count.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(e.state().plan.consist.locos.count).toBe(2);
+  });
+
+  test("a pending autosave is written when the page hides", async () => {
+    editor = createEditor(mount, { plan: templateById("single_spur").make(), localId: "hide" });
+    editor.dispatch({ name: "setTitle", title: "Before hide" }, "rename");
+    window.dispatchEvent(new Event("pagehide"));
+    expect(JSON.parse(localStorage.getItem("ropc:plan:hide")!).title).toBe("Before hide");
+  });
+});

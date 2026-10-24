@@ -179,3 +179,17 @@ describe("files", () => {
     expect(bad.problems).toHaveLength(1);
   });
 });
+
+describe("autosave flush", () => {
+  test("detaching with a pending save writes it first", () => {
+    vi.useFakeTimers();
+    const mem = new MemoryStorage();
+    const h = createHistory(demo);
+    const statuses: SaveStatus[] = [];
+    const detach = attachAutosave(h, "a", (s) => statuses.push(s), mem);
+    h.dispatch({ name: "setTitle", title: "Quick" }, "rename");
+    detach();
+    expect(loadPlan("a", mem)?.title).toBe("Quick");
+    expect(statuses).toEqual(["saving", "saved"]);
+  });
+});
