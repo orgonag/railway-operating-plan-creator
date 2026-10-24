@@ -437,7 +437,7 @@ Behaviour fixed here:
 - Stretching: dragging a branch's end handle previews `setTrack { lengthFt }` in 10 ft steps (minimum 60) by applying the command to a scratch plan and redrawing; a `text.drag-label` shows "<n> ft"; release commits one entry "stretch <name>"; Esc restores.
 - Right-click on a track opens `.context-menu` with Rename, Main, Siding, Spur, Set length, Delete. Rename and Set length use `prompt`; Delete uses the same confirm as the Delete key.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // hit.test.ts
@@ -456,10 +456,10 @@ test("Esc during a stretch restores the length and adds no entry", () => {});
 test("Track end dropped on the main is refused with the status message", () => {});
 ```
 
-- [ ] **Step 2: Run to verify failure.** FAIL.
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run tests and typecheck; in the browser drop a turnout, flip it both ways, stretch it.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(editor): place and flip turnouts, stretch track, right-click menu"`.
+- [x] **Step 2: Run to verify failure.** FAIL.
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run tests and typecheck; in the browser drop a turnout, flip it both ways, stretch it.**
+- [x] **Step 5: Commit:** `git commit -m "feat(editor): place and flip turnouts, stretch track, right-click menu"`.
 
 ---
 
@@ -478,7 +478,7 @@ Behaviour fixed here:
 - Dragging either handle previews `setFacility` with `startFt` or `lengthFt` in 10 ft steps (minimum 60 ft), with the drag label "<n> ft, <k> cars" where `k = floor(lengthFt / 60)`.
 - Deleting a facility leaves steps naming it (the engine marks them).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test("dropping Facility on SPUR1 at ft 500 adds a 300 ft facility from 350 named Facility 1", () => {});
@@ -487,8 +487,8 @@ test("Show spots re-renders with spot ticks", () => {});
 test("deleting a facility that a step names leaves the step and marks it needs_attention", () => {});
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass (tests, typecheck, browser check).**
-- [ ] **Step 5: Commit:** `git commit -m "feat(editor): facilities with sizing and spot display"`.
+- [x] **Step 2 to 4: Fail, implement, pass (tests, typecheck, browser check).**
+- [x] **Step 5: Commit:** `git commit -m "feat(editor): facilities with sizing and spot display"`.
 
 ---
 
@@ -509,7 +509,7 @@ Behaviour fixed here:
 - Unit properties for a multi-selection apply the change to every selected car (one history entry, label "set <field>").
 - Locos: count and type live in the plan panel's arrival section.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test("Add cars 3 tank_general empty appends three cars to the train and selects them", () => {});
@@ -524,8 +524,8 @@ test("changing type on a 3-car selection is one history entry", () => {});
 test("setLocos count 2 gives L1 and L2 in the arrival state", () => {});
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(editor): add and place cars, per-car properties, locos"`.
+- [x] **Step 2 to 4: Fail, implement, pass.**
+- [x] **Step 5: Commit:** `git commit -m "feat(editor): add and place cars, per-car properties, locos"`.
 
 ---
 
@@ -567,7 +567,7 @@ Rules the implementer cannot infer:
 - Otherwise the final stop is `{ track, ft, end: "lead" }` where `ft` is the lead unit's front after moving the group along the followed path by the pointer's travel; `snapToSpot` on that lead position wins when it returns a spot (then `to` is the facility, `spot` is set, and `stop` is still written so the saved step is exact).
 - `verb` for the caption is picked by the editor from the moving units: a loco alone is `run_light`; a loco at the trailing end is `shove`; a loco at the leading end is `pull`; no loco is `move`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // dragRoute.test.ts, on the demo's arrival state and graph (train on MAIN 100 to 480, head at 480)
@@ -588,8 +588,8 @@ test("a run light to offstage reads 'Run light off the arrival end'", () => {});
 test("mixed loads and empties read as cars", () => {});
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass. No DOM in any of these files.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(editing): follow a drag through turnouts, plan cuts, write captions"`.
+- [x] **Step 2 to 4: Fail, implement, pass. No DOM in any of these files.**
+- [x] **Step 5: Commit:** `git commit -m "feat(editing): follow a drag through turnouts, plan cuts, write captions"`.
 
 ---
 
@@ -611,7 +611,7 @@ Behaviour fixed here:
 - Scissors dispatches `addStep uncouple between [a, b]` (rising-ft order); link dispatches `couple` with `cars` of the moving group and `to` the other group's nearest unit; Load and Unload dispatch a customer step with the cars at that facility; Stop dispatches `stop` with `callout: { text: "Stop here" }`; Note dispatches `note` with `text: "Note"`. Each selects the new step so its text can be edited at once.
 - Strip: drag a card to reorder (`reorderStep`), Ctrl+C and Ctrl+V duplicate (`addStep` with a copy and a new id), Delete removes. Cards show the status word when the status is not ok.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test("dragging the arrived train 300 ft along the main adds one step whose stop is MAIN ft 780 lead", () => {});
@@ -633,8 +633,8 @@ test("a zoom during a drag does not change the committed stop", () => {
 test("Ctrl+C then Ctrl+V duplicates the selected step after itself with a new id", () => {});
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass. Browser check: build the demo plan from the Single spur template by dragging only.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(editor): make steps by dragging, train buttons, step strip editing"`.
+- [x] **Step 2 to 4: Fail, implement, pass. Browser check: build the demo plan from the Single spur template by dragging only.**
+- [x] **Step 5: Commit:** `git commit -m "feat(editor): make steps by dragging, train buttons, step strip editing"`.
 
 ---
 
