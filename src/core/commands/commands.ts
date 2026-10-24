@@ -265,10 +265,11 @@ function checkShape(cmd: Command): FileProblem | undefined {
     validate = ajv.compile(doc.schema);
     validators.set(cmd.name, validate);
   }
+  const name = cmd.name;
   if (validate(cmd)) return undefined;
   const err = validate.errors?.[0];
   const field = err?.instancePath ? err.instancePath.slice(1).replace(/\//g, ".") : (err?.params as { missingProperty?: string } | undefined)?.missingProperty ?? "command";
-  return { path: `${cmd.name}.${field}`, message: `${field} ${err?.message ?? "is not valid"}`, repaired: false };
+  return { path: `${name}.${field}`, message: `${field} ${err?.message ?? "is not valid"}`, repaired: false };
 }
 
 // ---- helpers ----
