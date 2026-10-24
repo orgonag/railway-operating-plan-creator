@@ -660,7 +660,7 @@ Behaviour fixed here:
 - Share opens `<dialog class="share">` with the link in a read-only input, a Copy button (`navigator.clipboard.writeText`), the `SHARE_NOTICE` line, and the link length in characters.
 - On load with a share hash: decode, save as a new local plan whose title is `"Copy of " + title` (unless it already starts with "Copy of "), set it as last opened, clear the hash with `history.replaceState`, and `setStatus("Opened from a link as a copy")`. On failure, `setStatus(SHARE_FAILED_TEXT)` and open the last plan as usual. Saved plans are untouched either way.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test("encode then decode round-trips the demo", async () => {});
@@ -671,8 +671,8 @@ test("opening a share link adds a copy and keeps the saved plan", async () => {
 });
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass. Browser check: Share, paste the link in a new tab, see the copy.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(export): share link in the URL fragment"`.
+- [x] **Step 2 to 4: Fail, implement, pass. Browser check: Share, paste the link in a new tab, see the copy.**
+- [x] **Step 5: Commit:** `git commit -m "feat(export): share link in the URL fragment"`.
 
 ---
 

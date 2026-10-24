@@ -23,6 +23,7 @@ import { attachKeys } from "./keys";
 import { compute, stepIndexOf, type Computed, type EditorState, type Selection } from "./model";
 import { attachMoveTools } from "./moveTools";
 import { createProperties } from "./properties";
+import { attachShareTools } from "./shareTools";
 import { createStepStrip } from "./stepStrip";
 import { attachAutosave, SAVE_STATUS_TEXT } from "./store/autosave";
 import { downloadJson, readPlanFile } from "./store/file";
@@ -686,7 +687,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   };
 
   // ---- tools ----
-  const detachTools = [attachTrackTools(editor), attachCarTools(editor), attachMoveTools(editor)];
+  const detachTools = [attachTrackTools(editor), attachCarTools(editor), attachMoveTools(editor), attachShareTools(editor)];
   paintSprites();
 
   return editor;

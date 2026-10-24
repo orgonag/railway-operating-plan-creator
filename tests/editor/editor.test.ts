@@ -66,7 +66,6 @@ describe("createEditor", () => {
       expect(b.querySelector("svg"), b.dataset.tool).not.toBeNull();
       expect(b.textContent?.trim().length, b.dataset.tool).toBeGreaterThan(1);
     }
-    expect(tool("share").disabled).toBe(true);
   });
 
   test("the strip has one card per sim step and the current one is marked", () => {
@@ -209,5 +208,28 @@ describe("review fixes", () => {
     editor.dispatch({ name: "setTitle", title: "Before hide" }, "rename");
     window.dispatchEvent(new Event("pagehide"));
     expect(JSON.parse(localStorage.getItem("ropc:plan:hide")!).title).toBe("Before hide");
+  });
+});
+
+describe("share dialog", () => {
+  test("Share opens a dialog with the link, the notice and the length; Copy writes it to the clipboard", async () => {
+    const { openShareDialog } = await import("../../src/editor/shareTools");
+    const { SHARE_NOTICE, SHARE_PREFIX } = await import("../../src/export/share");
+    const e = open();
+    expect(tool("share").disabled).toBe(false);
+    const written: string[] = [];
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: async (t: string) => void written.push(t) }, configurable: true });
+    const dialog = await openShareDialog(e);
+    const input = dialog.querySelector<HTMLInputElement>("input.share-link")!;
+    expect(input.readOnly).toBe(true);
+    expect(input.value).toContain(SHARE_PREFIX);
+    expect(dialog.textContent).toContain(SHARE_NOTICE);
+    expect(dialog.querySelector(".link-length")!.textContent).toBe(`${input.value.length} characters`);
+    dialog.querySelector<HTMLButtonElement>("button.copy")!.click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(written).toEqual([input.value]);
+    expect(dialog.querySelector(".copied")!.textContent).toBe("Copied");
+    dialog.querySelector<HTMLButtonElement>("button.close")!.click();
+    expect(mount.querySelector("dialog.share")).toBeNull();
   });
 });
