@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "1",
+  "title": "Two Customers on Two Spurs",
+  "description": "A synthetic plan: one train serves a mill and a warehouse on facing-point spurs off the same main. Lengths are illustrative.",
+  "arrival": {
+    "direction": "eastbound",
+    "enters": "left",
+    "on": "MAIN",
+    "locos": "rear",
+    "text": "A local train arrives eastbound with three loads for the mill and two for the warehouse."
+  },
+  "tracks": [
+    { "id": "MAIN", "role": "main", "name": "Main line", "end": "continues" },
+    { "id": "SPUR1", "role": "spur", "name": "Mill spur", "lengthFt": 700, "end": "buffer_stop" },
+    { "id": "SPUR2", "role": "spur", "name": "Warehouse spur", "lengthFt": 600, "end": "buffer_stop" }
+  ],
+  "switches": [
+    { "id": "S1", "on": "MAIN", "to": "SPUR1", "side": "left", "approach": "facing", "order": 1 },
+    { "id": "S2", "on": "MAIN", "to": "SPUR2", "side": "right", "approach": "facing", "order": 2 }
+  ],
+  "facilities": [
+    { "id": "MILL", "name": "Mill unloading racks", "kind": "unloading_racks", "track": "SPUR1", "lengthFt": 300, "spots": 5 },
+    { "id": "WH", "name": "Warehouse doors", "kind": "warehouse", "track": "SPUR2", "lengthFt": 240, "spots": 4 }
+  ],
+  "consist": {
+    "locos": { "count": 1, "type": "four_axle", "list": [{ "id": "L1" }] },
+    "cuts": [
+      {
+        "id": "MILL_LOADS",
+        "cars": 3,
+        "state": "loaded",
+        "for": "MILL",
+        "carType": "covered_hopper_large",
+        "list": [{ "id": "C1" }, { "id": "C2" }, { "id": "C3" }]
+      },
+      {
+        "id": "WH_LOADS",
+        "cars": 2,
+        "state": "loaded",
+        "for": "WH",
+        "carType": "boxcar_60",
+        "list": [{ "id": "C4" }, { "id": "C5" }]
+      }
+    ]
+  },
+  "work": [
+    {
+      "id": "W1",
+      "actor": "railroad",
+      "do": "shove",
+      "cars": ["MILL_LOADS", "WH_LOADS"],
+      "to": "MILL",
+      "via": ["S1"],
+      "text": "The locomotive shoves the whole cut into the mill spur and spots the three hoppers at the racks.",
+      "spot": 3
+    },
+    {
+      "id": "W2",
+      "actor": "railroad",
+      "do": "uncouple",
+      "between": ["C3", "C4"],
+      "text": "The crew uncouples between the last hopper and the first boxcar."
+    },
+    {
+      "id": "W3",
+      "actor": "railroad",
+      "do": "pull",
+      "cars": ["WH_LOADS"],
+      "to": "MAIN",
+      "via": ["S1"],
+      "text": "The locomotive pulls the two boxcars back out onto the main line.",
+      "stop": { "beyond": "S1", "ft": 50, "end": "rear" }
+    },
+    {
+      "id": "W4",
+      "actor": "railroad",
+      "do": "shove",
+      "cars": ["WH_LOADS"],
+      "to": "WH",
+      "via": ["S2"],
+      "text": "It shoves the boxcars into the warehouse spur and spots them at the doors.",
+      "spot": 2
+    },
+    {
+      "id": "W5",
+      "actor": "railroad",
+      "do": "cut_off",
+      "cars": ["L1"],
+      "text": "The locomotive cuts off."
+    },
+    {
+      "id": "W6",
+      "actor": "railroad",
+      "do": "run_light",
+      "cars": ["L1"],
+      "to": "MAIN",
+      "via": ["S2"],
+      "text": "It runs light back out to the main line, clear of both turnouts.",
+      "stop": { "track": "MAIN", "ft": 300, "end": "lead" }
+    },
+    {
+      "id": "W7",
+      "actor": "customer",
+      "do": "unload",
+      "cars": ["MILL_LOADS"],
+      "text": "The mill unloads its hoppers."
+    },
+    {
+      "id": "W8",
+      "actor": "customer",
+      "do": "unload",
+      "cars": ["WH_LOADS"],
+      "text": "The warehouse unloads its boxcars."
+    }
+  ],
+  "departure": {
+    "direction": "eastbound",
+    "text": "The locomotive leaves eastbound for other work; the empties are collected on a later trip."
+  }
+}

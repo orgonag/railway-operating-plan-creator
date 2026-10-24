@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "1",
+  "title": "Spur with a Runaround",
+  "description": "A synthetic plan: the customer's spur is a trailing-point spur, so the locomotive runs around its cars through the passing siding before shoving them in. Lengths are illustrative.",
+  "arrival": {
+    "direction": "eastbound",
+    "enters": "left",
+    "on": "MAIN",
+    "locos": "rear",
+    "text": "A local train arrives eastbound with three loads for the transload dock and pulls ahead to stand between the passing siding's two switches.",
+    "stop": {
+      "track": "MAIN",
+      "ft": 1600,
+      "end": "lead"
+    }
+  },
+  "tracks": [
+    {
+      "id": "MAIN",
+      "role": "main",
+      "name": "Main line",
+      "end": "continues"
+    },
+    {
+      "id": "SPUR1",
+      "role": "spur",
+      "name": "Dock spur",
+      "lengthFt": 600,
+      "end": "buffer_stop"
+    },
+    {
+      "id": "SIDING",
+      "role": "siding",
+      "name": "Passing siding",
+      "lengthFt": 600,
+      "end": "rejoins"
+    }
+  ],
+  "switches": [
+    {
+      "id": "S1",
+      "on": "MAIN",
+      "to": "SPUR1",
+      "side": "right",
+      "approach": "trailing",
+      "order": 1
+    },
+    {
+      "id": "S2",
+      "on": "MAIN",
+      "to": "SIDING",
+      "side": "left",
+      "approach": "facing",
+      "order": 2
+    },
+    {
+      "id": "S3",
+      "on": "MAIN",
+      "to": "SIDING",
+      "side": "left",
+      "approach": "trailing",
+      "order": 3
+    }
+  ],
+  "facilities": [
+    {
+      "id": "DOCK",
+      "name": "Transload dock",
+      "kind": "transload",
+      "track": "SPUR1",
+      "lengthFt": 300,
+      "spots": 5
+    }
+  ],
+  "consist": {
+    "locos": {
+      "count": 1,
+      "type": "six_axle",
+      "list": [
+        {
+          "id": "L1"
+        }
+      ]
+    },
+    "cuts": [
+      {
+        "id": "LOADS",
+        "cars": 3,
+        "state": "loaded",
+        "for": "DOCK",
+        "carType": "boxcar_60",
+        "list": [
+          {
+            "id": "C1"
+          },
+          {
+            "id": "C2"
+          },
+          {
+            "id": "C3"
+          }
+        ]
+      }
+    ]
+  },
+  "work": [
+    {
+      "id": "W1",
+      "actor": "railroad",
+      "do": "runaround",
+      "cars": [
+        "L1"
+      ],
+      "text": "The locomotive runs around the cars through the passing siding."
+    },
+    {
+      "id": "W2",
+      "actor": "railroad",
+      "do": "shove",
+      "cars": [
+        "LOADS"
+      ],
+      "to": "DOCK",
+      "via": [
+        "S1"
+      ],
+      "text": "Now at the east end of the cars, the locomotive shoves them back through the trailing-point turnout and spots them at the dock.",
+      "spot": 3
+    },
+    {
+      "id": "W3",
+      "actor": "railroad",
+      "do": "cut_off",
+      "cars": [
+        "L1"
+      ],
+      "text": "The locomotive cuts off and leaves the loads at the dock."
+    },
+    {
+      "id": "W4",
+      "actor": "railroad",
+      "do": "run_light",
+      "cars": [
+        "L1"
+      ],
+      "to": "MAIN",
+      "via": [
+        "S1"
+      ],
+      "text": "It runs light back out onto the main line, clear of the turnouts.",
+      "stop": {
+        "track": "MAIN",
+        "ft": 600,
+        "end": "lead"
+      }
+    },
+    {
+      "id": "W5",
+      "actor": "customer",
+      "do": "unload",
+      "cars": [
+        "LOADS"
+      ],
+      "text": "The customer unloads the cars at the dock."
+    }
+  ],
+  "departure": {
+    "direction": "eastbound",
+    "text": "The locomotive continues eastbound for other work; the empties are picked up on a later trip."
+  }
+}

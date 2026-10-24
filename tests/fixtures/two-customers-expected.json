@@ -1,0 +1,872 @@
+[
+  {
+    "step": 1,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 100,
+            "toFt": 180
+          }
+        ]
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 420,
+            "toFt": 480
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 360,
+            "toFt": 420
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 300,
+            "toFt": 360
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 240,
+            "toFt": 300
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 180,
+            "toFt": 240
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1",
+        "C5",
+        "C4",
+        "C3",
+        "C2",
+        "C1"
+      ]
+    ],
+    "loaded": {
+      "C1": true,
+      "C2": true,
+      "C3": true,
+      "C4": true,
+      "C5": true
+    }
+  },
+  {
+    "step": 2,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 490,
+            "toFt": 570
+          }
+        ]
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 810,
+            "toFt": 870
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 750,
+            "toFt": 810
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 690,
+            "toFt": 750
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 630,
+            "toFt": 690
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 570,
+            "toFt": 630
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1",
+        "C5",
+        "C4",
+        "C3",
+        "C2",
+        "C1"
+      ]
+    ],
+    "loaded": {
+      "C1": true,
+      "C2": true,
+      "C3": true,
+      "C4": true,
+      "C5": true
+    }
+  },
+  {
+    "step": 3,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 490,
+            "toFt": 570
+          }
+        ]
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 810,
+            "toFt": 870
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 750,
+            "toFt": 810
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 690,
+            "toFt": 750
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 630,
+            "toFt": 690
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 570,
+            "toFt": 630
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1",
+        "C5",
+        "C4"
+      ],
+      [
+        "C3",
+        "C2",
+        "C1"
+      ]
+    ],
+    "loaded": {
+      "C1": true,
+      "C2": true,
+      "C3": true,
+      "C4": true,
+      "C5": true
+    }
+  },
+  {
+    "step": 4,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 330,
+            "toFt": 410
+          }
+        ]
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 810,
+            "toFt": 870
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 750,
+            "toFt": 810
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 690,
+            "toFt": 750
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 470,
+            "toFt": 530
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 410,
+            "toFt": 470
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1",
+        "C5",
+        "C4"
+      ],
+      [
+        "C3",
+        "C2",
+        "C1"
+      ]
+    ],
+    "loaded": {
+      "C1": true,
+      "C2": true,
+      "C3": true,
+      "C4": true,
+      "C5": true
+    }
+  },
+  {
+    "step": 5,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 570,
+            "toFt": 650
+          }
+        ]
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 810,
+            "toFt": 870
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 750,
+            "toFt": 810
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 690,
+            "toFt": 750
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 710,
+            "toFt": 770
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 650,
+            "toFt": 710
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1",
+        "C5",
+        "C4"
+      ],
+      [
+        "C3",
+        "C2",
+        "C1"
+      ]
+    ],
+    "loaded": {
+      "C1": true,
+      "C2": true,
+      "C3": true,
+      "C4": true,
+      "C5": true
+    }
+  },
+  {
+    "step": 6,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 570,
+            "toFt": 650
+          }
+        ]
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 810,
+            "toFt": 870
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 750,
+            "toFt": 810
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 690,
+            "toFt": 750
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 710,
+            "toFt": 770
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 650,
+            "toFt": 710
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1"
+      ],
+      [
+        "C3",
+        "C2",
+        "C1"
+      ],
+      [
+        "C5",
+        "C4"
+      ]
+    ],
+    "loaded": {
+      "C1": true,
+      "C2": true,
+      "C3": true,
+      "C4": true,
+      "C5": true
+    }
+  },
+  {
+    "step": 7,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 300,
+            "toFt": 380
+          }
+        ]
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 810,
+            "toFt": 870
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 750,
+            "toFt": 810
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 690,
+            "toFt": 750
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 710,
+            "toFt": 770
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 650,
+            "toFt": 710
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1"
+      ],
+      [
+        "C3",
+        "C2",
+        "C1"
+      ],
+      [
+        "C5",
+        "C4"
+      ]
+    ],
+    "loaded": {
+      "C1": true,
+      "C2": true,
+      "C3": true,
+      "C4": true,
+      "C5": true
+    }
+  },
+  {
+    "step": 8,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 300,
+            "toFt": 380
+          }
+        ]
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 810,
+            "toFt": 870
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 750,
+            "toFt": 810
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 690,
+            "toFt": 750
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 710,
+            "toFt": 770
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 650,
+            "toFt": 710
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1"
+      ],
+      [
+        "C3",
+        "C2",
+        "C1"
+      ],
+      [
+        "C5",
+        "C4"
+      ]
+    ],
+    "loaded": {
+      "C1": false,
+      "C2": false,
+      "C3": false,
+      "C4": true,
+      "C5": true
+    }
+  },
+  {
+    "step": 9,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "occupies": [
+          {
+            "track": "MAIN",
+            "fromFt": 300,
+            "toFt": 380
+          }
+        ]
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 810,
+            "toFt": 870
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 750,
+            "toFt": 810
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 690,
+            "toFt": 750
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 710,
+            "toFt": 770
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 650,
+            "toFt": 710
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1"
+      ],
+      [
+        "C3",
+        "C2",
+        "C1"
+      ],
+      [
+        "C5",
+        "C4"
+      ]
+    ],
+    "loaded": {
+      "C1": false,
+      "C2": false,
+      "C3": false,
+      "C4": false,
+      "C5": false
+    }
+  },
+  {
+    "step": 10,
+    "status": "ok",
+    "units": {
+      "L1": {
+        "offstage": "far_end"
+      },
+      "C1": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 810,
+            "toFt": 870
+          }
+        ]
+      },
+      "C2": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 750,
+            "toFt": 810
+          }
+        ]
+      },
+      "C3": {
+        "occupies": [
+          {
+            "track": "SPUR1",
+            "fromFt": 690,
+            "toFt": 750
+          }
+        ]
+      },
+      "C4": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 710,
+            "toFt": 770
+          }
+        ]
+      },
+      "C5": {
+        "occupies": [
+          {
+            "track": "SPUR2",
+            "fromFt": 650,
+            "toFt": 710
+          }
+        ]
+      }
+    },
+    "facing": {
+      "L1": "up",
+      "C1": "up",
+      "C2": "up",
+      "C3": "up",
+      "C4": "up",
+      "C5": "up"
+    },
+    "coupled": [
+      [
+        "L1"
+      ],
+      [
+        "C3",
+        "C2",
+        "C1"
+      ],
+      [
+        "C5",
+        "C4"
+      ]
+    ],
+    "loaded": {
+      "C1": false,
+      "C2": false,
+      "C3": false,
+      "C4": false,
+      "C5": false
+    }
+  }
+]

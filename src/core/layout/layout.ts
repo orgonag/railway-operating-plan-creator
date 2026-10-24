@@ -100,7 +100,11 @@ export function layout(plan: PlanReading, g: TrackGraph): Drawing {
     if (!pl) continue;
     const raw: DrawPoint[] = [{ xFt: pl.x0, lane: pl.fromLane }];
     if (pl.diagonalFt > 0) raw.push({ xFt: pl.x0 + pl.sign * pl.diagonalFt, lane: pl.lane });
-    raw.push({ xFt: pl.x0 + pl.sign * t.totalFt, lane: pl.lane });
+    if (t.ends.end.kind === "switch" && pl.diagonalFt > 0) {
+      // A rejoining branch closes back onto its parent's lane with a second diagonal at its second switch.
+      raw.push({ xFt: pl.x0 + pl.sign * (t.totalFt - pl.diagonalFt), lane: pl.lane });
+      raw.push({ xFt: pl.x0 + pl.sign * t.totalFt, lane: pl.fromLane });
+    } else raw.push({ xFt: pl.x0 + pl.sign * t.totalFt, lane: pl.lane });
     const points = raw.map(flip);
     tracks.push({ id: t.id, role: t.role, points });
     if (t.ends.end.kind === "buffer") bufferStops.push(points[points.length - 1]!);
@@ -158,14 +162,21 @@ export function pointAt(d: Drawing, g: TrackGraph, p: Pos): { at: DrawPoint; tan
   }
   const sign: 1 | -1 = last.xFt >= first.xFt ? 1 : -1;
   const xFt = first.xFt + sign * p.ft;
-  const diagonal = t.points.length === 3 ? TURNOUT_FT : 0;
-  const laneDelta = last.lane - first.lane;
-  if (diagonal > 0 && p.ft < diagonal) {
-    const along = Math.max(0, p.ft);
-    return {
-      at: { xFt, lane: first.lane + (laneDelta * along) / diagonal },
-      tangent: { dxFt: sign, dLane: p.ft < 0 ? 0 : laneDelta / diagonal }
-    };
+  // The points run in rising ft; find the stretch this ft falls in and follow its slope.
+  let along = 0;
+  for (let i = 0; i + 1 < t.points.length; i += 1) {
+    const a = t.points[i]!;
+    const b = t.points[i + 1]!;
+    const len = Math.abs(b.xFt - a.xFt);
+    const isLast = i + 2 === t.points.length;
+    if (p.ft < along + len || isLast) {
+      if (len === 0) return { at: { xFt, lane: b.lane }, tangent: { dxFt: sign, dLane: 0 } };
+      const slope = (b.lane - a.lane) / len;
+      if (p.ft < along) return { at: { xFt, lane: a.lane }, tangent: { dxFt: sign, dLane: 0 } };
+      if (isLast && p.ft > along + len) return { at: { xFt, lane: b.lane }, tangent: { dxFt: sign, dLane: 0 } };
+      return { at: { xFt, lane: a.lane + slope * (p.ft - along) }, tangent: { dxFt: sign, dLane: slope } };
+    }
+    along += len;
   }
   return { at: { xFt, lane: last.lane }, tangent: { dxFt: sign, dLane: 0 } };
 }

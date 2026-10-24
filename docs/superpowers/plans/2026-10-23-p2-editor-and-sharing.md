@@ -766,7 +766,7 @@ export const NO_SIDING_REASON = "No siding joins this track at both ends, so the
 
 Rules: in `simulate`, a `runaround` work step is replaced at replay time by `expandRunaround` on the state before it; the three results carry the step's id with suffixes `a`, `b`, `c` in `StepResult.stepId`, and a null expansion stays `needs_attention` with `NO_SIDING_REASON`. The editor's Runaround button dispatches the three steps as `addStep` commands (one history entry "runaround"), so saved plans from the editor hold single steps; `materialize` is unchanged. The two example plans are synthetic, in the demo's style, each with an expected-state fixture covering at least the states after the runaround and after the second customer's spot.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // graph
@@ -782,8 +782,8 @@ test("expandRunaround from the arrival state names the siding and both switches 
 test("spur_with_runaround and two-customers validate, simulate with every step ok, and match their expected fixtures", () => {});
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass. Browser check: Runaround button on the template; the loco ends up at the other end of the cars.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(tier2): rejoining siding, runaround, two more examples"`.
+- [x] **Step 2 to 4: Fail, implement, pass. Browser check: Runaround button on the template; the loco ends up at the other end of the cars.**
+- [x] **Step 5: Commit:** `git commit -m "feat(tier2): rejoining siding, runaround, two more examples"`.
 
 ---
 

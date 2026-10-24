@@ -15,7 +15,11 @@
  *   original to, via, spot and stop.
  * - The second step of an expansion gets `<originalId>b`, or the next letter
  *   that does not collide.
- * - `runaround` stays one step in P1.
+ * - `runaround` stays one step in the file: the engine expands it at replay
+ *   time (simulate, with core/editing/runaround) into cut off, run light legs
+ *   and couple, whose results carry the step's id with the suffixes a to e.
+ *   The editor's Runaround button writes those single steps into the plan
+ *   instead, so plans saved from the editor hold single actions only.
  * - The authored text stays on the first step of an expansion: the move for
  *   `set_out`, the couple for `pick_up`. The second step gets an empty text.
  * - The two steps of an expansion share no arrays or objects; each gets its

@@ -29,6 +29,7 @@ export const TOOLS: readonly ToolSpec[] = [
   { tool: "place-cars", label: "Place cars", title: "Place cars already on site before the train arrives" },
   { tool: "stop", label: "Stop", title: "Add a stop with a callout after this step" },
   { tool: "note", label: "Note", title: "Add a plain note slide after this step" },
+  { tool: "runaround", label: "Runaround", title: "Run the power around its cars through a siding that joins this track at both ends" },
   { tool: "zoom-in", label: "Zoom in", title: "Zoom in (Ctrl and mouse wheel also zooms)" },
   { tool: "zoom-out", label: "Zoom out", title: "Zoom out" },
   { tool: "fit", label: "Fit plan", title: "Fit the whole plan in the window" },

@@ -9,7 +9,7 @@ A small benchmark picks the free model the import uses, and measures how often i
 Status: P1 is built, the engine and the player, and the P2 editor is in progress, as a private preview. Run `npm install`, then `npm test` for the tests, `npm run typecheck` for the types and `npm run dev` for the editor at http://localhost:5173. Browser smoke tests run with `npm run test:e2e` (once, before the first run: `npx playwright install chromium`). The demo plan's state after every step is written out in [docs/reference/demo-expected-states.md](docs/reference/demo-expected-states.md).
 
 - [Research spec](docs/spec.md)
-- What the AI sends: [PlanReading schema](docs/schema/plan-reading.schema.json), with the [demo as an example](docs/schema/examples/customer-service-demo.reading.json)
+- What the AI sends: [PlanReading schema](docs/schema/plan-reading.schema.json), with three synthetic examples: the [customer service demo](docs/schema/examples/customer-service-demo.reading.json) (one spur), a [spur with a runaround](docs/schema/examples/spur-with-runaround.reading.json) (a trailing-point spur and a passing siding; the engine expands the `runaround` step) and [two customers](docs/schema/examples/two-customers.reading.json) (two spurs, a cut split between them)
 - Research notes: [models](docs/research/models.md), [prior art](docs/research/prior-art.md), [canvas and ingestion](docs/research/canvas.md), [architecture review](docs/research/architecture-review.md)
 
 All example plans are synthetic. The project uses no proprietary railway data.

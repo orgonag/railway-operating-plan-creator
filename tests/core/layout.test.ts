@@ -265,3 +265,37 @@ describe("placeUnits", () => {
     expect(placeUnits(d, g, state, units).find((s) => s.id === "C1")!.centre).toEqual({ xFt: 1710, lane: 1 });
   });
 });
+
+describe("layout: tier 2, a siding that rejoins", () => {
+  test("a rejoining siding closes back onto the main lane with two diagonals; the main still spans the canvas", () => {
+    const plan = demoWith(
+      [
+        { id: "MAIN", role: "main", end: "continues" },
+        { id: "SIDING", role: "siding", lengthFt: 600, end: "rejoins" }
+      ],
+      [
+        { id: "S1", on: "MAIN", to: "SIDING", side: "left", approach: "facing", order: 1 },
+        { id: "S2", on: "MAIN", to: "SIDING", side: "left", approach: "trailing", order: 2 }
+      ]
+    );
+    const g2 = buildGraph(plan);
+    const d = layout(plan, g2);
+    expect(track(d, "SIDING").points).toEqual([
+      { xFt: 580, lane: 0 },
+      { xFt: 820, lane: 1 },
+      { xFt: 1520, lane: 1 },
+      { xFt: 1760, lane: 0 }
+    ]);
+    expect(d.bufferStops).toEqual([]);
+    expect(track(d, "MAIN").points).toEqual([
+      { xFt: 0, lane: 0 },
+      { xFt: d.widthFt, lane: 0 }
+    ]);
+    expect(d.widthFt).toBe(1760 + 240 + 380);
+    // pointAt follows the second diagonal back down to the main.
+    expect(pointAt(d, g2, { track: "SIDING", ft: 600 }).at).toEqual({ xFt: 1180, lane: 1 });
+    expect(pointAt(d, g2, { track: "SIDING", ft: 1060 }).at).toEqual({ xFt: 1640, lane: 0.5 });
+    expect(pointAt(d, g2, { track: "SIDING", ft: 1180 }).at).toEqual({ xFt: 1760, lane: 0 });
+    expect(pointAt(d, g2, { track: "SIDING", ft: 1060 }).tangent.dLane).toBeLessThan(0);
+  });
+});

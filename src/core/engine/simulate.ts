@@ -25,6 +25,7 @@
 import type { CustomerStep, Departure, Direction, GroupEnd, Id, PlanReading, RailroadStep, Stop, WorkStep } from "../schema/types";
 import type { End, FacilityInfo, Heading, Pos, Segment, SwitchInfo, TrackGraph } from "./graph";
 import { APPROACH_MARGIN_FT, ARRIVAL_SHORT_FT } from "./graph";
+import { expandRunaround, NO_SIDING_REASON } from "../editing/runaround";
 import { groupsOf, initialOrder, unitsOf, type Unit } from "./materialize";
 import {
   cleanPath,
@@ -45,7 +46,8 @@ export type { Place, Simulation, StepResult, StepStatus, WorldState } from "./st
 export const COUPLE_REACH_FT = 1;
 /** The default stop on a track: this far short of the next switch or the end of track. */
 export const SHORT_OF_SWITCH_FT = ARRIVAL_SHORT_FT;
-export const RUNAROUND_REASON = "runaround is tier 2 and is not played in P1; write the moves out as run_light, couple and pull steps";
+/** The suffixes the expanded steps of a runaround carry on the step's id. */
+export const RUNAROUND_SUFFIXES = ["a", "b", "c", "d", "e", "f"] as const;
 
 /** How far a probe walks when looking for where a track is entered. */
 const PROBE_FT = 10_000_000;
@@ -155,7 +157,25 @@ class Engine {
       states.push(this.snapshot());
     };
     record("arrival", this.guard("arrival", () => this.arrival()));
-    for (const step of this.plan.work) record(step.id, this.guard(step.do, () => this.work(step)));
+    for (const step of this.plan.work) {
+      if (step.actor === "railroad" && step.do === "runaround") {
+        // A runaround is expanded on the state before it, into single steps that carry the step's id with a suffix.
+        let expanded: { steps: RailroadStep[] } | Outcome;
+        try {
+          expanded = this.expandRunaroundStep(step);
+        } catch (error) {
+          expanded = { verb: "runaround", status: "needs_attention", moved: [], travel: [], reason: `internal: ${String(error)}` };
+        }
+        if ("steps" in expanded) {
+          expanded.steps.forEach((sub, i) => {
+            const id = `${step.id}${RUNAROUND_SUFFIXES[i] ?? String(i)}`;
+            record(id, this.guard(sub.do, () => this.work({ ...sub, id })));
+          });
+        } else record(step.id, expanded);
+        continue;
+      }
+      record(step.id, this.guard(step.do, () => this.work(step)));
+    }
     record("departure", this.guard("departure", () => this.departure()));
     return { initial, states, steps };
   }
@@ -315,7 +335,8 @@ class Engine {
       case "uncouple":
         return this.uncouple(step);
       case "runaround":
-        return this.attention("runaround", RUNAROUND_REASON);
+        // Only reached for a runaround nested inside an expansion, which never happens; keep the engine total.
+        return this.attention("runaround", NO_SIDING_REASON);
       case "stop":
         return this.nothing("stop");
       default: {
@@ -323,6 +344,25 @@ class Engine {
         return this.attention(verb, `"${verb}" is not a step the engine knows`);
       }
     }
+  }
+
+  /** The single steps a saved runaround stands for from the current state, or the attention outcome when there is no siding to use. */
+  private expandRunaroundStep(step: RailroadStep): { steps: RailroadStep[] } | Outcome {
+    let loco: Id | undefined;
+    if (step.cars && step.cars.length > 0) {
+      const named = this.expand(step.cars);
+      if (named.unknown.length > 0) return this.attention("runaround", `${quoteList(named.unknown)} is not in this plan`);
+      loco = named.units.find((id) => this.isLoco(id));
+      if (loco === undefined) return this.attention("runaround", "runaround names no loco");
+    } else {
+      const locos = [...this.units.values()].filter((u) => u.kind === "loco").map((u) => u.id);
+      if (locos.length === 0) return this.attention("runaround", "no loco is in the plan");
+      if (locos.length > 1) return this.attention("runaround", `name which loco runs around: ${quoteList(locos)}`);
+      loco = locos[0]!;
+    }
+    const r = expandRunaround(this.plan, this.g, this.snapshot(), loco);
+    if (!r) return this.attention("runaround", NO_SIDING_REASON);
+    return { steps: r.steps.map((sub, i) => ({ ...sub, id: `${step.id}${RUNAROUND_SUFFIXES[i] ?? String(i)}` })) };
   }
 
   private customer(step: CustomerStep): Outcome {
