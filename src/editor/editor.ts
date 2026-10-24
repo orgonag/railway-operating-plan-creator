@@ -465,7 +465,8 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
 
   function zoomBy(factor: number, anchor?: { x: number; y: number }): void {
     const { width, height } = canvasSize();
-    setView(zoomAt(currentView(), factor, anchor ?? { x: width / 2, y: height / 2 }));
+    const usable = anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y) ? anchor : { x: width / 2, y: height / 2 };
+    setView(zoomAt(currentView(), factor, usable));
   }
 
   function pointerPos(e: MouseEvent): { x: number; y: number } {

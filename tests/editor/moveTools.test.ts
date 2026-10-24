@@ -74,6 +74,7 @@ test("dragging the arrived train 300 ft along the main adds one step whose stop 
 test("a drag inserts after the step on show; on the departure it inserts before it", () => {
   const e = open();
   e.showStep(8); // the departure: the train is off the arrival end, shown as tabs at the edge
+  e.select({ kind: "units", ids: TRAIN });
   const tab = e.svg.querySelector<SVGGElement>('g.overlay g.offstage-unit[data-id="C1"]')!;
   pointer(tab, "pointerdown", e, { xFt: -20, lane: 0 });
   pointer(document, "pointermove", e, { xFt: 10, lane: 0 });
@@ -119,7 +120,8 @@ test("a middle car moved out survives undo, redo and reopen", () => {
   const sim = simulate(reopened, buildGraph(reopened));
   expect(sim.states[3]!.places).toEqual(after.places);
   expect(sim.states[3]!.coupled).toEqual(after.coupled);
-  expect(sim.states[3]!.coupled).toEqual([["L1", "C5", "C4"], ["C3"], ["C2", "C1"]]);
+  // Groups are listed by their first unit's place in the plan, not by position.
+  expect(sim.states[3]!.coupled).toEqual([["L1", "C5", "C4"], ["C2", "C1"], ["C3"]]);
   expect(reopened.consist.cuts[0]!.list!.map((c) => c.id)).toEqual(["C1", "C2", "C3", "C4", "C5"]);
 });
 
