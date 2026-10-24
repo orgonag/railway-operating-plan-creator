@@ -61,6 +61,8 @@ export type Command =
       branchId?: Id;
       branchRole?: TrackRole;
       branchLengthFt?: number;
+      /** Its place among the track's switches; later ones shift up. Without it the switch goes last. */
+      order?: number;
     }
   | { name: "flipTurnout"; switchId: Id; axis: FlipAxis }
   | { name: "setSwitchDistance"; switchId: Id; distanceFt: number }
@@ -374,7 +376,11 @@ function addTurnout(ctx: Ctx, cmd: Extract<Command, { name: "addTurnout" }>): vo
     ctx.created.push(branchId);
   }
   const onTrack = ctx.plan.switches.filter((s) => s.on === cmd.trackId);
-  const order = onTrack.reduce((max, s) => Math.max(max, s.order ?? 0), 0) + 1;
+  let order: number;
+  if (cmd.order !== undefined) {
+    order = cmd.order;
+    for (const s of onTrack) if ((s.order ?? 0) >= order) s.order = (s.order ?? 0) + 1;
+  } else order = onTrack.reduce((max, s) => Math.max(max, s.order ?? 0), 0) + 1;
   const sw: Switch = { id: ctx.id("S"), on: cmd.trackId, to: branchId, side: cmd.side, approach: cmd.approach, order, distanceFt: cmd.distanceFt };
   ctx.plan.switches.push(sw);
   ctx.created.push(sw.id);

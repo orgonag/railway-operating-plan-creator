@@ -350,3 +350,16 @@ describe("commands keep the plan schema-valid (review fixes)", () => {
     expect(r.problems).toHaveLength(1);
   });
 });
+
+describe("addTurnout with an order", () => {
+  test("inserts the switch at that order and shifts the later ones up", () => {
+    const first = applyCommand(demo, { name: "addTurnout", trackId: "MAIN", distanceFt: 820, side: "left", approach: "facing" }).plan;
+    const r = applyCommand(first, { name: "addTurnout", trackId: "MAIN", distanceFt: 420, side: "right", approach: "trailing", order: 2 });
+    expect(r.plan.switches.map((s) => [s.id, s.order, s.distanceFt])).toEqual([
+      ["S1", 1, undefined],
+      ["S2", 3, 820],
+      ["S3", 2, 420]
+    ]);
+    expect(validateFile(r.plan).plan).not.toBeNull();
+  });
+});

@@ -182,3 +182,50 @@ test("the context menu Rename and Set length use prompt; Delete uses confirm", (
   expect(asked).toBe("Delete Mill spur and everything on it?");
   expect(e.history.plan.tracks.map((t) => t.id)).toEqual(["MAIN"]);
 });
+
+test("stretching a branch on a right-entering plan follows the pointer and holds still", () => {
+  const plan = templateById("demo").make();
+  plan.arrival.enters = "right";
+  editor = createEditor(mount, { plan });
+  const e = editor;
+  const d = e.state().computed.drawing;
+  // The spur's points sit at x widthFt - 580 and it runs toward the left; its usable length starts 290 ft from the points.
+  const points = d.tracks.find((t) => t.id === "SPUR1")!.points[0]!.xFt;
+  const handle = e.svg.querySelector<SVGCircleElement>('g.overlay circle.track-end-handle[data-track="SPUR1"]')!;
+  pointer(handle, "pointerdown", e, { xFt: points - 1090, lane: -1 });
+  pointer(document, "pointermove", e, { xFt: points - 290 - 650, lane: -1 });
+  expect(spurLength(e)).toBe(650);
+  pointer(document, "pointermove", e, { xFt: points - 290 - 650, lane: -1 });
+  expect(spurLength(e)).toBe(650);
+  pointer(document, "pointerup", e, { xFt: points - 290 - 650, lane: -1 });
+  expect(e.history.plan.tracks.find((t) => t.id === "SPUR1")?.lengthFt).toBe(650);
+});
+
+test("a turnout dropped between two switches takes its place in order and leaves the others where they were", () => {
+  const e = open();
+  e.dispatch({ name: "addTurnout", trackId: "MAIN", distanceFt: 820, side: "left", approach: "facing" }, "second");
+  expect(e.state().computed.g.switches.get("S2")?.atFt).toBe(1400);
+  tool("turnout").dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+  pointer(document, "pointermove", e, { xFt: 950, lane: -0.2 });
+  pointer(document, "pointermove", e, { xFt: 1000, lane: -0.2 });
+  pointer(document, "pointerup", e, { xFt: 1000, lane: -0.2 });
+  const g = e.state().computed.g;
+  expect(g.switches.get("S1")?.atFt).toBe(580);
+  expect(g.switches.get("S3")?.atFt).toBe(1000);
+  expect(g.switches.get("S2")?.atFt).toBe(1400);
+  expect(e.history.plan.switches.map((s) => [s.id, s.order])).toEqual([
+    ["S1", 1],
+    ["S2", 3],
+    ["S3", 2]
+  ]);
+  expect(e.history.entries().map((x) => x.label)).toEqual(["second", "add turnout"]);
+});
+
+test("a turnout dropped on the main before its first switch is refused with a message", () => {
+  const e = open();
+  tool("turnout").dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+  pointer(document, "pointermove", e, { xFt: 300, lane: -0.2 });
+  pointer(document, "pointerup", e, { xFt: 300, lane: -0.2 });
+  expect(e.history.canUndo).toBe(false);
+  expect(mount.querySelector(".status .message")?.textContent).toBe("The first turnout sits where the arriving train clears it; drop this one further along.");
+});

@@ -8,20 +8,21 @@
  * repainted after every draw.
  */
 
-import { applyCommand } from "../core/commands/commands";
+import { applyCommand, type Command } from "../core/commands/commands";
 import { newId } from "../core/commands/ids";
 import { ftAtX, guessTurnout, nearestTrackPos, roundFt, type TrackHit } from "../core/editing/hit";
 import { CLEAR_FT, SPOT_LENGTH_FT } from "../core/engine/graph";
-import { pointAt, type DrawPoint } from "../core/layout/layout";
+import { pointAt, type DrawPoint, type Drawing } from "../core/layout/layout";
+import type { FacilityInfo } from "../core/engine/graph";
 import type { Id, PlanReading, TrackRole } from "../core/schema/types";
 import { SVG_NS } from "../render/silhouettes";
 import { theme } from "../render/theme";
 import { closeContextMenu, openContextMenu } from "./contextMenu";
 import type { Editor } from "./editor";
-import { compute } from "./model";
 
 export const MIN_BRANCH_FT = 60;
 export const MAIN_CONTINUES_TEXT = "The main line continues off the drawing";
+export const FIRST_TURNOUT_TEXT = "The first turnout sits where the arriving train clears it; drop this one further along.";
 const HANDLE_R = 7;
 
 export const DEFAULT_FACILITY_FT = 300;
@@ -29,8 +30,8 @@ export const MIN_FACILITY_FT = 60;
 
 type Drag =
   | { kind: "tool"; tool: "turnout" | "track-end" | "facility"; path: DrawPoint[]; hit: TrackHit | null }
-  | { kind: "stretch"; track: Id; name: string; base: PlanReading; lengthFt: number; at: DrawPoint }
-  | { kind: "resize"; facility: Id; end: "start" | "end"; name: string; base: PlanReading; startFt: number; lengthFt: number; at: DrawPoint };
+  | { kind: "stretch"; track: Id; name: string; base: PlanReading; drawing: Drawing; lengthFt: number; at: DrawPoint }
+  | { kind: "resize"; facility: Id; end: "start" | "end"; name: string; base: PlanReading; drawing: Drawing; baseInfo: FacilityInfo; startFt: number; lengthFt: number; at: DrawPoint };
 
 /** "420 ft, 7 cars": the length and how many 60 ft cars it holds. */
 export function facilityLabel(lengthFt: number): string {
@@ -148,11 +149,25 @@ export function attachTrackTools(editor: Editor): () => void {
       return;
     }
     // The schema's distanceFt is the gap from the previous switch on the track (or from the clear point on a branch).
-    const onTrack = [...computed.g.switches.values()].filter((s) => s.on === hit.track).map((s) => s.atFt);
-    const from = onTrack.length > 0 ? Math.max(...onTrack) : hit.track === plan.arrival.on ? 0 : CLEAR_FT;
+    // A drop between two switches takes its place in order; the next switch keeps its position by taking the rest of the gap.
+    const onTrack = [...computed.g.switches.values()].filter((s) => s.on === hit.track).sort((a, b) => a.atFt - b.atFt);
+    const before = onTrack.filter((s) => s.atFt < hit.ft);
+    const next = onTrack.find((s) => s.atFt >= hit.ft);
+    if (hit.track === plan.arrival.on && onTrack.length > 0 && before.length === 0) {
+      editor.setStatus(FIRST_TURNOUT_TEXT);
+      return;
+    }
+    const previous = before[before.length - 1];
+    const from = previous ? previous.atFt : hit.track === plan.arrival.on ? 0 : CLEAR_FT;
     const distanceFt = Math.max(10, roundFt(hit.ft - from));
     const guess = guessTurnout(computed.drawing, hit, d.path);
-    const r = editor.dispatch({ name: "addTurnout", trackId: hit.track, distanceFt, side: guess.side, approach: guess.approach }, "add turnout");
+    const cmds: Command[] = [{ name: "addTurnout", trackId: hit.track, distanceFt, side: guess.side, approach: guess.approach }];
+    if (next) {
+      const orderOf = (id: Id): number => plan.switches.find((s) => s.id === id)?.order ?? 0;
+      (cmds[0] as Extract<Command, { name: "addTurnout" }>).order = before.reduce((max, s) => Math.max(max, orderOf(s.id)), 0) + 1;
+      cmds.push({ name: "setSwitchDistance", switchId: next.id, distanceFt: Math.max(10, roundFt(next.atFt - hit.ft)) });
+    }
+    const r = editor.dispatch(cmds, "add turnout");
     const switchId = r.created.find((id) => r.plan.switches.some((s) => s.id === id));
     if (switchId) editor.select({ kind: "switch", id: switchId });
   }
@@ -170,7 +185,8 @@ export function attachTrackTools(editor: Editor): () => void {
       if (!t) return;
       e.preventDefault();
       e.stopPropagation();
-      drag = { kind: "stretch", track: t.id, name: t.name ?? t.id, base: plan, lengthFt: t.lengthFt ?? 400, at: editor.drawingAt(e) };
+      // Measured against the drawing as it was when the drag began: the preview redraws and a mirrored main grows with the branch.
+      drag = { kind: "stretch", track: t.id, name: t.name ?? t.id, base: plan, drawing: editor.state().computed.drawing, lengthFt: t.lengthFt ?? 400, at: editor.drawingAt(e) };
     } else if (target.classList.contains("facility-handle")) {
       const id = target.getAttribute("data-facility");
       const end = target.getAttribute("data-end") === "start" ? "start" : "end";
@@ -179,18 +195,26 @@ export function attachTrackTools(editor: Editor): () => void {
       if (!f || !info) return;
       e.preventDefault();
       e.stopPropagation();
-      drag = { kind: "resize", facility: f.id, end, name: f.name, base: plan, startFt: info.startFt, lengthFt: info.endFt - info.startFt, at: editor.drawingAt(e) };
+      drag = {
+        kind: "resize",
+        facility: f.id,
+        end,
+        name: f.name,
+        base: plan,
+        drawing: editor.state().computed.drawing,
+        baseInfo: info,
+        startFt: info.startFt,
+        lengthFt: info.endFt - info.startFt,
+        at: editor.drawingAt(e)
+      };
     }
   });
 
   function resizeTo(d: Extract<Drag, { kind: "resize" }>, p: DrawPoint): void {
-    const info = editor.state().computed.g.facilities.get(d.facility);
-    if (!info) return;
-    const ft = ftAtX(editor.state().computed.drawing, info.track, p.xFt);
+    const info = d.baseInfo;
+    const baseInfo = d.baseInfo;
+    const ft = ftAtX(d.drawing, info.track, p.xFt);
     if (ft === undefined) return;
-    const base = d.base.facilities.find((f) => f.id === d.facility);
-    const baseInfo = compute(d.base).g.facilities.get(d.facility);
-    if (!base || !baseInfo) return;
     if (d.end === "end") {
       d.startFt = baseInfo.startFt;
       d.lengthFt = Math.max(MIN_FACILITY_FT, roundFt(ft) - d.startFt);
@@ -207,8 +231,7 @@ export function attachTrackTools(editor: Editor): () => void {
   }
 
   function stretchTo(d: Extract<Drag, { kind: "stretch" }>, p: DrawPoint): void {
-    const drawing = editor.state().computed.drawing;
-    const ft = ftAtX(drawing, d.track, p.xFt);
+    const ft = ftAtX(d.drawing, d.track, p.xFt);
     if (ft === undefined) return;
     const lengthFt = Math.max(MIN_BRANCH_FT, roundFt(ft - CLEAR_FT));
     d.lengthFt = lengthFt;
@@ -249,8 +272,8 @@ export function attachTrackTools(editor: Editor): () => void {
         editor.dispatch({ name: "setTrack", trackId: d.track, lengthFt: d.lengthFt }, `stretch ${d.name}`);
       }
     } else {
-      const info = compute(d.base).g.facilities.get(d.facility);
-      if (info && (info.startFt !== d.startFt || info.endFt - info.startFt !== d.lengthFt)) {
+      const info = d.baseInfo;
+      if (info.startFt !== d.startFt || info.endFt - info.startFt !== d.lengthFt) {
         editor.dispatch({ name: "setFacility", facilityId: d.facility, startFt: d.startFt, lengthFt: d.lengthFt }, `resize ${d.name}`);
       }
     }

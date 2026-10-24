@@ -85,7 +85,16 @@ export const COMMANDS: readonly CommandDoc[] = [
   command(
     "addTurnout",
     "Place a turnout on a track at a distance from the track's start and grow a new branch out of it (400 ft spur with a buffer stop unless told otherwise).",
-    { trackId: ID, distanceFt: FT, side: SIDE, approach: APPROACH, branchId: ID, branchRole: ROLE, branchLengthFt: FT },
+    {
+      trackId: ID,
+      distanceFt: FT,
+      side: SIDE,
+      approach: APPROACH,
+      branchId: ID,
+      branchRole: ROLE,
+      branchLengthFt: FT,
+      order: { type: "integer", minimum: 1, description: "The switch's place among the track's switches from its start; later ones shift up. Without it the switch goes last." }
+    },
     ["trackId", "distanceFt", "side", "approach"]
   ),
   command(

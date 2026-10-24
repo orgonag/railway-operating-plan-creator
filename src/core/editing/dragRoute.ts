@@ -81,9 +81,12 @@ export function followDrag(d: Drawing, g: TrackGraph, start: DragStart, samples:
   let h0: Heading | undefined;
   let cur: Cursor | undefined;
   const offsets: number[] = [];
+  /** For each offset, the index in `reduced` of the sample that produced it (samples skipped near the grab push nothing). */
+  const sampleOf: number[] = [];
   let offset = 0;
   let edge: OffstageEnd | undefined;
-  for (const s of reduced.slice(1)) {
+  for (let i = 1; i < reduced.length; i += 1) {
+    const s = reduced[i]!;
     if (s.kind === "edge") {
       edge = s.boundary;
       break;
@@ -104,6 +107,7 @@ export function followDrag(d: Drawing, g: TrackGraph, start: DragStart, samples:
     if (step === undefined) continue;
     offset += step;
     offsets.push(offset);
+    sampleOf.push(i);
   }
   if (edge !== undefined && !cur) {
     // Straight off the edge from the grab point: the group leaves by that boundary.
@@ -134,7 +138,7 @@ export function followDrag(d: Drawing, g: TrackGraph, start: DragStart, samples:
     const s = reduced[i];
     return s && s.kind === "hit" ? { track: s.hit.track, ft: s.hit.ft } : undefined;
   };
-  const furthestIndex = reversed ? offsets.indexOf(furthest) + 1 : reduced.length - 1;
+  const furthestIndex = reversed ? (sampleOf[offsets.indexOf(furthest)] ?? reduced.length - 1) : reduced.length - 1;
 
   if (edge !== undefined && !reversed) {
     legs.push(offstageLeg(g, d, path, leadHigh ? "high" : "low", edge));

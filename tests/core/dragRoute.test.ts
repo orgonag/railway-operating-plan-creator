@@ -116,3 +116,8 @@ describe("snapToSpot", () => {
     expect(snapToSpot(g, { track: "MAIN", ft: 800 })).toBeNull();
   });
 });
+
+test("jitter near the grab point does not change which way the first leg goes", () => {
+  const r = followDrag(d, g, train, pts([450, 0], [452, 0], [454, 0], [580, 0], [880, 1], [700, 0.5], [500, 0]));
+  expect(r!.legs[0]).toEqual({ stop: { track: "SPUR1", ft: 330, end: "lead" }, via: ["S1"], lead: "high" });
+});

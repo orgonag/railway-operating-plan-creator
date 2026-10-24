@@ -315,7 +315,8 @@ export function attachMoveTools(editor: Editor): () => void {
     }
     drag.samples.push(p);
     const result = followDrag(drag.computed.drawing, drag.computed.g, drag.start, drag.samples);
-    const commands = result ? commandsFor(drag, result) : [];
+    // A wobble that goes nowhere is a click: no legs means no steps, uncouples included.
+    const commands = result && result.legs.length > 0 ? commandsFor(drag, result) : [];
     drag.commands = commands;
     if (commands.length === 0) {
       editor.preview(undefined);

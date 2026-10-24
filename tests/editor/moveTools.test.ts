@@ -235,3 +235,13 @@ test("an offstage loco can be grabbed at the edge and dragged back in", () => {
   expect(work(e)[3]).toMatchObject({ do: "run_light", cars: ["L1"], stop: { track: "MAIN", ft: 200, end: "lead" } });
   expect(e.state().computed.sim.steps[4]!.status).toBe("ok");
 });
+
+test("a click with a small wobble selects the car and adds no step", () => {
+  const e = open();
+  pointer(unit(e, "C1"), "pointerdown", e, { xFt: 450, lane: 0 });
+  pointer(document, "pointermove", e, { xFt: 453, lane: 0 });
+  pointer(document, "pointerup", e, { xFt: 453, lane: 0 });
+  expect(e.state().selection).toEqual({ kind: "units", ids: ["C1"] });
+  expect(e.history.entries()).toHaveLength(0);
+  expect(e.history.plan.work).toHaveLength(7);
+});
