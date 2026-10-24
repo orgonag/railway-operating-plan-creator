@@ -9,22 +9,33 @@
  */
 
 import { applyCommand } from "../core/commands/commands";
+import { newId } from "../core/commands/ids";
 import { ftAtX, guessTurnout, nearestTrackPos, roundFt, type TrackHit } from "../core/editing/hit";
-import { CLEAR_FT } from "../core/engine/graph";
+import { CLEAR_FT, SPOT_LENGTH_FT } from "../core/engine/graph";
 import { pointAt, type DrawPoint } from "../core/layout/layout";
 import type { Id, PlanReading, TrackRole } from "../core/schema/types";
 import { SVG_NS } from "../render/silhouettes";
 import { theme } from "../render/theme";
 import { closeContextMenu, openContextMenu } from "./contextMenu";
 import type { Editor } from "./editor";
+import { compute } from "./model";
 
 export const MIN_BRANCH_FT = 60;
 export const MAIN_CONTINUES_TEXT = "The main line continues off the drawing";
 const HANDLE_R = 7;
 
+export const DEFAULT_FACILITY_FT = 300;
+export const MIN_FACILITY_FT = 60;
+
 type Drag =
-  | { kind: "tool"; tool: "turnout" | "track-end"; path: DrawPoint[]; hit: TrackHit | null }
-  | { kind: "stretch"; track: Id; name: string; base: PlanReading; lengthFt: number; at: DrawPoint };
+  | { kind: "tool"; tool: "turnout" | "track-end" | "facility"; path: DrawPoint[]; hit: TrackHit | null }
+  | { kind: "stretch"; track: Id; name: string; base: PlanReading; lengthFt: number; at: DrawPoint }
+  | { kind: "resize"; facility: Id; end: "start" | "end"; name: string; base: PlanReading; startFt: number; lengthFt: number; at: DrawPoint };
+
+/** "420 ft, 7 cars": the length and how many 60 ft cars it holds. */
+export function facilityLabel(lengthFt: number): string {
+  return `${lengthFt} ft, ${Math.floor(lengthFt / SPOT_LENGTH_FT)} cars`;
+}
 
 export function attachTrackTools(editor: Editor): () => void {
   const detach: Array<() => void> = [];
@@ -65,31 +76,45 @@ export function attachTrackTools(editor: Editor): () => void {
       c.appendChild(title(`Turnout ${s.id}`));
       g.appendChild(c);
     }
+    for (const [id, f] of computed.g.facilities) {
+      const name = plan.facilities.find((x) => x.id === id)?.name ?? id;
+      for (const end of ["start", "end"] as const) {
+        const p = editor.svgPoint(pointAt(computed.drawing, computed.g, { track: f.track, ft: end === "start" ? f.startFt : f.endFt }).at);
+        const c = circle(p, HANDLE_R, "facility-handle");
+        c.setAttribute("data-facility", id);
+        c.setAttribute("data-end", end);
+        c.appendChild(title(`Drag to size ${name}`));
+        g.appendChild(c);
+      }
+    }
     if (drag?.kind === "tool" && drag.hit) {
       const p = editor.svgPoint(drag.hit.at);
       const ghost = document.createElementNS(SVG_NS, "g");
       ghost.setAttribute("class", `ghost ghost-${drag.tool}`);
       ghost.setAttribute("transform", `translate(${num(p.x)} ${num(p.y)})`);
       const mark = document.createElementNS(SVG_NS, "path");
-      mark.setAttribute("d", drag.tool === "turnout" ? "M -30 0 H 30 M 0 0 L 40 -24" : "M 0 -12 V 12 M 6 -8 V 8");
+      const half = (DEFAULT_FACILITY_FT / 2) * editor.view().pxPerFt;
+      mark.setAttribute(
+        "d",
+        drag.tool === "turnout" ? "M -30 0 H 30 M 0 0 L 40 -24" : drag.tool === "track-end" ? "M 0 -12 V 12 M 6 -8 V 8" : `M ${num(-half)} -40 H ${num(half)} V 12 H ${num(-half)} Z`
+      );
       mark.setAttribute("fill", "none");
       mark.setAttribute("stroke", theme.gold);
-      mark.setAttribute("stroke-width", "3");
+      mark.setAttribute("stroke-width", drag.tool === "facility" ? "1.5" : "3");
+      if (drag.tool === "facility") mark.setAttribute("stroke-dasharray", "6 4");
       mark.setAttribute("stroke-linecap", "round");
       ghost.appendChild(mark);
       g.appendChild(ghost);
     }
-    if (drag?.kind === "stretch") {
-      const p = editor.svgPoint(drag.at);
-      g.appendChild(dragLabel(p, `${drag.lengthFt} ft`));
-    }
+    if (drag?.kind === "stretch") g.appendChild(dragLabel(editor.svgPoint(drag.at), `${drag.lengthFt} ft`));
+    if (drag?.kind === "resize") g.appendChild(dragLabel(editor.svgPoint(drag.at), facilityLabel(drag.lengthFt)));
     over.appendChild(g);
   }
   detach.push(editor.onDraw(paint));
 
   // ---- toolbar drags: Turnout and Track end ----
 
-  for (const tool of ["turnout", "track-end"] as const) {
+  for (const tool of ["turnout", "track-end", "facility"] as const) {
     listen(editor.toolbar.button(tool), "pointerdown", (e: PointerEvent) => {
       if (e.button !== 0) return;
       drag = { kind: "tool", tool, path: [], hit: null };
@@ -103,6 +128,23 @@ export function attachTrackTools(editor: Editor): () => void {
     if (d.tool === "track-end") {
       if (hit.track === plan.arrival.on) editor.setStatus(MAIN_CONTINUES_TEXT);
       else editor.dispatch({ name: "setTrack", trackId: hit.track, end: "buffer_stop" }, "track end");
+      return;
+    }
+    if (d.tool === "facility") {
+      const id = newId(plan, "F");
+      const r = editor.dispatch(
+        {
+          name: "addFacility",
+          trackId: hit.track,
+          startFt: Math.max(0, hit.ft - DEFAULT_FACILITY_FT / 2),
+          lengthFt: DEFAULT_FACILITY_FT,
+          label: `Facility ${id.replace(/^F/, "")}`,
+          kind: "other",
+          facilityId: id
+        },
+        "add facility"
+      );
+      if (r.created[0]) editor.select({ kind: "facility", id: r.created[0] });
       return;
     }
     // The schema's distanceFt is the gap from the previous switch on the track (or from the clear point on a branch).
@@ -120,16 +162,49 @@ export function attachTrackTools(editor: Editor): () => void {
   listen(editor.svg, "pointerdown", (e: PointerEvent) => {
     if (e.button !== 0) return;
     const target = e.target as Element;
-    if (!(target instanceof Element) || !target.classList.contains("track-end-handle")) return;
-    const trackId = target.getAttribute("data-track");
-    if (!trackId) return;
+    if (!(target instanceof Element)) return;
     const plan = editor.history.plan;
-    const t = plan.tracks.find((x) => x.id === trackId);
-    if (!t) return;
-    e.preventDefault();
-    e.stopPropagation();
-    drag = { kind: "stretch", track: trackId, name: t.name ?? t.id, base: plan, lengthFt: t.lengthFt ?? 400, at: editor.drawingAt(e) };
+    if (target.classList.contains("track-end-handle")) {
+      const trackId = target.getAttribute("data-track");
+      const t = plan.tracks.find((x) => x.id === trackId);
+      if (!t) return;
+      e.preventDefault();
+      e.stopPropagation();
+      drag = { kind: "stretch", track: t.id, name: t.name ?? t.id, base: plan, lengthFt: t.lengthFt ?? 400, at: editor.drawingAt(e) };
+    } else if (target.classList.contains("facility-handle")) {
+      const id = target.getAttribute("data-facility");
+      const end = target.getAttribute("data-end") === "start" ? "start" : "end";
+      const f = plan.facilities.find((x) => x.id === id);
+      const info = f && editor.state().computed.g.facilities.get(f.id);
+      if (!f || !info) return;
+      e.preventDefault();
+      e.stopPropagation();
+      drag = { kind: "resize", facility: f.id, end, name: f.name, base: plan, startFt: info.startFt, lengthFt: info.endFt - info.startFt, at: editor.drawingAt(e) };
+    }
   });
+
+  function resizeTo(d: Extract<Drag, { kind: "resize" }>, p: DrawPoint): void {
+    const info = editor.state().computed.g.facilities.get(d.facility);
+    if (!info) return;
+    const ft = ftAtX(editor.state().computed.drawing, info.track, p.xFt);
+    if (ft === undefined) return;
+    const base = d.base.facilities.find((f) => f.id === d.facility);
+    const baseInfo = compute(d.base).g.facilities.get(d.facility);
+    if (!base || !baseInfo) return;
+    if (d.end === "end") {
+      d.startFt = baseInfo.startFt;
+      d.lengthFt = Math.max(MIN_FACILITY_FT, roundFt(ft) - d.startFt);
+    } else {
+      const endFt = baseInfo.endFt;
+      d.startFt = Math.max(0, Math.min(roundFt(ft), endFt - MIN_FACILITY_FT));
+      d.lengthFt = endFt - d.startFt;
+    }
+    const scratch = applyCommand(d.base, { name: "setFacility", facilityId: d.facility, startFt: d.startFt, lengthFt: d.lengthFt }).plan;
+    editor.preview(scratch);
+    const after = editor.state().computed;
+    d.at = pointAt(after.drawing, after.g, { track: info.track, ft: d.end === "end" ? d.startFt + d.lengthFt : d.startFt }).at;
+    paint();
+  }
 
   function stretchTo(d: Extract<Drag, { kind: "stretch" }>, p: DrawPoint): void {
     const drawing = editor.state().computed.drawing;
@@ -155,7 +230,8 @@ export function attachTrackTools(editor: Editor): () => void {
       drag.path.push(p);
       drag.hit = nearestTrackPos(computed.drawing, computed.g, p);
       paint();
-    } else stretchTo(drag, p);
+    } else if (drag.kind === "stretch") stretchTo(drag, p);
+    else resizeTo(drag, p);
   });
 
   listen(document, "pointerup", () => {
@@ -165,13 +241,20 @@ export function attachTrackTools(editor: Editor): () => void {
     if (d.kind === "tool") {
       paint();
       dropTool(d);
-    } else {
-      editor.preview(undefined);
+      return;
+    }
+    editor.preview(undefined);
+    if (d.kind === "stretch") {
       if (d.lengthFt !== (d.base.tracks.find((t) => t.id === d.track)?.lengthFt ?? 400)) {
         editor.dispatch({ name: "setTrack", trackId: d.track, lengthFt: d.lengthFt }, `stretch ${d.name}`);
       }
-      paint();
+    } else {
+      const info = compute(d.base).g.facilities.get(d.facility);
+      if (info && (info.startFt !== d.startFt || info.endFt - info.startFt !== d.lengthFt)) {
+        editor.dispatch({ name: "setFacility", facilityId: d.facility, startFt: d.startFt, lengthFt: d.lengthFt }, `resize ${d.name}`);
+      }
     }
+    paint();
   });
 
   listen(document, "keydown", (e: KeyboardEvent) => {
