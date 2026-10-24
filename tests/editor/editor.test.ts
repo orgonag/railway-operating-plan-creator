@@ -181,10 +181,11 @@ describe("review fixes", () => {
     const description = mount.querySelector<HTMLInputElement>('.properties input[name="description"]')!;
     title.focus();
     title.value = "Renamed";
-    description.focus(); // focus moves before change fires in a real browser
+    title.blur(); // Chrome fires change after focus has left the field and before the next field gets it
     title.dispatchEvent(new Event("change", { bubbles: true }));
     expect(e.state().plan.title).toBe("Renamed");
     expect(mount.querySelector('.properties input[name="description"]')).toBe(description);
+    description.focus();
     expect(document.activeElement).toBe(description);
     // Once focus leaves the panel, the form refreshes from the plan.
     description.blur();

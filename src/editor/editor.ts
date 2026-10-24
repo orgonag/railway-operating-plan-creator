@@ -94,8 +94,17 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   svg.setAttribute("class", "plan");
   stage.appendChild(svg);
   canvas.appendChild(stage);
+  /** True while a change from the properties form is being applied; the form is not rebuilt under the person's fingers. */
+  let fromPanel = false;
   const props = createProperties({
-    dispatch: (cmd, label) => void dispatch(cmd, label),
+    dispatch(cmd, label) {
+      fromPanel = true;
+      try {
+        dispatch(cmd, label);
+      } finally {
+        fromPanel = false;
+      }
+    },
     setShowSpots(on) {
       showSpots = on;
       drawAll();
@@ -159,8 +168,10 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
 
   /**
    * The properties form is rebuilt only when the selection changes or when
-   * nobody is typing in it. While a person tabs from field to field, the form
-   * stays put and is refreshed once focus leaves the panel.
+   * the change came from somewhere else. A change from the form itself (a
+   * field's change event, which Chrome fires after focus has already moved
+   * on) leaves the form in place, so tabbing to the next field works; the
+   * form is refreshed once focus leaves the panel.
    */
   let propsKey = "";
   let propsStale = false;
@@ -168,8 +179,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     const s = state();
     strip.render(s);
     const key = JSON.stringify(s.selection);
-    const typing = props.root.contains(document.activeElement);
-    if (key !== propsKey || !typing) {
+    if (key !== propsKey || !fromPanel) {
       props.render(s);
       propsKey = key;
       propsStale = false;
