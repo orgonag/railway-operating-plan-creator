@@ -15,7 +15,8 @@ import { placeUnits } from "../core/layout/place";
 import { cloneJson } from "../core/schema/clone";
 import type { Id, PlanReading, WorkStep } from "../core/schema/types";
 import { createPlayer, type Player } from "../player/player";
-import { fitPxPerFt, renderDrawing, renderOptions, renderSprites, frameOf, type RenderOptions } from "../render/render";
+import type { DrawPoint } from "../core/layout/layout";
+import { fitPxPerFt, renderDrawing, renderOptions, renderSprites, frameOf, toScreen, type RenderOptions } from "../render/render";
 import { button, clear, closeDialog, el, showDialog } from "./dom";
 import { attachKeys } from "./keys";
 import { compute, stepIndexOf, type Computed, type EditorState, type Selection } from "./model";
@@ -25,8 +26,15 @@ import { attachAutosave, SAVE_STATUS_TEXT } from "./store/autosave";
 import { downloadJson, readPlanFile } from "./store/file";
 import { listPlans, loadPlan, newLocalId, savePlan, setLastOpenedId } from "./store/storage";
 import { TEMPLATES } from "./templates";
-import { createToolbar } from "./toolbar";
-import { fitView, panBy, viewBoxOf, zoomAt, ZOOM_STEP, type View } from "./viewport";
+import { createToolbar, type Toolbar } from "./toolbar";
+import { attachTrackTools } from "./trackTools";
+import { fitView, panBy, screenToDrawing, viewBoxOf, zoomAt, ZOOM_STEP, type View } from "./viewport";
+
+const DRAG_TOOL_HINTS: Record<string, string> = {
+  turnout: "Drag Turnout onto a track to add a branch there.",
+  "track-end": "Drag Track end onto a branch to end it with a buffer stop.",
+  facility: "Drag Facility onto a track to place it."
+};
 
 export interface EditorOptions {
   /** The browser-storage id to autosave under. Without one nothing is saved. */
@@ -49,10 +57,31 @@ export interface Editor {
   canvasSize(): { width: number; height: number };
   /** Open another plan in this editor (a template, a file, a saved plan). */
   open(plan: PlanReading, localId?: string): void;
+  /**
+   * Show a scratch plan in place of the real one while a drag is in progress,
+   * without touching history; `undefined` shows the real plan again. `state()`
+   * reports the plan on show.
+   */
+  preview(plan: PlanReading | undefined): void;
+  /** The layer above the sprites for ghosts, handles and drag labels; emptied on every redraw. */
+  overlay(): SVGGElement;
+  /** Called after every paint (plan, view, step or selection change); tools repaint their overlay here. */
+  onDraw(fn: () => void): () => void;
+  /** A drawing point in the svg's own units. */
+  svgPoint(p: DrawPoint): { x: number; y: number };
+  /** The drawing point under a pointer event. */
+  drawingAt(e: { clientX: number; clientY: number }): DrawPoint;
+  /** The client coordinates of a drawing point (the inverse of drawingAt). */
+  clientPoint(p: DrawPoint): { clientX: number; clientY: number };
+  /** What the Delete key does to the selection. */
+  deleteSelection(): void;
   destroy(): void;
   root: HTMLElement;
+  /** The canvas the svg sits in; pointer positions are measured against it. */
+  canvas: HTMLElement;
   /** The svg the drawing is in. */
   svg: SVGSVGElement;
+  toolbar: Toolbar;
 }
 
 const FALLBACK_WIDTH_PX = 960;
@@ -74,9 +103,16 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   let renderOpts: RenderOptions = renderOptions();
   let clipboard: WorkStep | undefined;
   let player: Player | undefined;
+  /** A scratch plan on show during a drag; computed follows it while set. */
+  let previewPlan: PlanReading | undefined;
+  const drawListeners = new Set<() => void>();
+
+  function shownPlan(): PlanReading {
+    return previewPlan ?? history.plan;
+  }
 
   function state(): EditorState {
-    return { plan: history.plan, computed, stepIndex, selection, showSpots };
+    return { plan: shownPlan(), computed, stepIndex, selection, showSpots };
   }
 
   // ---- DOM ----
@@ -150,6 +186,9 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     const v = currentView();
     renderOpts = renderOptions({ pxPerFt: v.pxPerFt, laneGapPx: v.laneGapPx, showSpots });
     renderDrawing(svg, computed.drawing, renderOpts);
+    const over = document.createElementNS(SVG_NS, "g");
+    over.setAttribute("class", "overlay");
+    svg.appendChild(over);
     applyViewBox();
     paintSprites();
   }
@@ -160,10 +199,49 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     return layer as SVGGElement;
   }
 
+  function overlay(): SVGGElement {
+    const layer = svg.querySelector("g.overlay");
+    if (!layer) throw new Error("the drawing has no overlay layer");
+    return layer as SVGGElement;
+  }
+
   function paintSprites(): void {
     const step = computed.sim.steps[stepIndex];
     const world = computed.sim.states[stepIndex] ?? computed.sim.initial;
     renderSprites(spriteLayer(), placeUnits(computed.drawing, computed.g, world, computed.units), renderOpts, step?.status);
+    for (const fn of drawListeners) fn();
+  }
+
+  function onDraw(fn: () => void): () => void {
+    drawListeners.add(fn);
+    return () => drawListeners.delete(fn);
+  }
+
+  // ---- coordinates ----
+
+  function svgPoint(p: DrawPoint): { x: number; y: number } {
+    return toScreen(p, renderOpts, frameOf(computed.drawing, renderOpts));
+  }
+
+  function drawingAt(e: { clientX: number; clientY: number }): DrawPoint {
+    const r = canvas.getBoundingClientRect();
+    return screenToDrawing(currentView(), frameOf(computed.drawing, renderOpts), { x: e.clientX - r.left, y: e.clientY - r.top });
+  }
+
+  function clientPoint(p: DrawPoint): { clientX: number; clientY: number } {
+    const r = canvas.getBoundingClientRect();
+    const v = currentView();
+    const s = svgPoint(p);
+    return { clientX: s.x - v.panX + r.left, clientY: s.y - v.panY + r.top };
+  }
+
+  function preview(plan: PlanReading | undefined): void {
+    if (plan === undefined && previewPlan === undefined) return;
+    previewPlan = plan;
+    computed = compute(shownPlan());
+    stepIndex = Math.min(stepIndex, Math.max(0, computed.sim.steps.length - 1));
+    drawAll();
+    refreshPanels();
   }
 
   /**
@@ -198,6 +276,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   // ---- plan changes ----
 
   function afterPlanChange(): void {
+    previewPlan = undefined;
     computed = compute(history.plan);
     stepIndex = Math.min(stepIndex, Math.max(0, computed.sim.steps.length - 1));
     selection = stillValid(selection) ? selection : { kind: "none" };
@@ -373,8 +452,9 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   let pan: { x: number; y: number } | undefined;
   canvas.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
-    const target = e.target as Element;
-    if (!(target === svg || target.classList.contains("background"))) return;
+    // Pan from anywhere on the drawing except the sprites and the tools' handles.
+    if (e.target instanceof Element && e.target !== svg && (e.target.closest("g.sprites") || e.target.closest("g.overlay"))) return;
+    e.preventDefault();
     pan = pointerPos(e);
     canvas.setPointerCapture?.(e.pointerId);
   });
@@ -424,8 +504,10 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
       case "play":
         openPlayer();
         break;
-      default:
-        setStatus("This tool comes in a later step.");
+      default: {
+        const hint = DRAG_TOOL_HINTS[tool];
+        setStatus(hint ?? "This tool comes in a later step.");
+      }
     }
   }
 
@@ -519,6 +601,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   refreshPanels();
 
   function destroy(): void {
+    detachTools.forEach((d) => d());
     unsubscribe();
     detachAutosave?.();
     detachKeys();
@@ -527,7 +610,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     root.remove();
   }
 
-  return {
+  const editor: Editor = {
     state,
     history,
     dispatch,
@@ -539,10 +622,25 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     setStatus,
     canvasSize,
     open,
+    preview,
+    overlay,
+    onDraw,
+    svgPoint,
+    drawingAt,
+    clientPoint,
+    deleteSelection,
     destroy,
     root,
-    svg
+    canvas,
+    svg,
+    toolbar
   };
+
+  // ---- tools ----
+  const detachTools = [attachTrackTools(editor)];
+  paintSprites();
+
+  return editor;
 }
 
 export { fitPxPerFt };

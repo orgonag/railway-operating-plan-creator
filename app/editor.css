@@ -161,6 +161,9 @@ body {
 .canvas {
   grid-area: canvas;
   position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
   overflow: hidden;
   background: var(--ink);
   cursor: grab;
@@ -426,4 +429,71 @@ dialog.play {
 }
 .player .unit.route-unclear {
   animation: fade-in 1.5s ease-out;
+}
+
+/* ---- canvas tools (handles, ghosts, drag labels) ---- */
+.canvas .track-end-handle,
+.canvas .switch-handle,
+.canvas .facility-handle {
+  fill: var(--panel);
+  stroke: var(--gold);
+  stroke-width: 2;
+  cursor: ew-resize;
+}
+.canvas .switch-handle {
+  cursor: pointer;
+  stroke: var(--steel);
+}
+.canvas .switch-handle.selected {
+  stroke: var(--gold);
+  fill: var(--gold);
+}
+.canvas .track-end-handle:hover,
+.canvas .facility-handle:hover {
+  fill: var(--gold);
+}
+.canvas .ghost {
+  pointer-events: none;
+  opacity: 0.85;
+}
+.canvas .drag-label {
+  pointer-events: none;
+  font-size: 13px;
+  paint-order: stroke;
+  stroke: var(--ink);
+  stroke-width: 4px;
+}
+.canvas path.track {
+  cursor: pointer;
+}
+.canvas path.track:hover {
+  stroke: var(--steel);
+}
+
+/* ---- context menu ---- */
+.context-menu {
+  position: fixed;
+  z-index: 20;
+  min-width: 150px;
+  padding: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--rail);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.context-menu .menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  font: inherit;
+  text-align: left;
+  color: var(--paper);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.context-menu .menu-item:hover {
+  background: var(--panel);
+  color: var(--gold);
 }
