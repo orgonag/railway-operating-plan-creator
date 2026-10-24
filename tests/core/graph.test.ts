@@ -451,3 +451,35 @@ describe("graph: tier 2, a siding that rejoins", () => {
     expect(g.route({ track: "MAIN", ft: 300 }, "up", { track: "MAIN", ft: 1900 })!.segments).toEqual([{ track: "MAIN", fromFt: 300, toFt: 1900 }]);
   });
 });
+
+describe("graph: a rejoining siding's switches stay on the track", () => {
+  function sidingWith(first: "facing" | "trailing", second: "facing" | "trailing", order: [number, number] = [1, 2]): PlanReading {
+    return plan({
+      tracks: [
+        { id: "MAIN", role: "main", end: "continues" },
+        { id: "SIDING", role: "siding", lengthFt: 600, end: "rejoins" }
+      ],
+      switches: [
+        { id: "S1", on: "MAIN", to: "SIDING", side: "left", approach: first, order: order[0] },
+        { id: "S2", on: "MAIN", to: "SIDING", side: "left", approach: second, order: order[1] }
+      ]
+    });
+  }
+
+  test("a siding that rejoins leaves facing and comes back trailing whatever the file says, so a flipped switch never puts its partner off the track", () => {
+    for (const [a, b] of [["facing", "trailing"], ["trailing", "facing"], ["trailing", "trailing"], ["facing", "facing"]] as const) {
+      const g = buildGraph(sidingWith(a, b));
+      expect(g.switches.get("S1")!.atFt, `${a}/${b}`).toBe(580);
+      expect(g.switches.get("S2")!.atFt, `${a}/${b}`).toBe(580 + 1180);
+      expect(g.switches.get("S1")!.approach, `${a}/${b}`).toBe("facing");
+      expect(g.switches.get("S2")!.approach, `${a}/${b}`).toBe("trailing");
+    }
+  });
+
+  test("the start of a rejoining siding is the switch with the lower order, not the first in the file", () => {
+    const g = buildGraph(sidingWith("trailing", "facing", [2, 1]));
+    expect(g.tracks.get("SIDING")!.ends).toEqual({ start: { kind: "switch", switch: "S2" }, end: { kind: "switch", switch: "S1" } });
+    expect(g.switches.get("S2")!.atFt).toBe(580);
+    expect(g.switches.get("S1")!.atFt).toBe(1760);
+  });
+});

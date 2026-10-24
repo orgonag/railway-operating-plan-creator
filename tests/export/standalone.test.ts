@@ -13,13 +13,16 @@ const demo: PlanReading = materialize(validateFile(demoJson).plan!).plan;
 
 describe("standaloneHtml", () => {
   test("standaloneHtml escapes </script> inside the plan and contains no http(s) URLs", () => {
-    const plan: PlanReading = { ...demo, title: "A <b>bold</b> title & more", description: "Has </script><script>alert(1)</script> inside" };
+    const plan: PlanReading = { ...demo, title: "A <b>bold</b> title & more", description: "Has </script><script>alert(1)</script> and <!-- a comment --> inside" };
     const html = standaloneHtml(plan, "/* player */");
     expect(html.startsWith("<!doctype html>")).toBe(true);
     expect(html).toContain("<title>A &lt;b&gt;bold&lt;/b&gt; title &amp; more" + STANDALONE_TITLE_SUFFIX + "</title>");
     const planScript = html.slice(html.indexOf('<script type="application/json" id="plan">'), html.indexOf("</script>", html.indexOf('id="plan"')));
-    expect(planScript).toContain("<\\/script>");
+    expect(planScript).toContain("\\u003c/script>");
     expect(planScript).not.toContain("</script>");
+    expect(planScript).not.toContain("<!--");
+    const json = planScript.slice(planScript.indexOf(">") + 1);
+    expect(JSON.parse(json).description).toBe(plan.description);
     expect(html).not.toMatch(/https?:\/\//);
     expect(html).toContain("ui-monospace");
     expect(html).toContain("/* player */");

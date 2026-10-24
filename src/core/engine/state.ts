@@ -37,6 +37,8 @@ export interface StepResult {
   /** What the step asked for, kept when the step could not do it as written. */
   requested?: unknown;
   reason?: string;
+  /** For a step the engine expanded from a saved shortcut: the text to show, since no work step carries the result's id. */
+  text?: string;
 }
 
 export interface Simulation {

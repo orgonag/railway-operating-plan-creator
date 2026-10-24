@@ -11,6 +11,7 @@
 
 import type { Command, CommandResult } from "../core/commands/commands";
 import { createHistory, type History } from "../core/commands/history";
+import { expandRunarounds } from "../core/editing/runaround";
 import { placeUnits } from "../core/layout/place";
 import { cloneJson } from "../core/schema/clone";
 import type { Id, PlanReading, WorkStep } from "../core/schema/types";
@@ -98,7 +99,8 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 export function createEditor(mount: HTMLElement, options: EditorOptions = {}): Editor {
   const storage = options.storage;
   let localId = options.localId;
-  const initial = options.plan ?? (localId ? loadPlan(localId, storage) : null) ?? TEMPLATES.find((t) => t.id === "demo")!.make();
+  // A plan opened here holds single actions only: a saved runaround becomes its steps.
+  const initial = expandRunarounds(options.plan ?? (localId ? loadPlan(localId, storage) : null) ?? TEMPLATES.find((t) => t.id === "demo")!.make());
   const history = createHistory(initial);
 
   // ---- state ----
@@ -355,7 +357,8 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     return r;
   }
 
-  function open(plan: PlanReading, id?: string): void {
+  function open(opened: PlanReading, id?: string): void {
+    const plan = expandRunarounds(opened);
     localId = id;
     history.reset(plan);
     stepIndex = 0;

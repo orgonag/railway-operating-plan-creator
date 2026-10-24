@@ -153,9 +153,15 @@ function arrivingTrainLength(plan: PlanReading): number {
 function placeSwitches(plan: PlanReading, byId: Map<Id, Track>, mainId: Id, trainLengthFt: number): Map<Id, SwitchInfo> {
   const out = new Map<Id, SwitchInfo>();
   const usable = plan.switches.filter((s) => byId.has(s.on) && byId.has(s.to));
-  /** The switch that starts each track: the first (in authored order) that leads to it. */
+  /** The switch that starts each track: the lowest order (then authored order) among those that lead to it. */
   const startOf = new Map<Id, Id>();
-  for (const s of usable) if (!startOf.has(s.to)) startOf.set(s.to, s.id);
+  for (const s of [...usable].sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || 0)) if (!startOf.has(s.to)) startOf.set(s.to, s.id);
+  /** A rejoining branch leaves its parent facing and comes back trailing, whatever the file says: both switches stay on the track. */
+  const rejoinApproach = (s: Switch): "facing" | "trailing" | undefined => {
+    const branch = byId.get(s.to);
+    if (branch?.end !== "rejoins" || usable.filter((x) => x.to === s.to).length < 2) return undefined;
+    return startOf.get(s.to) === s.id ? "facing" : "trailing";
+  };
   const byTrack = new Map<Id, Switch[]>();
   for (const s of usable) {
     const list = byTrack.get(s.on) ?? [];
@@ -173,15 +179,14 @@ function placeSwitches(plan: PlanReading, byId: Map<Id, Track>, mainId: Id, trai
       if (rejoinStart && rejoinStart.on === trackId) {
         // The second switch of a rejoining branch sits where the branch comes back to this track,
         // so the branch and the stretch of parent between its switches are the same length.
-        const sign = rejoinStart.approach === "facing" ? 1 : -1;
-        atFt = rejoinStart.atFt + sign * branchTotalFt(branch!);
+        atFt = rejoinStart.atFt + branchTotalFt(branch!);
       } else if (previous === undefined) {
         atFt = trackId === mainId ? trainLengthFt + APPROACH_MARGIN_FT : CLEAR_FT + (s.distanceFt ?? DEFAULT_SWITCH_GAP_FT);
       } else {
         atFt = previous + (s.distanceFt ?? DEFAULT_SWITCH_GAP_FT);
       }
       previous = atFt;
-      out.set(s.id, { id: s.id, on: s.on, to: s.to, atFt, side: s.side, approach: s.approach });
+      out.set(s.id, { id: s.id, on: s.on, to: s.to, atFt, side: s.side, approach: rejoinApproach(s) ?? s.approach });
     }
   }
   return out;
@@ -212,7 +217,7 @@ function measureTracks(plan: PlanReading, switches: Map<Id, SwitchInfo>, mainId:
       });
       continue;
     }
-    const [first, second] = leadingTo.get(track.id) ?? [];
+    const [first, second] = [...(leadingTo.get(track.id) ?? [])].sort((a, b) => a.atFt - b.atFt);
     // A branch that rejoins has a clear point at both ends; its second switch is placed to match (placeSwitches).
     const totalFt = track.end === "rejoins" && second ? branchTotalFt(track) : CLEAR_FT + (track.lengthFt ?? DEFAULT_BRANCH_USABLE_FT);
     const start: End = first ? { kind: "switch", switch: first.id } : { kind: "buffer" };

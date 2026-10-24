@@ -19,8 +19,14 @@ async function start(root: HTMLElement): Promise<void> {
   let plan = null;
   const hash = window.location.hash;
   if (isShareHash(hash)) {
-    const opened = await openShareHash(hash);
+    // Clear the hash first, so a link that fails never fails again on reload.
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    let opened: Awaited<ReturnType<typeof openShareHash>> = null;
+    try {
+      opened = await openShareHash(hash);
+    } catch {
+      opened = null;
+    }
     if (opened) {
       localId = opened.localId;
       plan = opened.plan;
@@ -42,4 +48,11 @@ async function start(root: HTMLElement): Promise<void> {
   window.ropcEditor = editor;
 }
 
-void start(mount);
+start(mount).catch(() => {
+  // Whatever went wrong on the way in, the editor still opens on the demo.
+  const fallback = templateById("demo").make();
+  const id = newLocalId();
+  savePlan(id, fallback);
+  setLastOpenedId(id);
+  createEditor(mount, { plan: fallback, localId: id }).setStatus(SHARE_FAILED_TEXT);
+});

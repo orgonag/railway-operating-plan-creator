@@ -26,7 +26,12 @@ export async function openShareHash(hash: string, storage?: Storage): Promise<Op
   if (!r.plan) return null;
   const plan: PlanReading = { ...r.plan, title: copyTitle(r.plan.title) };
   const localId = newLocalId();
-  savePlan(localId, plan, storage);
-  setLastOpenedId(localId, storage);
+  try {
+    savePlan(localId, plan, storage);
+    setLastOpenedId(localId, storage);
+  } catch {
+    // The browser refused the write (storage full or blocked): open nothing rather than a copy that cannot be kept.
+    return null;
+  }
   return { localId, plan, problems: r.problems };
 }

@@ -11,7 +11,10 @@ import type { Segment, TrackGraph } from "../engine/graph";
 import { CLEAR_FT } from "../engine/graph";
 import { unitsOf } from "../engine/materialize";
 import type { WorldState } from "../engine/state";
-import type { Id, PlanReading, RailroadStep } from "../schema/types";
+import { buildGraph } from "../engine/graph";
+import { simulate } from "../engine/simulate";
+import { cloneJson } from "../schema/clone";
+import type { Id, PlanReading, RailroadStep, WorkStep } from "../schema/types";
 
 export interface RunaroundPlan {
   steps: Omit<RailroadStep, "id">[];
@@ -147,4 +150,50 @@ export function expandRunaround(plan: PlanReading, g: TrackGraph, state: WorldSt
   steps.push(...legs);
   steps.push({ actor: "railroad", do: "couple", cars: [...cars], text: "It couples to the cars at their other end." });
   return { steps, sidingId: siding.id };
+}
+
+const SUFFIXES = "abcdefghijklmnopqrstuvwxyz";
+
+/** `<id>a`, `<id>b`, ... skipping ids the plan already has. */
+function suffixedIds(plan: PlanReading, id: Id, count: number): Id[] {
+  const taken = new Set(plan.work.map((w) => w.id));
+  const out: Id[] = [];
+  for (const letter of SUFFIXES) {
+    if (out.length === count) break;
+    const candidate = `${id}${letter}`;
+    if (!taken.has(candidate)) out.push(candidate);
+  }
+  while (out.length < count) out.push(`${id}${out.length + 1}`);
+  return out;
+}
+
+/**
+ * The plan with every saved `runaround` replaced by the single steps it
+ * stands for, from the state before it, with the authored text on the first.
+ * A runaround the engine cannot expand (no siding) is left as it is. The
+ * editor opens every plan through this, so a plan it saves holds single
+ * actions only; a plan with no runaround comes back equal.
+ */
+export function expandRunarounds(plan: PlanReading): PlanReading {
+  let out = plan;
+  for (let guard = 0; guard < 100; guard += 1) {
+    const i = out.work.findIndex((w) => w.actor === "railroad" && w.do === "runaround");
+    if (i < 0) return out;
+    const step = out.work[i] as RailroadStep;
+    const g = buildGraph(out);
+    const sim = simulate(out, g);
+    const before = sim.states[i] ?? sim.initial;
+    const locos = unitsOf(out).filter((u) => u.kind === "loco").map((u) => u.id);
+    const loco = step.cars?.find((id) => locos.includes(id)) ?? (locos.length === 1 ? locos[0] : undefined);
+    const r = loco ? expandRunaround(out, g, before, loco) : null;
+    if (!r) {
+      // Leave it in place and look past it.
+      const rest = expandRunarounds({ ...out, work: out.work.slice(i + 1) });
+      return { ...out, work: [...out.work.slice(0, i + 1), ...rest.work] };
+    }
+    const ids = suffixedIds(out, step.id, r.steps.length);
+    const single: WorkStep[] = r.steps.map((s, k) => ({ ...cloneJson(s), id: ids[k]!, text: k === 0 && step.text.trim().length > 0 ? step.text : s.text }));
+    out = { ...out, work: [...out.work.slice(0, i), ...single, ...out.work.slice(i + 1)] };
+  }
+  return out;
 }

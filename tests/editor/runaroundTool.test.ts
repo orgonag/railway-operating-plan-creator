@@ -72,3 +72,30 @@ test("on the demo, which has no siding, the Runaround button is disabled and cli
   expect(mount.querySelector(".status .message")!.textContent).toBe(NO_SIDING_REASON);
   expect(e.history.plan.work).toHaveLength(7);
 });
+
+test("a file with a saved runaround step opens in the editor as its single steps, the authored text on the first, so every card can be selected, edited and deleted", async () => {
+  const spurJson = (await import("../../docs/schema/examples/spur-with-runaround.reading.json")).default;
+  const { materialize } = await import("../../src/core/engine/materialize");
+  const { validateFile } = await import("../../src/core/schema/validateFile");
+  const saved = materialize(validateFile(spurJson).plan!).plan;
+  expect(saved.work[0]!.do).toBe("runaround");
+  editor = createEditor(mount, { plan: saved });
+  const e = editor;
+  const work = e.history.plan.work;
+  expect(work.some((w) => w.do === "runaround")).toBe(false);
+  expect(work.slice(0, 5).map((w) => w.do)).toEqual(["cut_off", "run_light", "run_light", "run_light", "couple"]);
+  expect(work[0]!.text).toBe(saved.work[0]!.text);
+  expect(work.slice(1, 5).every((w) => w.text.length > 0)).toBe(true);
+  expect(new Set(work.map((w) => w.id)).size).toBe(work.length);
+  expect(work.length).toBe(saved.work.length + 4);
+  // The strip shows the authored caption on the first card and the engine plays every step ok.
+  const cards = [...mount.querySelectorAll(".step-strip li.step .caption")].map((c) => c.textContent);
+  expect(cards[1]).toBe(saved.work[0]!.text);
+  expect(e.state().computed.sim.steps.every((s) => s.status === "ok")).toBe(true);
+  // Every card is a real step: select the couple, delete it.
+  e.select({ kind: "step", id: work[4]!.id });
+  expect(mount.querySelector(".properties textarea")).not.toBeNull();
+  e.deleteSelection();
+  expect(e.history.plan.work.length).toBe(saved.work.length + 3);
+  expect(e.history.entries().map((x) => x.label)).toEqual(["delete step"]);
+});

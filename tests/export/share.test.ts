@@ -61,3 +61,24 @@ describe("share links", () => {
     expect(listPlans()).toHaveLength(3);
   });
 });
+
+describe("opening a share link when the browser refuses the save", () => {
+  test("openShareHash returns null and saves nothing when setItem throws", async () => {
+    const full: Storage = {
+      ...localStorage,
+      getItem: (k: string) => localStorage.getItem(k),
+      setItem: () => {
+        throw new DOMException("full", "QuotaExceededError");
+      },
+      removeItem: (k: string) => localStorage.removeItem(k),
+      clear: () => localStorage.clear(),
+      key: (i: number) => localStorage.key(i),
+      get length() {
+        return localStorage.length;
+      }
+    };
+    const link = await encodeShare(demo);
+    expect(await openShareHash(link, full)).toBeNull();
+    expect(listPlans()).toEqual([]);
+  });
+});

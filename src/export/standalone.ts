@@ -46,9 +46,9 @@ export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-/** JSON that is safe inside a script element: no "</" can end it early. */
+/** JSON that is safe inside a script element: every "<" becomes the JSON escape \u003c, so no "</script" or "<!--" can end it early. */
 function jsonForScript(value: unknown): string {
-  return JSON.stringify(value).replace(/<\//g, "<\\/").replace(/<!--/g, "<\\!--");
+  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 export function standaloneHtml(plan: PlanReading, playerScript: string): string {

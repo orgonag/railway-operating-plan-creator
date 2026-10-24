@@ -96,6 +96,7 @@ interface Outcome {
   reason?: string;
   requested?: unknown;
   cand?: Candidate;
+  text?: string;
 }
 
 interface MoveSpec {
@@ -153,6 +154,7 @@ class Engine {
       };
       if (outcome.requested !== undefined) result.requested = outcome.requested;
       if (outcome.reason !== undefined) result.reason = outcome.reason;
+      if (outcome.text !== undefined) result.text = outcome.text;
       steps.push(result);
       states.push(this.snapshot());
     };
@@ -169,7 +171,9 @@ class Engine {
         if ("steps" in expanded) {
           expanded.steps.forEach((sub, i) => {
             const id = `${step.id}${RUNAROUND_SUFFIXES[i] ?? String(i)}`;
-            record(id, this.guard(sub.do, () => this.work({ ...sub, id })));
+            const outcome = this.guard(sub.do, () => this.work({ ...sub, id }));
+            // The authored text goes on the first single step, as materialize does for set_out and pick_up.
+            record(id, { ...outcome, text: i === 0 && step.text.trim().length > 0 ? step.text : sub.text });
           });
         } else record(step.id, expanded);
         continue;

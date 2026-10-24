@@ -119,3 +119,19 @@ describe("the tier 2 examples", () => {
     expect(mine.map((s) => s.verb)).toEqual(["cut_off", "run_light", "run_light", "run_light", "couple"]);
   });
 });
+
+describe("expandRunarounds", () => {
+  test("expandRunarounds replaces every runaround in a plan with its single steps, with unique ids and the authored text first", async () => {
+    const { expandRunarounds } = await import("../../src/core/editing/runaround");
+    const plan = open(spurJson);
+    const out = expandRunarounds(plan);
+    expect(out.work.some((w) => w.do === "runaround")).toBe(false);
+    expect(out.work).toHaveLength(plan.work.length + 4);
+    expect(out.work[0]!.text).toBe(plan.work[0]!.text);
+    expect(new Set(out.work.map((w) => w.id)).size).toBe(out.work.length);
+    expect(run(out).steps.every((s) => s.status === "ok")).toBe(true);
+    // A plan with no runaround comes back equal.
+    const two = open(twoJson);
+    expect(expandRunarounds(two)).toEqual(two);
+  });
+});
