@@ -58,17 +58,6 @@ export function attachTrackTools(editor: Editor): () => void {
     g.setAttribute("class", "track-tools");
     const { plan, computed } = editor.state();
     const main = plan.arrival.on;
-    for (const t of computed.drawing.tracks) {
-      if (t.id === main) continue;
-      const end = t.points[t.points.length - 1];
-      if (!end) continue;
-      const p = editor.svgPoint(end);
-      const c = circle(p, HANDLE_R, "track-end-handle");
-      c.setAttribute("data-track", t.id);
-      const name = plan.tracks.find((x) => x.id === t.id)?.name ?? t.id;
-      c.appendChild(title(`Drag to stretch ${name}`));
-      g.appendChild(c);
-    }
     for (const s of computed.g.switches.values()) {
       const p = editor.svgPoint(pointAt(computed.drawing, computed.g, { track: s.on, ft: s.atFt }).at);
       const c = circle(p, HANDLE_R - 2, "switch-handle");
@@ -87,6 +76,18 @@ export function attachTrackTools(editor: Editor): () => void {
         c.appendChild(title(`Drag to size ${name}`));
         g.appendChild(c);
       }
+    }
+    // Track-end handles go last so they sit above a facility handle at the same point.
+    for (const t of computed.drawing.tracks) {
+      if (t.id === main) continue;
+      const end = t.points[t.points.length - 1];
+      if (!end) continue;
+      const p = editor.svgPoint(end);
+      const c = circle(p, HANDLE_R, "track-end-handle");
+      c.setAttribute("data-track", t.id);
+      const name = plan.tracks.find((x) => x.id === t.id)?.name ?? t.id;
+      c.appendChild(title(`Drag to stretch ${name}`));
+      g.appendChild(c);
     }
     if (drag?.kind === "tool" && drag.hit) {
       const p = editor.svgPoint(drag.hit.at);

@@ -39,6 +39,7 @@ async function start(root: HTMLElement): Promise<void> {
   }
   const editor = createEditor(root, { plan, localId });
   if (status) editor.setStatus(status);
+  window.ropcEditor = editor;
 }
 
 void start(mount);

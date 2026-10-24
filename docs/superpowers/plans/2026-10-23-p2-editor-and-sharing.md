@@ -731,7 +731,7 @@ test("file names: demo -> how-a-train-services-a-customer.html and -step-2.svg",
 
 **Interfaces:** the class names and `data-tool` attributes fixed in Tasks 4 to 11.
 
-- [ ] **Step 1: Write the spec** with these tests, each starting from the Single spur template on `http://localhost:5173` (Playwright's `webServer` runs `npm run dev`):
+- [x] **Step 1: Write the spec** with these tests, each starting from the Single spur template on `http://localhost:5173` (Playwright's `webServer` runs `npm run dev`):
 
 ```ts
 test("place a turnout, flip it, stretch the track", ...)      // strip and properties reflect each change; Undo three times returns to the template
@@ -741,8 +741,8 @@ test("share link opens as a copy", ...)                       // read the link f
 test("standalone export downloads an html file that plays", ...)  // download event, read the file, load it with page.setContent, 9 dots for the demo
 ```
 
-- [ ] **Step 2: Run `npm run test:e2e` and fix whatever the real browser shows that happy-dom did not.** Expected: all pass.
-- [ ] **Step 3: Commit:** `git commit -m "test(e2e): Playwright smoke tests for the editor"`.
+- [x] **Step 2: Run `npm run test:e2e` and fix whatever the real browser shows that happy-dom did not.** Expected: all pass.
+- [x] **Step 3: Commit:** `git commit -m "test(e2e): Playwright smoke tests for the editor"`.
 
 ---
 

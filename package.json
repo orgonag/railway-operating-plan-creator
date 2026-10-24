@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.app.json --noEmit",
     "dev": "vite app",
     "predev": "npm run build:player",
@@ -16,6 +17,7 @@
     "check-schema": "node scripts/check-schema.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "ajv": "8.17.1",
     "happy-dom": "15.11.0",
     "typescript": "5.6.3",
