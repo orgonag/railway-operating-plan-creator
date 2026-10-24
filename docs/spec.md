@@ -495,7 +495,7 @@ Full first run: about 15 plans (10 drawn by layout in tiers 1 and 2, plus 4 or 5
 
 Layout (section 6.3) produces the geometry, and the renderer only draws it. The demo already shows the right drawing technique: tracks as SVG paths, and units placed with `getPointAtLength` and rotated to the path angle. The player eases each group from one step's world state to the next.
 
-Library choice (details in `docs/research/canvas.md`): plain SVG and small geometry helpers, with no framework in `render` or `player`, and React only for the editor panels. tldraw is ruled out by its production licence. Konva and PixiJS are ruled out because SVG export matters.
+Library choice (details in `docs/research/canvas.md`): plain SVG and small geometry helpers, with no framework in `render` or `player`. The editor panels are plain DOM as well (owner decision 2026-10-23, replacing the earlier "React only for the editor panels"): one state, one pipeline, no framework anywhere in the app. tldraw is ruled out by its production licence. Konva and PixiJS are ruled out because SVG export matters.
 
 Visual language follows the portfolio demo (ink background, gold facility boxes and labels, JetBrains Mono labels, Archivo headings), with the plain boxes replaced by side-view silhouettes of each car and loco type (section 6.5). Loco red, and the demo's amber for loaded and outline for empty, carry over as accents. The standalone export inlines its fonts or falls back cleanly, so it works offline and in locked-down corporate browsers.
 
@@ -635,6 +635,16 @@ Decided with the owner (2026-10-20):
 - Proxy on Cloudflare Workers, free plan. Supabase stays an option for storage later.
 
 Confirmed for P1 (2026-10-20): spots are numbered from the switch end; usable length starts at the 290 ft clear point; where the train stands on arrival is the person's choice (it starts 100 ft short of the first switch only until they move it); people see more or less of the main by zooming and scrolling. The full list of ten conventions is in the P1 plan.
+
+Decided with the owner for P2 (2026-10-23):
+
+- Editor panels in plain DOM, like the player; no UI framework (section 10).
+- Share links hold the whole plan, deflate-raw compressed and base64url encoded in the URL fragment, tagged `#plan=v1.`; opening one saves a copy ("Copy of ...") and never replaces a saved plan.
+- Autosave in `localStorage`, one key per plan plus an index; two tabs never drop each other's plan.
+- The standalone HTML export inlines a Vite-built player bundle and the plan as JSON; fonts fall back to the system monospace; it makes no network requests.
+- Playwright smoke tests cover the spec 13 editor actions, under `npm run test:e2e`, apart from `npm test`.
+- Tier 2 (a siding that rejoins, the runaround) stays in P2: a saved `runaround` is expanded by the engine at replay time into cut off, run light legs and couple; the editor's Runaround button writes those single steps into the plan.
+- The repo stays private for now. The Pages workflow and README are prepared; the owner makes the repo public, turns Pages on and pushes `main` themself.
 
 Open: none.
 

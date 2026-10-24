@@ -793,10 +793,10 @@ test("spur_with_runaround and two-customers validate, simulate with every step o
 - Create: `.github/workflows/pages.yml` (build on push to `main`, upload `app/dist`, deploy with `actions/deploy-pages`; inert while the repo is private and Pages is off)
 - Modify: the Vite config so `base` is `/railway-operating-plan-creator/` in production builds and `/` in dev; `README.md` (status: Release 1 built; how to run, test, build, export; the three examples; a line that the repo is private until the owner opens it); `docs/spec.md` section 10 (plain DOM for the editor panels, owner decision 2026-10-23) and section 15 (the 2026-10-23 decisions)
 
-- [ ] **Step 1: `npm run build` produces `app/dist` with the editor and the player bundle; serve it with `npx vite preview` and check the demo loads and a share link works with the base path.**
-- [ ] **Step 2: Write the workflow and the README; run `npm test && npm run typecheck && npm run test:e2e`.**
-- [ ] **Step 3: Commit:** `git commit -m "chore: Pages workflow, README and spec notes for Release 1"`.
-- [ ] **Step 4: Hand the owner the list (they do these, not the agent):** 1. make the repo public; 2. Settings, Pages, source GitHub Actions; 3. push `main` and watch the workflow; 4. open the site and the demo share link. **Nothing in this plan performs these.**
+- [x] **Step 1: `npm run build` produces `app/dist` with the editor and the player bundle; serve it with `npx vite preview` and check the demo loads and a share link works with the base path.**
+- [x] **Step 2: Write the workflow and the README; run `npm test && npm run typecheck && npm run test:e2e`.**
+- [x] **Step 3: Commit:** `git commit -m "chore: Pages workflow, README and spec notes for Release 1"`.
+- [x] **Step 4: Hand the owner the list (they do these, not the agent):** 1. make the repo public; 2. Settings, Pages, source GitHub Actions; 3. push `main` and watch the workflow; 4. open the site and the demo share link. **Nothing in this plan performs these.**
 
 ---
 
