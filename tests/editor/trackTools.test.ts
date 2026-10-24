@@ -229,3 +229,12 @@ test("a turnout dropped on the main before its first switch is refused with a me
   expect(e.history.canUndo).toBe(false);
   expect(mount.querySelector(".status .message")?.textContent).toBe("The first turnout sits where the arriving train clears it; drop this one further along.");
 });
+
+test("the track-end handle is drawn above a facility handle at the same point, so a facility at the far end does not hide it", () => {
+  const e = open("single_spur");
+  const handles = [...e.svg.querySelectorAll<SVGCircleElement>("g.overlay circle")];
+  const trackEnd = handles.findIndex((c) => c.classList.contains("track-end-handle"));
+  const facilityEnd = handles.findIndex((c) => c.classList.contains("facility-handle") && c.getAttribute("data-end") === "end");
+  expect(trackEnd).toBeGreaterThan(facilityEnd);
+  expect(handles[trackEnd]!.getAttribute("cx")).toBe(handles[facilityEnd]!.getAttribute("cx"));
+});

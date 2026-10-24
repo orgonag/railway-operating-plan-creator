@@ -82,6 +82,8 @@ export type Command =
 
 export type CommandName = Command["name"];
 
+export const REJOIN_FLIP_TEXT = "A siding that rejoins leaves facing and comes back trailing; flip up/down moves it to the other side of the track";
+
 export interface CommandResult {
   plan: PlanReading;
   created: Id[];
@@ -135,8 +137,14 @@ export function applyCommand(plan: PlanReading, cmd: Command): CommandResult {
     case "flipTurnout": {
       const sw = ctx.find("switch", ctx.plan.switches, cmd.switchId, "switchId");
       if (!sw) break;
-      if (cmd.axis === "up_down") sw.side = sw.side === "left" ? "right" : "left";
-      else sw.approach = sw.approach === "facing" ? "trailing" : "facing";
+      const branch = ctx.plan.tracks.find((t) => t.id === sw.to);
+      const partners = branch?.end === "rejoins" ? ctx.plan.switches.filter((x) => x.to === sw.to) : [sw];
+      if (cmd.axis === "up_down") {
+        // Both ends of a rejoining siding move together; a spur has one switch.
+        for (const x of partners) x.side = x.side === "left" ? "right" : "left";
+      } else if (partners.length > 1) {
+        ctx.problems.push({ path: "flipTurnout.axis", message: REJOIN_FLIP_TEXT, repaired: false });
+      } else sw.approach = sw.approach === "facing" ? "trailing" : "facing";
       break;
     }
     case "setSwitchDistance": {

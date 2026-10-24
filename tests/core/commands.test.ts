@@ -363,3 +363,34 @@ describe("addTurnout with an order", () => {
     expect(validateFile(r.plan).plan).not.toBeNull();
   });
 });
+
+describe("flipTurnout on a rejoining siding", () => {
+  test("flip left/right is refused with a message on either switch of a siding that rejoins; flip up/down moves both switches to the other side", async () => {
+    const { materialize } = await import("../../src/core/engine/materialize");
+    const { applyCommand } = await import("../../src/core/commands/commands");
+    const plan = materialize({
+      schemaVersion: "1",
+      title: "Siding",
+      arrival: { direction: "eastbound", enters: "left", on: "MAIN", locos: "rear", text: "" },
+      tracks: [
+        { id: "MAIN", role: "main", end: "continues" },
+        { id: "SIDING", role: "siding", lengthFt: 600, end: "rejoins" }
+      ],
+      switches: [
+        { id: "S1", on: "MAIN", to: "SIDING", side: "left", approach: "facing", order: 1 },
+        { id: "S2", on: "MAIN", to: "SIDING", side: "left", approach: "trailing", order: 2 }
+      ],
+      facilities: [],
+      consist: { locos: { count: 1 }, cuts: [] },
+      work: [],
+      departure: { direction: "eastbound", text: "" }
+    }).plan;
+    const r = applyCommand(plan, { name: "flipTurnout", switchId: "S2", axis: "left_right" });
+    expect(r.problems).toHaveLength(1);
+    expect(r.problems[0]!.message).toContain("siding");
+    expect(r.plan.switches.map((s) => s.approach)).toEqual(["facing", "trailing"]);
+    const up = applyCommand(plan, { name: "flipTurnout", switchId: "S1", axis: "up_down" });
+    expect(up.problems).toEqual([]);
+    expect(up.plan.switches.map((s) => s.side)).toEqual(["right", "right"]);
+  });
+});

@@ -25,7 +25,7 @@ describe("templates", () => {
   });
 
   test("every template validates, materializes idempotently and simulates with no needs_attention steps", () => {
-    expect(TEMPLATES.map((t) => t.id)).toEqual(["single_spur", "demo"]);
+    expect(TEMPLATES.map((t) => t.id)).toEqual(["single_spur", "spur_with_runaround", "demo"]);
     for (const t of TEMPLATES) {
       const plan = t.make();
       expect(validateFile(plan).plan, t.id).not.toBeNull();

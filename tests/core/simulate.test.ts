@@ -8,6 +8,7 @@ import { cloneJson } from "../../src/core/schema/clone";
 import { materialize } from "../../src/core/engine/materialize";
 import { buildGraph, type Segment } from "../../src/core/engine/graph";
 import { simulate, type Simulation } from "../../src/core/engine/simulate";
+import { NO_SIDING_REASON } from "../../src/core/editing/runaround";
 import type { Place, WorldState } from "../../src/core/engine/state";
 
 interface Expected {
@@ -361,14 +362,6 @@ describe("simulate: coupling and selection", () => {
     expect(sim.states[2]!.coupled).toEqual(sim.states[1]!.coupled);
   });
 
-  test("runaround is needs_attention in P1 with the tier 2 reason", () => {
-    const sim = run(demoWith([{ id: "W1", actor: "railroad", do: "runaround", text: "" }]));
-    expect(sim.steps[1]!.status).toBe("needs_attention");
-    expect(sim.steps[1]!.reason).toContain("tier 2");
-    expect(sim.steps[1]!.moved).toEqual([]);
-    expect(sim.states[1]!).toEqual(sim.states[0]!);
-  });
-
   test("departure naming cars that are not coupled to the locos is needs_attention, and the coupled part still leaves", () => {
     const edited = cloneJson(demo);
     edited.work = edited.work.slice(0, 3);
@@ -470,5 +463,54 @@ describe("simulate: final review fixes", () => {
     expect(dep.stepId).toBe("departure");
     expect(dep.status).toBe("route_not_established");
     expect(dep.reason).toBe("no route to the far end of MAIN in one move; a reversal is a separate step");
+  });
+});
+
+describe("tier 2: runaround", () => {
+  /** The test geometry plus a siding that rejoins between S2 and S3, past the spur. */
+  function sidingPlan(work: WorkStep[]): PlanReading {
+    return plan({
+      tracks: [
+        { id: "MAIN", role: "main", end: "continues" },
+        { id: "SPUR1", role: "spur", lengthFt: 800, end: "buffer_stop" },
+        { id: "SIDING", role: "siding", lengthFt: 600, end: "rejoins" }
+      ],
+      switches: [
+        { id: "S1", on: "MAIN", to: "SPUR1", side: "left", approach: "facing", order: 1 },
+        { id: "S2", on: "MAIN", to: "SIDING", side: "right", approach: "facing", order: 2 },
+        { id: "S3", on: "MAIN", to: "SIDING", side: "right", approach: "trailing", order: 3 }
+      ],
+      work
+    });
+  }
+
+  test("runaround on the spur-with-runaround example plays as cut_off, run_light via both switches, couple and ends with the loco at the other end", () => {
+    // S1 at 580, S2 at 980, S3 at 980 + 1180 = 2160. The train (380 ft) pulls up to stand between S2 and S3, then runs around.
+    const sim = run(
+      sidingPlan([
+        { id: "W1", actor: "railroad", do: "shove", cars: ["LOADS"], to: "MAIN", text: "", stop: { track: "MAIN", ft: 1900, end: "lead" } },
+        { id: "W2", actor: "railroad", do: "runaround", text: "" }
+      ])
+    );
+    const ids = sim.steps.map((s) => String(s.stepId));
+    expect(ids).toEqual(["arrival", "W1", "W2a", "W2b", "W2c", "W2d", "W2e", "departure"]);
+    expect(sim.steps.slice(2, 7).map((s) => s.verb)).toEqual(["cut_off", "run_light", "run_light", "run_light", "couple"]);
+    expect(sim.steps.slice(2, 7).map((s) => s.status)).toEqual(["ok", "ok", "ok", "ok", "ok"]);
+    // The through leg passes both of the siding's switches and runs along the siding.
+    const through = sim.steps[4]!;
+    expect(through.travel!.some((s) => s.track === "SIDING")).toBe(true);
+    // Before: loco 1520..1600 behind the cars 1600..1900. After: coupled at the other end, 1900..1980.
+    expect(occupies(sim.states[1]!, "L1")).toEqual([{ track: "MAIN", fromFt: 1520, toFt: 1600 }]);
+    expect(occupies(sim.states[6]!, "L1")).toEqual([{ track: "MAIN", fromFt: 1900, toFt: 1980 }]);
+    expect(sim.states[6]!.coupled).toEqual([["C5", "C4", "C3", "C2", "C1", "L1"]]);
+    expect(sim.steps[7]!.status).toBe("ok");
+  });
+
+  test("runaround with no siding is needs_attention with NO_SIDING_REASON", () => {
+    const sim = run(demoWith([{ id: "W1", actor: "railroad", do: "runaround", text: "" }]));
+    expect(sim.steps.map((s) => s.stepId)).toEqual(["arrival", "W1", "departure"]);
+    expect(sim.steps[1]!.status).toBe("needs_attention");
+    expect(sim.steps[1]!.reason).toBe(NO_SIDING_REASON);
+    expect(sim.states[1]!).toEqual(sim.states[0]!);
   });
 });

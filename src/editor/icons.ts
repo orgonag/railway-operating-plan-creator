@@ -6,6 +6,7 @@ const PATHS: Record<string, string> = {
   new: "M6 2h8l4 4v16H6z M14 2v4h4 M9 13h6 M12 10v6",
   open: "M3 7h6l2 2h10v11H3z M3 7V5h5",
   download: "M12 3v12 M7 10l5 5 5-5 M4 20h16",
+  export: "M12 15V3 M7 8l5-5 5 5 M4 15v5h16v-5",
   share: "M18 5a2 2 0 1 0 0 .1 M6 12a2 2 0 1 0 0 .1 M18 19a2 2 0 1 0 0 .1 M8 11l8-5 M8 13l8 5",
   undo: "M8 7H4v4 M4 11l4-4a7 7 0 1 1 1 10",
   redo: "M16 7h4v4 M20 11l-4-4a7 7 0 1 0-1 10",

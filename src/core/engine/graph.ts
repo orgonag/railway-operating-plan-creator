@@ -153,6 +153,15 @@ function arrivingTrainLength(plan: PlanReading): number {
 function placeSwitches(plan: PlanReading, byId: Map<Id, Track>, mainId: Id, trainLengthFt: number): Map<Id, SwitchInfo> {
   const out = new Map<Id, SwitchInfo>();
   const usable = plan.switches.filter((s) => byId.has(s.on) && byId.has(s.to));
+  /** The switch that starts each track: the lowest order (then authored order) among those that lead to it. */
+  const startOf = new Map<Id, Id>();
+  for (const s of [...usable].sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || 0)) if (!startOf.has(s.to)) startOf.set(s.to, s.id);
+  /** A rejoining branch leaves its parent facing and comes back trailing, whatever the file says: both switches stay on the track. */
+  const rejoinApproach = (s: Switch): "facing" | "trailing" | undefined => {
+    const branch = byId.get(s.to);
+    if (branch?.end !== "rejoins" || usable.filter((x) => x.to === s.to).length < 2) return undefined;
+    return startOf.get(s.to) === s.id ? "facing" : "trailing";
+  };
   const byTrack = new Map<Id, Switch[]>();
   for (const s of usable) {
     const list = byTrack.get(s.on) ?? [];
@@ -165,16 +174,27 @@ function placeSwitches(plan: PlanReading, byId: Map<Id, Track>, mainId: Id, trai
     let previous: number | undefined;
     for (const s of sorted) {
       let atFt: number;
-      if (previous === undefined) {
+      const branch = byId.get(s.to);
+      const rejoinStart = branch?.end === "rejoins" && startOf.get(s.to) !== s.id ? out.get(startOf.get(s.to)!) : undefined;
+      if (rejoinStart && rejoinStart.on === trackId) {
+        // The second switch of a rejoining branch sits where the branch comes back to this track,
+        // so the branch and the stretch of parent between its switches are the same length.
+        atFt = rejoinStart.atFt + branchTotalFt(branch!);
+      } else if (previous === undefined) {
         atFt = trackId === mainId ? trainLengthFt + APPROACH_MARGIN_FT : CLEAR_FT + (s.distanceFt ?? DEFAULT_SWITCH_GAP_FT);
       } else {
         atFt = previous + (s.distanceFt ?? DEFAULT_SWITCH_GAP_FT);
       }
       previous = atFt;
-      out.set(s.id, { id: s.id, on: s.on, to: s.to, atFt, side: s.side, approach: s.approach });
+      out.set(s.id, { id: s.id, on: s.on, to: s.to, atFt, side: s.side, approach: rejoinApproach(s) ?? s.approach });
     }
   }
   return out;
+}
+
+/** A rejoining branch runs from its first switch's points to its second's: a clear point at each end around the usable length. */
+function branchTotalFt(track: Track): number {
+  return 2 * CLEAR_FT + (track.lengthFt ?? DEFAULT_BRANCH_USABLE_FT);
 }
 
 function measureTracks(plan: PlanReading, switches: Map<Id, SwitchInfo>, mainId: Id, trainLengthFt: number): Map<Id, TrackInfo> {
@@ -197,11 +217,9 @@ function measureTracks(plan: PlanReading, switches: Map<Id, SwitchInfo>, mainId:
       });
       continue;
     }
-    // TODO (tier 2): a branch that rejoins keeps 290 + lengthFt as its total. The
-    // real gap between its two switches on the parent is ignored, so the branch
-    // length and the main length between the switches do not yet agree.
-    const totalFt = CLEAR_FT + (track.lengthFt ?? DEFAULT_BRANCH_USABLE_FT);
-    const [first, second] = leadingTo.get(track.id) ?? [];
+    const [first, second] = [...(leadingTo.get(track.id) ?? [])].sort((a, b) => a.atFt - b.atFt);
+    // A branch that rejoins has a clear point at both ends; its second switch is placed to match (placeSwitches).
+    const totalFt = track.end === "rejoins" && second ? branchTotalFt(track) : CLEAR_FT + (track.lengthFt ?? DEFAULT_BRANCH_USABLE_FT);
     const start: End = first ? { kind: "switch", switch: first.id } : { kind: "buffer" };
     const end: End = track.end === "rejoins" && second ? { kind: "switch", switch: second.id } : { kind: "buffer" };
     out.set(track.id, { id: track.id, role: track.role, totalFt, ends: { start, end } });
@@ -306,11 +324,13 @@ class GraphIndex {
     return end?.kind === "switch" ? this.switches.get(end.switch) : undefined;
   }
 
-  /** Every switch between a track and the main, walking up through start switches. */
+  /** Every switch between a track and the main, walking up through start switches, plus the track's own rejoin switch when it has one. */
   chain(track: Id): Set<Id> {
     const cached = this.chains.get(track);
     if (cached) return cached;
     const out = new Set<Id>();
+    const rejoin = this.endSwitch(track);
+    if (rejoin) out.add(rejoin.id);
     const seen = new Set<Id>();
     let current: Id | undefined = track;
     while (current !== undefined && !seen.has(current)) {
@@ -431,9 +451,16 @@ function trace(index: GraphIndex, from: Pos, heading: Heading, o: TraceOptions):
       const s = event.switch;
       pass(s.id);
       if (leavesThisWay(s) && wantsBranch(s)) {
+        const rejoin = index.endSwitch(s.to);
         cur.track = s.to;
-        cur.ft = 0;
-        cur.dir = 1;
+        if (rejoin && rejoin.id === s.id) {
+          // In through the second switch of a rejoining branch: its far end, heading back toward its first.
+          cur.ft = index.tracks.get(s.to)?.totalFt ?? 0;
+          cur.dir = -1;
+        } else {
+          cur.ft = 0;
+          cur.dir = 1;
+        }
       }
     } else {
       // Leaving a branch through one of its switches onto the parent, heading away from the branch.

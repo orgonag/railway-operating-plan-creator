@@ -6,7 +6,8 @@ import { validateFile } from "../../src/core/schema/validateFile";
 import { cloneJson } from "../../src/core/schema/clone";
 import { materialize } from "../../src/core/engine/materialize";
 import { buildGraph } from "../../src/core/engine/graph";
-import { RUNAROUND_REASON, simulate } from "../../src/core/engine/simulate";
+import { simulate } from "../../src/core/engine/simulate";
+import { NO_SIDING_REASON } from "../../src/core/editing/runaround";
 import { notesFor, type Note } from "../../src/core/engine/notes";
 
 const demo = materialize(validateFile(demoJson).plan as PlanReading).plan;
@@ -282,9 +283,9 @@ describe("notes: sequence and runaround", () => {
     ]);
   });
 
-  test("a runaround step gives one runaround note with the tier 2 reason and no sequence note", () => {
+  test("a runaround step gives one runaround note with the no-siding reason and no sequence note", () => {
     const notes = notesOf(runaround).filter((x) => x.stepId === "W1");
-    expect(notes).toEqual([{ stepId: "W1", kind: "runaround", level: "heads_up", text: RUNAROUND_REASON }]);
+    expect(notes).toEqual([{ stepId: "W1", kind: "runaround", level: "heads_up", text: NO_SIDING_REASON }]);
   });
 });
 

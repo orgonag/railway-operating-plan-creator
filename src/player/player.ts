@@ -210,7 +210,7 @@ export function captionFor(plan: PlanReading, step: StepResult): string {
   let authored: string | undefined;
   if (step.stepId === "arrival") authored = plan.arrival.text;
   else if (step.stepId === "departure") authored = plan.departure.text;
-  else authored = plan.work.find((w) => w.id === step.stepId)?.text;
+  else authored = plan.work.find((w) => w.id === step.stepId)?.text ?? step.text;
   const trimmed = authored?.trim() ?? "";
   return trimmed.length > 0 ? trimmed : verbLabel(step.verb);
 }

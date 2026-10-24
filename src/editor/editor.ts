@@ -11,6 +11,7 @@
 
 import type { Command, CommandResult } from "../core/commands/commands";
 import { createHistory, type History } from "../core/commands/history";
+import { expandRunarounds } from "../core/editing/runaround";
 import { placeUnits } from "../core/layout/place";
 import { cloneJson } from "../core/schema/clone";
 import type { Id, PlanReading, WorkStep } from "../core/schema/types";
@@ -19,10 +20,13 @@ import type { DrawPoint } from "../core/layout/layout";
 import { fitPxPerFt, renderDrawing, renderOptions, renderSprites, frameOf, toScreen, type RenderOptions } from "../render/render";
 import { attachCarTools } from "./carTools";
 import { button, clear, closeDialog, el, showDialog } from "./dom";
+import { attachExportTools } from "./exportTools";
 import { attachKeys } from "./keys";
 import { compute, stepIndexOf, type Computed, type EditorState, type Selection } from "./model";
 import { attachMoveTools } from "./moveTools";
 import { createProperties } from "./properties";
+import { attachRunaroundTool } from "./runaroundTool";
+import { attachShareTools } from "./shareTools";
 import { createStepStrip } from "./stepStrip";
 import { attachAutosave, SAVE_STATUS_TEXT } from "./store/autosave";
 import { downloadJson, readPlanFile } from "./store/file";
@@ -95,7 +99,8 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 export function createEditor(mount: HTMLElement, options: EditorOptions = {}): Editor {
   const storage = options.storage;
   let localId = options.localId;
-  const initial = options.plan ?? (localId ? loadPlan(localId, storage) : null) ?? TEMPLATES.find((t) => t.id === "demo")!.make();
+  // A plan opened here holds single actions only: a saved runaround becomes its steps.
+  const initial = expandRunarounds(options.plan ?? (localId ? loadPlan(localId, storage) : null) ?? TEMPLATES.find((t) => t.id === "demo")!.make());
   const history = createHistory(initial);
 
   // ---- state ----
@@ -352,7 +357,8 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     return r;
   }
 
-  function open(plan: PlanReading, id?: string): void {
+  function open(opened: PlanReading, id?: string): void {
+    const plan = expandRunarounds(opened);
     localId = id;
     history.reset(plan);
     stepIndex = 0;
@@ -686,7 +692,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   };
 
   // ---- tools ----
-  const detachTools = [attachTrackTools(editor), attachCarTools(editor), attachMoveTools(editor)];
+  const detachTools = [attachTrackTools(editor), attachCarTools(editor), attachMoveTools(editor), attachShareTools(editor), attachExportTools(editor), attachRunaroundTool(editor)];
   paintSprites();
 
   return editor;

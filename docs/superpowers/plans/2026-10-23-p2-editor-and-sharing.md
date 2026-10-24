@@ -660,7 +660,7 @@ Behaviour fixed here:
 - Share opens `<dialog class="share">` with the link in a read-only input, a Copy button (`navigator.clipboard.writeText`), the `SHARE_NOTICE` line, and the link length in characters.
 - On load with a share hash: decode, save as a new local plan whose title is `"Copy of " + title` (unless it already starts with "Copy of "), set it as last opened, clear the hash with `history.replaceState`, and `setStatus("Opened from a link as a copy")`. On failure, `setStatus(SHARE_FAILED_TEXT)` and open the last plan as usual. Saved plans are untouched either way.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test("encode then decode round-trips the demo", async () => {});
@@ -671,8 +671,8 @@ test("opening a share link adds a copy and keeps the saved plan", async () => {
 });
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass. Browser check: Share, paste the link in a new tab, see the copy.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(export): share link in the URL fragment"`.
+- [x] **Step 2 to 4: Fail, implement, pass. Browser check: Share, paste the link in a new tab, see the copy.**
+- [x] **Step 5: Commit:** `git commit -m "feat(export): share link in the URL fragment"`.
 
 ---
 
@@ -708,7 +708,7 @@ export function downloadAllSvgs(plan: PlanReading, doc?: Document, delayMs?: num
 
 The editor imports the bundle with `import playerScript from "../../app/generated/player.iife.js?raw"`, so `npm run build:player` must have run; `predev` and `prebuild` do it. `tests/setup/buildPlayer.ts` builds it only when the file is missing.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test("svgForStep 1 of the demo contains 6 g.unit elements and a title with the shove caption", () => {});
@@ -718,8 +718,8 @@ test("standaloneHtml opened in a happy-dom Window mounts the player with 9 dots"
 test("file names: demo -> how-a-train-services-a-customer.html and -step-2.svg", () => {});
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass. Browser check: export the standalone page, open the file from disk with the network off, play it.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(export): standalone HTML page and SVG per step"`.
+- [x] **Step 2 to 4: Fail, implement, pass. Browser check: export the standalone page, open the file from disk with the network off, play it.**
+- [x] **Step 5: Commit:** `git commit -m "feat(export): standalone HTML page and SVG per step"`.
 
 ---
 
@@ -731,7 +731,7 @@ test("file names: demo -> how-a-train-services-a-customer.html and -step-2.svg",
 
 **Interfaces:** the class names and `data-tool` attributes fixed in Tasks 4 to 11.
 
-- [ ] **Step 1: Write the spec** with these tests, each starting from the Single spur template on `http://localhost:5173` (Playwright's `webServer` runs `npm run dev`):
+- [x] **Step 1: Write the spec** with these tests, each starting from the Single spur template on `http://localhost:5173` (Playwright's `webServer` runs `npm run dev`):
 
 ```ts
 test("place a turnout, flip it, stretch the track", ...)      // strip and properties reflect each change; Undo three times returns to the template
@@ -741,8 +741,8 @@ test("share link opens as a copy", ...)                       // read the link f
 test("standalone export downloads an html file that plays", ...)  // download event, read the file, load it with page.setContent, 9 dots for the demo
 ```
 
-- [ ] **Step 2: Run `npm run test:e2e` and fix whatever the real browser shows that happy-dom did not.** Expected: all pass.
-- [ ] **Step 3: Commit:** `git commit -m "test(e2e): Playwright smoke tests for the editor"`.
+- [x] **Step 2: Run `npm run test:e2e` and fix whatever the real browser shows that happy-dom did not.** Expected: all pass.
+- [x] **Step 3: Commit:** `git commit -m "test(e2e): Playwright smoke tests for the editor"`.
 
 ---
 
@@ -766,7 +766,7 @@ export const NO_SIDING_REASON = "No siding joins this track at both ends, so the
 
 Rules: in `simulate`, a `runaround` work step is replaced at replay time by `expandRunaround` on the state before it; the three results carry the step's id with suffixes `a`, `b`, `c` in `StepResult.stepId`, and a null expansion stays `needs_attention` with `NO_SIDING_REASON`. The editor's Runaround button dispatches the three steps as `addStep` commands (one history entry "runaround"), so saved plans from the editor hold single steps; `materialize` is unchanged. The two example plans are synthetic, in the demo's style, each with an expected-state fixture covering at least the states after the runaround and after the second customer's spot.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // graph
@@ -782,8 +782,8 @@ test("expandRunaround from the arrival state names the siding and both switches 
 test("spur_with_runaround and two-customers validate, simulate with every step ok, and match their expected fixtures", () => {});
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass. Browser check: Runaround button on the template; the loco ends up at the other end of the cars.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(tier2): rejoining siding, runaround, two more examples"`.
+- [x] **Step 2 to 4: Fail, implement, pass. Browser check: Runaround button on the template; the loco ends up at the other end of the cars.**
+- [x] **Step 5: Commit:** `git commit -m "feat(tier2): rejoining siding, runaround, two more examples"`.
 
 ---
 
@@ -793,10 +793,10 @@ test("spur_with_runaround and two-customers validate, simulate with every step o
 - Create: `.github/workflows/pages.yml` (build on push to `main`, upload `app/dist`, deploy with `actions/deploy-pages`; inert while the repo is private and Pages is off)
 - Modify: the Vite config so `base` is `/railway-operating-plan-creator/` in production builds and `/` in dev; `README.md` (status: Release 1 built; how to run, test, build, export; the three examples; a line that the repo is private until the owner opens it); `docs/spec.md` section 10 (plain DOM for the editor panels, owner decision 2026-10-23) and section 15 (the 2026-10-23 decisions)
 
-- [ ] **Step 1: `npm run build` produces `app/dist` with the editor and the player bundle; serve it with `npx vite preview` and check the demo loads and a share link works with the base path.**
-- [ ] **Step 2: Write the workflow and the README; run `npm test && npm run typecheck && npm run test:e2e`.**
-- [ ] **Step 3: Commit:** `git commit -m "chore: Pages workflow, README and spec notes for Release 1"`.
-- [ ] **Step 4: Hand the owner the list (they do these, not the agent):** 1. make the repo public; 2. Settings, Pages, source GitHub Actions; 3. push `main` and watch the workflow; 4. open the site and the demo share link. **Nothing in this plan performs these.**
+- [x] **Step 1: `npm run build` produces `app/dist` with the editor and the player bundle; serve it with `npx vite preview` and check the demo loads and a share link works with the base path.**
+- [x] **Step 2: Write the workflow and the README; run `npm test && npm run typecheck && npm run test:e2e`.**
+- [x] **Step 3: Commit:** `git commit -m "chore: Pages workflow, README and spec notes for Release 1"`.
+- [x] **Step 4: Hand the owner the list (they do these, not the agent):** 1. make the repo public; 2. Settings, Pages, source GitHub Actions; 3. push `main` and watch the workflow; 4. open the site and the demo share link. **Nothing in this plan performs these.**
 
 ---
 

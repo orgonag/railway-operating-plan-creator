@@ -540,3 +540,35 @@ dialog.add-cars {
 .step.drop-before {
   border-top: 3px solid var(--gold);
 }
+
+/* ---- share dialog ---- */
+dialog.share {
+  width: min(640px, 90vw);
+}
+dialog.share input.share-link {
+  width: 100%;
+  font: inherit;
+  font-size: 12px;
+  color: var(--paper);
+  background: #15181c;
+  border: 1px solid var(--rail);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: 8px 0;
+}
+dialog.share .copied {
+  color: var(--gold);
+  font-size: 12px;
+  align-self: center;
+}
+dialog.share .notice,
+dialog.share .link-length {
+  color: var(--steel);
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+
+/* ---- export menu ---- */
+.context-menu.export-menu {
+  min-width: 220px;
+}

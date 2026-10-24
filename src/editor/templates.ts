@@ -4,6 +4,7 @@
  */
 
 import demoJson from "../../docs/schema/examples/customer-service-demo.reading.json";
+import runaroundJson from "../../docs/schema/examples/spur-with-runaround.reading.json";
 import { materialize } from "../core/engine/materialize";
 import { cloneJson } from "../core/schema/clone";
 import type { PlanReading } from "../core/schema/types";
@@ -34,6 +35,13 @@ function singleSpur(): PlanReading {
   }).plan;
 }
 
+/** The spur-with-runaround example's track, siding, dock and train, with no work: the runaround is made with the Runaround button. */
+function spurWithRunaround(): PlanReading {
+  const example = materialize(validateFile(runaroundJson).plan!).plan;
+  const { description: _description, questions: _questions, provenance: _provenance, ...rest } = example;
+  return materialize({ ...cloneJson(rest), title: "Untitled plan", work: [] }).plan;
+}
+
 let demoCache: PlanReading | undefined;
 function demo(): PlanReading {
   demoCache ??= materialize(validateFile(demoJson).plan!).plan;
@@ -42,6 +50,7 @@ function demo(): PlanReading {
 
 export const TEMPLATES: readonly Template[] = [
   { id: "single_spur", label: "Single spur", make: singleSpur },
+  { id: "spur_with_runaround", label: "Spur with runaround", make: spurWithRunaround },
   { id: "demo", label: "Customer service demo", make: demo }
 ];
 

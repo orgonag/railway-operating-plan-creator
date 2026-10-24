@@ -10,7 +10,7 @@
 import type { Id, PlanReading, WorkStep } from "../schema/types";
 import type { FacilityInfo, Segment, TrackGraph } from "./graph";
 import { groupsOf, unitsOf, type Unit } from "./materialize";
-import { RUNAROUND_REASON } from "./simulate";
+import { NO_SIDING_REASON } from "../editing/runaround";
 import { pathLength, segmentLength, stepMoves, type Simulation, type StepResult, type WorldState } from "./state";
 
 export type NoteKind = "fit" | "fouling" | "buffer" | "power_end" | "unclear_route" | "sequence" | "runaround";
@@ -206,7 +206,8 @@ function unclearRouteNotes(step: StepResult): Note[] {
 
 function sequenceAndRunaroundNotes(ctx: Context, step: StepResult, saved: WorkStep | undefined, before: WorldState, after: WorldState): Note[] {
   if (saved?.do === "runaround") {
-    return [{ stepId: step.stepId, kind: "runaround", level: "heads_up", text: RUNAROUND_REASON }];
+    // A runaround the engine could expand plays as single steps with suffixed ids; one still here found no siding.
+    return [{ stepId: step.stepId, kind: "runaround", level: "heads_up", text: step.reason ?? NO_SIDING_REASON }];
   }
   const heads = (text: string): Note => ({ stepId: step.stepId, kind: "sequence", level: "heads_up", text });
 
