@@ -497,3 +497,23 @@ dialog.play {
   background: var(--panel);
   color: var(--gold);
 }
+
+/* ---- Add cars and Place cars ---- */
+dialog.add-cars {
+  width: min(92vw, 360px);
+}
+.dialog-form .field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+.dialog-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.dialog-buttons .ok {
+  border-color: var(--gold);
+  color: var(--gold);
+}

@@ -17,6 +17,7 @@ import type { Id, PlanReading, WorkStep } from "../core/schema/types";
 import { createPlayer, type Player } from "../player/player";
 import type { DrawPoint } from "../core/layout/layout";
 import { fitPxPerFt, renderDrawing, renderOptions, renderSprites, frameOf, toScreen, type RenderOptions } from "../render/render";
+import { attachCarTools } from "./carTools";
 import { button, clear, closeDialog, el, showDialog } from "./dom";
 import { attachKeys } from "./keys";
 import { compute, stepIndexOf, type Computed, type EditorState, type Selection } from "./model";
@@ -75,6 +76,8 @@ export interface Editor {
   clientPoint(p: DrawPoint): { clientX: number; clientY: number };
   /** What the Delete key does to the selection. */
   deleteSelection(): void;
+  /** Handle a toolbar button's click; returns the unregister. */
+  registerTool(tool: string, fn: () => void): () => void;
   destroy(): void;
   root: HTMLElement;
   /** The canvas the svg sits in; pointer positions are measured against it. */
@@ -475,7 +478,20 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
 
   // ---- toolbar ----
 
+  const toolHandlers = new Map<string, () => void>();
+  function registerTool(tool: string, fn: () => void): () => void {
+    toolHandlers.set(tool, fn);
+    return () => {
+      if (toolHandlers.get(tool) === fn) toolHandlers.delete(tool);
+    };
+  }
+
   function onTool(tool: string): void {
+    const handler = toolHandlers.get(tool);
+    if (handler) {
+      handler();
+      return;
+    }
     switch (tool) {
       case "new":
         openNewDialog();
@@ -629,6 +645,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
     drawingAt,
     clientPoint,
     deleteSelection,
+    registerTool,
     destroy,
     root,
     canvas,
@@ -637,7 +654,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   };
 
   // ---- tools ----
-  const detachTools = [attachTrackTools(editor)];
+  const detachTools = [attachTrackTools(editor), attachCarTools(editor)];
   paintSprites();
 
   return editor;
