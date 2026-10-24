@@ -1,3 +1,6 @@
 private-fixtures/
 node_modules/
 dist/
+app/generated/
+test-results/
+playwright-report/

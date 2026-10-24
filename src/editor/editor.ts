@@ -19,6 +19,7 @@ import type { DrawPoint } from "../core/layout/layout";
 import { fitPxPerFt, renderDrawing, renderOptions, renderSprites, frameOf, toScreen, type RenderOptions } from "../render/render";
 import { attachCarTools } from "./carTools";
 import { button, clear, closeDialog, el, showDialog } from "./dom";
+import { attachExportTools } from "./exportTools";
 import { attachKeys } from "./keys";
 import { compute, stepIndexOf, type Computed, type EditorState, type Selection } from "./model";
 import { attachMoveTools } from "./moveTools";
@@ -687,7 +688,7 @@ export function createEditor(mount: HTMLElement, options: EditorOptions = {}): E
   };
 
   // ---- tools ----
-  const detachTools = [attachTrackTools(editor), attachCarTools(editor), attachMoveTools(editor), attachShareTools(editor)];
+  const detachTools = [attachTrackTools(editor), attachCarTools(editor), attachMoveTools(editor), attachShareTools(editor), attachExportTools(editor)];
   paintSprites();
 
   return editor;

@@ -567,3 +567,8 @@ dialog.share .link-length {
   font-size: 12px;
   margin: 8px 0 0;
 }
+
+/* ---- export menu ---- */
+.context-menu.export-menu {
+  min-width: 220px;
+}

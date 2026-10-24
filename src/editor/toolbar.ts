@@ -18,6 +18,7 @@ export const TOOLS: readonly ToolSpec[] = [
   { tool: "new", label: "New", title: "Start a new plan from a template, or open one saved in this browser" },
   { tool: "open", label: "Open", title: "Open a plan file (.reading.json)" },
   { tool: "download", label: "Download", title: "Download this plan as a file" },
+  { tool: "export", label: "Export", title: "Export a standalone page or SVG stills" },
   { tool: "share", label: "Share", title: "Share this plan as a link that holds the whole plan" },
   { tool: "undo", label: "Undo", title: "Undo (Ctrl+Z)" },
   { tool: "redo", label: "Redo", title: "Redo (Ctrl+Y)" },

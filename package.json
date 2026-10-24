@@ -9,7 +9,10 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.app.json --noEmit",
     "dev": "vite app",
+    "predev": "npm run build:player",
     "build": "npm run typecheck && vite build app",
+    "prebuild": "npm run build:player",
+    "build:player": "vite build -c vite.player.config.ts",
     "check-schema": "node scripts/check-schema.mjs"
   },
   "devDependencies": {

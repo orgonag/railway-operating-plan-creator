@@ -708,7 +708,7 @@ export function downloadAllSvgs(plan: PlanReading, doc?: Document, delayMs?: num
 
 The editor imports the bundle with `import playerScript from "../../app/generated/player.iife.js?raw"`, so `npm run build:player` must have run; `predev` and `prebuild` do it. `tests/setup/buildPlayer.ts` builds it only when the file is missing.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test("svgForStep 1 of the demo contains 6 g.unit elements and a title with the shove caption", () => {});
@@ -718,8 +718,8 @@ test("standaloneHtml opened in a happy-dom Window mounts the player with 9 dots"
 test("file names: demo -> how-a-train-services-a-customer.html and -step-2.svg", () => {});
 ```
 
-- [ ] **Step 2 to 4: Fail, implement, pass. Browser check: export the standalone page, open the file from disk with the network off, play it.**
-- [ ] **Step 5: Commit:** `git commit -m "feat(export): standalone HTML page and SVG per step"`.
+- [x] **Step 2 to 4: Fail, implement, pass. Browser check: export the standalone page, open the file from disk with the network off, play it.**
+- [x] **Step 5: Commit:** `git commit -m "feat(export): standalone HTML page and SVG per step"`.
 
 ---
 

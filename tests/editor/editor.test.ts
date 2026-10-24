@@ -46,6 +46,7 @@ describe("createEditor", () => {
       "new",
       "open",
       "download",
+      "export",
       "share",
       "undo",
       "redo",
@@ -208,6 +209,28 @@ describe("review fixes", () => {
     editor.dispatch({ name: "setTitle", title: "Before hide" }, "rename");
     window.dispatchEvent(new Event("pagehide"));
     expect(JSON.parse(localStorage.getItem("ropc:plan:hide")!).title).toBe("Before hide");
+  });
+});
+
+describe("export menu", () => {
+  test("Export opens a menu with the three items; picking SVG of this step downloads one file", async () => {
+    const { vi } = await import("vitest");
+    const e = open();
+    e.showStep(1);
+    tool("export").click();
+    const items = [...mount.querySelectorAll<HTMLButtonElement>(".export-menu .menu-item")];
+    expect(items.map((b) => b.dataset.action)).toEqual(["standalone", "svg-step", "svg-all"]);
+    expect(items.every((b) => b.title.length > 10)).toBe(true);
+    const names: string[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download);
+    });
+    vi.stubGlobal("URL", { ...URL, createObjectURL: () => "blob:x", revokeObjectURL: () => undefined });
+    items[1]!.click();
+    expect(names).toEqual(["how-a-train-services-a-customer-step-2.svg"]);
+    expect(mount.querySelector(".export-menu")).toBeNull();
+    click.mockRestore();
+    vi.unstubAllGlobals();
   });
 });
 
