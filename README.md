@@ -6,7 +6,7 @@ If you already have a plan in PowerPoint, PDF, an image or another common format
 
 A small benchmark picks the free model the import uses, and measures how often it guesses wrong without asking.
 
-Status: Release 1 is built. The engine and player (P1) and the canvas editor with sharing (P2) are done: build track by dragging turnouts and stretching track ends, place facilities and cars, make steps by dragging the train, undo anything, and export the plan as JSON, a share link, a standalone HTML page or an SVG per step. The repo is private until the owner opens it; the Pages workflow in `.github/workflows/pages.yml` stays inert until then.
+Status: Release 1 is built. The engine and player (P1) and the canvas editor with sharing (P2) are done: build track by dragging turnouts and stretching track ends, place facilities and cars, make steps by dragging the train, undo anything, and export the plan as JSON, a share link, a standalone HTML page or an SVG per step. The site is live at https://orgonag.github.io/railway-operating-plan-creator/ and redeploys from `main` through `.github/workflows/pages.yml`.
 
 How to run:
 
