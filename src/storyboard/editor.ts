@@ -37,6 +37,8 @@ export function createStoryboard(root: HTMLElement): void {
     presentation = false,
     token = 0;
   let trackSelection: string[] = [];
+  let annotationSelection: string | null = null;
+  let lastAnnotationPick: { id: string; time: number } | undefined;
   let pendingStart: Point | null = null;
   let hover: Point | null = null;
   let view = { x: 0, y: 0, width: 1200, height: 700 };
@@ -153,6 +155,7 @@ export function createStoryboard(root: HTMLElement): void {
   timing.className = "slide-timing";
   controls.before(timing);
   const slide = () => deck.slides[index]!;
+  const canAnnotate = () => !presentation && !playing;
   const editable = () =>
     index === deck.slides.length - 1 && !presentation && !playing;
   function button(
@@ -292,9 +295,29 @@ export function createStoryboard(root: HTMLElement): void {
     change(() => {
       slide().text = instructions.value;
     });
+  function annotationPreview(a: Annotation): Annotation {
+    if (!drag || drag.unit !== a.id) return a;
+    if (drag.kind === "annotation-end") return { ...a, [drag.side!]: drag.end };
+    if (drag.kind !== "annotation") return a;
+    const dx = drag.end.x - drag.start.x,
+      dy = drag.end.y - drag.start.y;
+    return {
+      ...a,
+      a: { x: a.a.x + dx, y: a.a.y + dy },
+      b: { x: a.b.x + dx, y: a.b.y + dy },
+    };
+  }
   function paint(units?: Unit[]): void {
+    const drawingDeck = {
+      ...deck,
+      labels: deck.labels.map(annotationPreview),
+      slides: deck.slides.map((s) => ({
+        ...s,
+        annotations: s.annotations.map(annotationPreview),
+      })),
+    };
     svg.innerHTML = scene(
-      deck,
+      drawingDeck,
       index,
       units,
       selected,
@@ -339,6 +362,66 @@ export function createStoryboard(root: HTMLElement): void {
           c.dataset.endpoint = track.id;
           c.dataset.side = side;
           svg.append(c);
+        }
+      }
+    }
+    if (canAnnotate()) {
+      // Place annotation hit targets above track hit areas, without exporting them.
+      for (const a of annotations().map(annotationPreview)) {
+        const el = Array.from(
+          svg.querySelectorAll<SVGGraphicsElement>("[data-annotation]"),
+        ).find((el) => el.getAttribute("data-annotation") === a.id);
+        if (!el) continue;
+        const bounds = el.getBBox();
+        const hit =
+          a.kind === "text"
+            ? document.createElementNS(NS, "rect")
+            : (el.cloneNode(true) as SVGElement);
+        if (a.kind === "text") {
+          for (const [k, v] of Object.entries({
+            x: bounds.x - 5,
+            y: bounds.y - 5,
+            width: Math.max(20, bounds.width + 10),
+            height: Math.max(20, bounds.height + 10),
+          }))
+            hit.setAttribute(k, String(v));
+          hit.setAttribute("fill", "transparent");
+        } else {
+          hit.setAttribute("fill", "none");
+          hit.setAttribute("stroke", "transparent");
+          hit.setAttribute("stroke-width", "18");
+          hit.setAttribute("vector-effect", "non-scaling-stroke");
+          hit.removeAttribute("marker-end");
+        }
+        hit.setAttribute("data-annotation", a.id);
+        hit.setAttribute("data-annotation-hit", a.id);
+        svg.append(hit);
+        if (annotationSelection === a.id) {
+          const box = document.createElementNS(NS, "rect");
+          for (const [k, v] of Object.entries({
+            x: bounds.x - 7,
+            y: bounds.y - 7,
+            width: Math.max(14, bounds.width + 14),
+            height: Math.max(14, bounds.height + 14),
+          }))
+            box.setAttribute(k, String(v));
+          box.setAttribute("fill", "none");
+          box.setAttribute("stroke", "#e0c580");
+          box.setAttribute("stroke-dasharray", "5 4");
+          box.setAttribute("pointer-events", "none");
+          box.classList.add("annotation-chosen");
+          svg.append(box);
+          if (a.kind === "arrow")
+            for (const side of ["a", "b"] as const) {
+              const c = document.createElementNS(NS, "circle");
+              c.setAttribute("cx", String(a[side].x));
+              c.setAttribute("cy", String(a[side].y));
+              c.setAttribute("r", "7");
+              c.setAttribute("fill", "#e0c580");
+              c.dataset.annotationEnd = a.id;
+              c.dataset.side = side;
+              svg.append(c);
+            }
         }
       }
     }
@@ -403,6 +486,7 @@ export function createStoryboard(root: HTMLElement): void {
   function choose(i: number): void {
     cancel();
     index = i;
+    annotationSelection = null;
     selected = [];
     trackSelection = [];
     tool = "select";
@@ -410,6 +494,8 @@ export function createStoryboard(root: HTMLElement): void {
   }
   function render(): void {
     shell.classList.toggle("presenting", presentation);
+    if (!annotations().some((a) => a.id === annotationSelection))
+      annotationSelection = null;
     trackSelection = trackSelection.filter((id) =>
       deck.tracks.some((t) => t.id === id),
     );
@@ -568,12 +654,13 @@ export function createStoryboard(root: HTMLElement): void {
         names[t]!,
         () => {
           tool = t;
+          annotationSelection = null;
           pendingStart = null;
           trackSelection = [];
           manual = null;
           render();
         },
-        !editable() || presentation,
+        ["select", "text", "arrow"].includes(t) ? !canAnnotate() : !editable(),
       );
       b.dataset.tool = t;
       b.classList.toggle("active", tool === t);
@@ -605,6 +692,8 @@ export function createStoryboard(root: HTMLElement): void {
       },
       playing,
     );
+    if (annotationSelection && canAnnotate())
+      button(tools, "Delete annotation", deleteAnnotation);
     controls.replaceChildren();
     button(controls, playing ? "Stop playback" : "▶ Play plan", () => {
       if (playing) {
@@ -648,6 +737,32 @@ export function createStoryboard(root: HTMLElement): void {
     inspector();
     status.textContent = message;
     paint();
+  }
+  function deleteAnnotation(): void {
+    change(() => {
+      const list = annotations(),
+        i = list.findIndex((a) => a.id === annotationSelection);
+      if (i >= 0) list.splice(i, 1);
+      annotationSelection = null;
+    });
+  }
+  function editText(): void {
+    const a = annotations().find((a) => a.id === annotationSelection);
+    if (!a || a.kind !== "text") return;
+    const text = window.prompt("Label text", a.text);
+    if (text?.trim())
+      change(() => {
+        a.text = text;
+      });
+  }
+  function addAnnotation(a: Annotation): void {
+    change(() => {
+      annotations().push(a);
+      annotationSelection = a.id;
+      trackSelection = [];
+      selected = [];
+      tool = "select";
+    });
   }
   function deleteTrack(): void {
     change(() => {
@@ -695,13 +810,25 @@ export function createStoryboard(root: HTMLElement): void {
     const help = document.createElement("p");
     help.textContent =
       !editable() && !presentation
-        ? "This snapshot is preserved. Remove later steps or undo to revise its geometry. Titles and instructions remain editable."
+        ? "Track and equipment positions are preserved. Text, arrows, titles and instructions remain editable. Remove later steps or undo to revise geometry."
         : index === 0
           ? "Choose Track: click a start and an end, or drag. Lines snap straight. Choose a turnout direction, then place it on a track. Select any track piece to delete it. Pan or zoom to work closer."
           : index === 1
             ? "Drag a locomotive, loaded car, or empty car from the toolbar onto any track. Each drop creates a separate cut."
             : "Click a cut, double-click one car, or box-select individual cars. Shift adds to your selection. Drag the selection to its destination.";
     props.append(help);
+    if (annotationSelection && canAnnotate()) {
+      const a = annotations().find((a) => a.id === annotationSelection)!;
+      const p = document.createElement("p");
+      p.textContent = `${a.kind === "text" ? "Text" : a.kind === "arrow" ? "Arrow" : "End marker"} selected. Drag to move.${a.kind === "arrow" ? " Drag a round handle to change either end." : ""}`;
+      props.append(p);
+      if (a.kind === "text") button(props, "Edit text", editText);
+      button(props, "Delete annotation", deleteAnnotation);
+      button(props, "Clear selection", () => {
+        annotationSelection = null;
+        render();
+      });
+    }
     if (index === 0 && trackSelection.length && editable()) {
       const t = deck.tracks.find((t) => t.id === trackSelection[0]);
       const p = document.createElement("p");
@@ -830,14 +957,8 @@ export function createStoryboard(root: HTMLElement): void {
         });
       });
     }
-    const annotations = index === 0 ? deck.labels : slide().annotations;
-    if (annotations.length && editable())
-      button(props, "Remove last annotation", () =>
-        change(() => {
-          annotations.pop();
-        }),
-      );
   }
+
   function point(e: PointerEvent | MouseEvent): Point {
     const p = svg.createSVGPoint();
     p.x = e.clientX;
@@ -854,7 +975,7 @@ export function createStoryboard(root: HTMLElement): void {
     return { x: Math.round(p.x / 20) * 20, y: Math.round(p.y / 20) * 20 };
   }
   function place(p: Point): void {
-    if (!editable()) return;
+    if (!canAnnotate() || (tool !== "text" && !editable())) return;
     const s = snap(p, deck.tracks);
     if (["loco", "loaded", "empty"].includes(tool) && index === 1) {
       if (!s || distance(s.point, p) > 50) {
@@ -895,41 +1016,38 @@ export function createStoryboard(root: HTMLElement): void {
       if (!s) return;
       const a =
         distance(p, s.track.a) < distance(p, s.track.b) ? s.track.a : s.track.b;
-      change(() =>
-        deck.labels.push({
-          id: id(),
-          kind: "end",
-          a: copy(a),
-          b: copy(a),
-          text: "",
-        }),
-      );
+      addAnnotation({
+        id: id(),
+        kind: "end",
+        a: copy(a),
+        b: copy(a),
+        text: "",
+      });
       return;
     }
     if (tool === "text") {
       const text = window.prompt("Label text");
       if (text?.trim())
-        change(() =>
-          annotations().push({
-            id: id(),
-            kind: "text",
-            a: grid(p),
-            b: grid(p),
-            text,
-          }),
-        );
+        addAnnotation({ id: id(), kind: "text", a: grid(p), b: grid(p), text });
     }
   }
   function annotations(): Annotation[] {
     return index === 0 ? deck.labels : slide().annotations;
   }
+  root.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (!svg.contains(e.target as Node)) lastAnnotationPick = undefined;
+    },
+    true,
+  );
   svg.addEventListener("pointerdown", (e) => {
     if (e.button === 1 || space || tool === "pan") {
       e.preventDefault();
       pan = { x: e.clientX, y: e.clientY, view: { ...view } };
       return;
     }
-    if (e.button !== 0 || !editable() || playing) return;
+    if (e.button !== 0 || !canAnnotate()) return;
     const p = point(e);
     if (manual) {
       const s = snap(p, deck.tracks);
@@ -946,7 +1064,7 @@ export function createStoryboard(root: HTMLElement): void {
       return;
     }
     const endpoint = (e.target as Element).closest("[data-endpoint]");
-    if (endpoint && index === 0 && tool === "select") {
+    if (endpoint && index === 0 && editable() && tool === "select") {
       drag = {
         kind: "endpoint",
         start: p,
@@ -958,21 +1076,37 @@ export function createStoryboard(root: HTMLElement): void {
       };
       return;
     }
-    const annotation = (e.target as Element)
-      .closest("[data-annotation]")
-      ?.getAttribute("data-annotation");
+    const handle = (e.target as Element).closest("[data-annotation-end]");
+    const annotation =
+      handle?.getAttribute("data-annotation-end") ??
+      (e.target as Element)
+        .closest("[data-annotation]")
+        ?.getAttribute("data-annotation");
     if (annotation && tool === "select") {
+      if (!annotations().some((a) => a.id === annotation)) {
+        tell(
+          "This label belongs to the shared layout. Select Step 1 to edit it.",
+        );
+        return;
+      }
+      annotationSelection = annotation;
+      trackSelection = [];
+      selected = [];
       drag = {
-        kind: "annotation",
+        kind: handle ? "annotation-end" : "annotation",
         start: p,
         end: p,
         ids: [],
         unit: annotation,
+        side: handle?.getAttribute("data-side") as "a" | "b",
         add: false,
       };
+      // Keep the hit element alive until pointerup so double-click can be detected.
+      inspector();
       return;
     }
-    if (tool === "track" || tool === "arrow") {
+    annotationSelection = null;
+    if ((tool === "track" && editable()) || tool === "arrow") {
       drag = {
         kind: tool,
         start: pendingStart ?? grid(p, e.altKey),
@@ -980,6 +1114,10 @@ export function createStoryboard(root: HTMLElement): void {
         ids: [],
         add: false,
       };
+      return;
+    }
+    if (!editable()) {
+      render();
       return;
     }
     const trackId = (e.target as Element)
@@ -1038,25 +1176,15 @@ export function createStoryboard(root: HTMLElement): void {
     }
   });
   svg.addEventListener("dblclick", (e) => {
-    if (!editable()) return;
+    if (!canAnnotate()) return;
     const unit = (e.target as Element)
       .closest("[data-unit]")
       ?.getAttribute("data-unit");
     const aid = (e.target as Element)
       .closest("[data-annotation]")
       ?.getAttribute("data-annotation");
-    if (aid) {
-      const a = annotations().find((a) => a.id === aid);
-      if (a?.kind === "text") {
-        const text = window.prompt("Label text", a.text);
-        if (text !== null)
-          change(() => {
-            a.text = text;
-          });
-      }
-      return;
-    }
-    if (unit) {
+    if (aid) return;
+    if (unit && editable()) {
       selected = e.shiftKey ? [...new Set([...selected, unit])] : [unit];
       drag = null;
       paint();
@@ -1150,7 +1278,17 @@ export function createStoryboard(root: HTMLElement): void {
       return;
     }
     if (distance(d.start, p) < 4) {
-      paint();
+      if (d.kind === "annotation") {
+        const double =
+          lastAnnotationPick && lastAnnotationPick.id === d.unit &&
+          performance.now() - lastAnnotationPick.time < 400;
+        lastAnnotationPick = { id: d.unit!, time: performance.now() };
+        if (double) {
+          lastAnnotationPick = undefined;
+          editText();
+        }
+      }
+      render();
       return;
     }
     if (d.kind === "endpoint") {
@@ -1191,7 +1329,15 @@ export function createStoryboard(root: HTMLElement): void {
       });
       return;
     }
+    if (d.kind === "annotation-end") {
+      change(() => {
+        const a = annotations().find((a) => a.id === d.unit);
+        if (a) a[d.side!] = grid(p, e.altKey);
+      });
+      return;
+    }
     if (d.kind === "annotation") {
+      lastAnnotationPick = undefined;
       change(() => {
         const a = annotations().find((a) => a.id === d.unit)!;
         const target = grid(p, e.altKey);
@@ -1215,15 +1361,7 @@ export function createStoryboard(root: HTMLElement): void {
       return;
     }
     if (d.kind === "arrow") {
-      change(() =>
-        annotations().push({
-          id: id(),
-          kind: "arrow",
-          a: d.start,
-          b: p,
-          text: "",
-        }),
-      );
+      addAnnotation({ id: id(), kind: "arrow", a: d.start, b: p, text: "" });
       return;
     }
     if (d.kind === "units") {
@@ -1300,6 +1438,11 @@ export function createStoryboard(root: HTMLElement): void {
   window.addEventListener("keyup", (e) => {
     if (e.code === "Space") space = false;
   });
+  window.addEventListener("pointercancel", () => {
+    drag = null;
+    pan = null;
+    paint();
+  });
   window.addEventListener("blur", () => {
     space = false;
     pan = null;
@@ -1328,7 +1471,18 @@ export function createStoryboard(root: HTMLElement): void {
       deleteTrack();
       return;
     }
+    if (
+      !typing &&
+      canAnnotate() &&
+      annotationSelection &&
+      ["Backspace", "Delete"].includes(e.key)
+    ) {
+      e.preventDefault();
+      deleteAnnotation();
+      return;
+    }
     if (e.key === "Escape") {
+      annotationSelection = null;
       cancel();
       tool = "select";
       selected = [];

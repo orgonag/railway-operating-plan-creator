@@ -22,7 +22,7 @@ To change or remove a piece:
 - For a selected ordinary line, drag either endpoint to resize it. Connected ordinary endpoints move together. An endpoint attached to a turnout is protected; change/delete the turnout first.
 - **Undo** and **Redo** recover edits. Older saved turnouts without grouping remain individually selectable track sections.
 
-Add **End of track** markers at track ends, **Text** labels, and **Arrow** annotations. Double-click a text label to edit its wording; drag labels and arrows to reposition them. Remove last annotation removes the most recently added annotation.
+Add **End of track** markers at track ends, **Text** labels, and **Arrow** annotations. New annotations are selected automatically. Click an existing text label, arrow or end marker to select it; use **Delete annotation** or Delete/Backspace to remove that exact item. Double-click text or choose **Edit text** to change its wording. Drag selected annotations to reposition them; selected arrows have round handles to adjust either end. Undo/Redo restores annotation changes.
 
 Finish the site before choosing **+ Next step**. The layout is shared by the whole plan and locks once the next step exists.
 
@@ -51,7 +51,7 @@ Use **Preview step** to watch the movement. If the suggested route is wrong, cho
 
 Each slide contains one continuous movement in one direction. **A reversal belongs on the next slide.** Add a title, instructions, arrows, or text to explain what happens. Continue adding steps until the service is complete.
 
-Earlier snapshots remain preserved. To revise the track layout or starting equipment, remove later steps or Undo back to the setup. Titles and written instructions remain editable. There is no automatic rewrite of later movements.
+Earlier track and equipment snapshots remain preserved. To revise the track layout or starting equipment, remove later steps or Undo back to the setup. Text, arrows, titles and written instructions remain editable on earlier slides. To change shared layout annotations, select Step 1; those changes appear throughout the plan. There is no automatic rewrite of later movements.
 
 ## Zoom, pan and scale
 

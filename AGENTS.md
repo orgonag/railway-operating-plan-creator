@@ -31,3 +31,8 @@ Node 25+ exposes experimental web storage that shadows happy-dom in this test st
 - Track tool supports drag and click-start/click-end; it must not resize endpoints. Only Select exposes ordinary endpoint handles. Protect grouped turnout endpoints from partial resizing.
 - ViewBox zoom/pan is view-only. Always convert pointer coordinates through getScreenCTM; palette drops must also check screen bounds. Keep new geometry on the exported 1200x700 page.
 - First-visit/New tutorial uses railway-welcome-v1 separately from plan data, with Help replay. Browser authoring tests dismiss it explicitly; retain a first-visit/New test. Dialogs must not trigger editor Delete/Space handlers.
+
+## Annotation interactions
+- Text, arrows and end markers have editor-only hit targets above track hit areas, visible selection and exact-item deletion. Do not put hit targets or selection handles into exported scenes.
+- Annotation editing is independent of geometry locks: earlier slide annotations and Step 1 shared labels remain editable. Shared labels on later steps direct the author to Step 1; never look them up in slide.annotations.
+- Distinguish text double-click from drag on pointerup, and clear click history on other controls. Keep Delete/Backspace inactive in inputs and dialogs. Check narrow inspector visibility, arrow handles, save/open and Undo/Redo.

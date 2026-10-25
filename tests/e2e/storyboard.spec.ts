@@ -270,3 +270,185 @@ test("welcome, click-to-draw, grouped turnouts, deletion and zoom", async ({
   await page.getByRole("button", { name: "Skip guide", exact: true }).click();
   expect((await data()).tracks).toHaveLength(0);
 });
+
+test("annotations select, edit, drag, resize, delete, undo and reopen", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Skip guide", exact: true }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).click();
+  await drag(page, await at(page, 100, 300), await at(page, 1000, 300));
+  const data = () =>
+    page.evaluate(() =>
+      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
+    );
+  const text = async (value: string, x: number, y: number) => {
+    await page.getByRole("button", { name: "Text", exact: true }).click();
+    page.once("dialog", (d) => d.accept(value));
+    const p = await at(page, x, y);
+    await page.mouse.click(p.x, p.y);
+  };
+  await text("Customer track", 400, 300);
+  await expect(page.locator(".annotation-chosen")).toHaveCount(1);
+  page.once("dialog", (d) => d.accept("Loading track"));
+  await page.getByRole("button", { name: "Edit text", exact: true }).click();
+  expect((await data()).labels[0].text).toBe("Loading track");
+  await page
+    .getByRole("button", { name: "Clear selection", exact: true })
+    .click();
+  await page.locator("[data-annotation-hit]").click();
+  await expect(
+    page.getByRole("button", { name: "Edit text", exact: true }),
+  ).toBeVisible();
+  page.once("dialog", (d) => d.accept("Final label"));
+  await page.locator("[data-annotation-hit]").dblclick();
+  expect((await data()).labels[0].text).toBe("Final label");
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await drag(page, await at(page, 430, 295), await at(page, 530, 395));
+  expect((await data()).labels[0].a.y).toBeGreaterThan(350);
+  await page.getByRole("button", { name: "Arrow", exact: true }).click();
+  await drag(page, await at(page, 300, 450), await at(page, 600, 450));
+  await drag(page, await at(page, 600, 450), await at(page, 700, 500));
+  expect((await data()).labels[1].b.x).toBeCloseTo(700, 1);
+  await page.setViewportSize({ width: 760, height: 900 });
+  await expect(
+    page
+      .locator(".story-tools")
+      .getByRole("button", { name: "Delete annotation", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".story-inspector")).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("annotations-narrow.png"),
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page
+    .getByRole("button", { name: "Clear selection", exact: true })
+    .click();
+  // A click a few pixels from the thin line still selects the arrow.
+  let p = await at(page, 500, 479);
+  await page.mouse.click(p.x, p.y);
+  await expect(page.locator(".annotation-chosen")).toHaveCount(1);
+  await page.keyboard.press("Delete");
+  expect((await data()).labels).toHaveLength(1);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  expect((await data()).labels).toHaveLength(2);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  expect((await data()).labels).toHaveLength(1);
+  await page.getByRole("button", { name: "End of track", exact: true }).click();
+  p = await at(page, 1000, 300);
+  await page.mouse.click(p.x, p.y);
+  await expect(page.locator(".annotation-chosen")).toHaveCount(1);
+  await page
+    .locator(".story-tools")
+    .getByRole("button", { name: "Delete annotation", exact: true })
+    .click();
+  expect((await data()).labels).toHaveLength(1);
+  await page.getByLabel("Plan title", { exact: true }).fill("UI check");
+  await page.getByLabel("Plan title", { exact: true }).press("Tab");
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download", exact: true }).click(),
+  ]);
+  const savedPath = (await download.path())!;
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "New", exact: true }).click();
+  await page.getByRole("button", { name: "Skip guide", exact: true }).click();
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("button", { name: "Open", exact: true }).click(),
+  ]);
+  await chooser.setFiles(savedPath);
+  await expect(page.getByLabel("Plan title", { exact: true })).toHaveValue(
+    "UI check",
+  );
+  expect((await data()).labels[0].text).toBe("Final label");
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drop(page, "loco", 200, 300);
+  await text("Arrival", 400, 180);
+  await page.getByLabel("Step title", { exact: true }).fill("Arrival snapshot");
+  await page.getByLabel("Step title", { exact: true }).press("Backspace");
+  expect((await data()).slides[1].annotations).toHaveLength(1);
+  await page.getByLabel("Step title", { exact: true }).press("Tab");
+  await page
+    .locator(".story-tools")
+    .getByRole("button", { name: "Delete annotation", exact: true })
+    .click();
+  expect((await data()).slides[1].annotations).toHaveLength(0);
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await text("Drop loaded cars", 400, 180);
+  await page.keyboard.press("Delete");
+  expect((await data()).slides[2].annotations).toHaveLength(0);
+  await page.locator(".slide-card").first().click();
+  await page.locator("[data-annotation-hit]").click();
+  await page
+    .locator(".story-tools")
+    .getByRole("button", { name: "Delete annotation", exact: true })
+    .click();
+  expect((await data()).labels).toHaveLength(0);
+  expect((await data()).tracks).toHaveLength(1);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.locator(".slide-card").nth(2).click();
+  // Fixed layout labels on later steps must not be edited as local annotations.
+  await drag(page, await at(page, 530, 395), await at(page, 600, 420));
+  expect((await data()).labels).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
+test("equipment controls, route editing, clearing movement and track endpoints", async ({
+  page,
+}) => {
+  await setup(page);
+  await page.getByRole("button", { name: "+", exact: true }).click();
+  await page.getByRole("button", { name: "−", exact: true }).click();
+  await expect(page.locator(".drawing [data-unit]")).toHaveCount(1);
+  await page.getByRole("button", { name: "Empty", exact: true }).click();
+  const data = () =>
+    page.evaluate(() =>
+      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
+    );
+  expect((await data()).slides[1].units[0].kind).toBe("empty");
+  await page.getByRole("button", { name: "Loaded", exact: true }).click();
+  expect((await data()).slides[1].units[0].kind).toBe("loaded");
+  await page
+    .getByRole("button", { name: "Delete selected", exact: true })
+    .click();
+  await expect(page.locator(".drawing [data-unit]")).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drag(page, await at(page, 180, 350), await at(page, 600, 350));
+  await page.getByRole("button", { name: "Edit path", exact: true }).click();
+  const p = await at(page, 400, 350);
+  await page.mouse.click(p.x, p.y);
+  await page.getByRole("button", { name: "Finish path", exact: true }).click();
+  expect((await data()).slides[2].motion.path.length).toBeGreaterThan(2);
+  await page.getByRole("button", { name: "Reset path", exact: true }).click();
+  await page
+    .getByRole("button", { name: "▶ Preview step", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Clear movement", exact: true })
+    .click();
+  expect((await data()).slides[2].motion).toBeUndefined();
+  expect((await data()).slides[2].units).toEqual(
+    (await data()).slides[1].units,
+  );
+  await page
+    .getByRole("button", { name: "Remove last step", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Remove last step", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  const trackY = (await data()).tracks[0].b.y;
+  const q = await at(page, 500, trackY);
+  await page.mouse.click(q.x, q.y);
+  await drag(page, await at(page, 1100, trackY), await at(page, 1000, trackY));
+  expect((await data()).tracks[0].b.x).toBeCloseTo(1000, 1);
+  await page.getByRole("button", { name: "Track", exact: true }).click();
+  await drag(page, await at(page, 1000, trackY), await at(page, 1000, 550));
+  expect((await data()).tracks).toHaveLength(2);
+  expect((await data()).tracks[0].b.y).toBe(trackY);
+});

@@ -484,3 +484,42 @@
     grid-template-rows: auto minmax(0, 1fr) auto;
   }
 }
+.drawing [data-annotation-hit] {
+  cursor: move;
+}
+.drawing [data-annotation-end] {
+  cursor: crosshair;
+}
+.storyboard:has(.annotation-chosen) .story-inspector {
+  display: block;
+}
+/* Selection controls must not cover the object being edited on small screens. */
+@media (max-width: 900px) {
+  .storyboard:not(.presenting) {
+    grid-template-rows: auto auto minmax(450px, 1fr) auto auto;
+    grid-template-areas: "header header" "tools tools" "steps main" "inspector inspector" "status status";
+  }
+  .story-inspector {
+    position: static;
+    max-width: none;
+    max-height: 190px;
+    padding: 8px 12px;
+    box-shadow: none;
+    border-top: 1px solid var(--rail);
+  }
+  .story-inspector h2,
+  .story-inspector > p:first-of-type {
+    display: none;
+  }
+  .story-inspector > p {
+    margin: 4px 0;
+  }
+  .story-inspector > button {
+    display: inline-block;
+    width: auto;
+    margin: 4px;
+  }
+  .story-inspector .turnout-directions {
+    display: inline-flex;
+  }
+}
