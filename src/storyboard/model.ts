@@ -351,11 +351,7 @@ export function moveSlide(
 export function parseDeck(text: string): Deck {
   const d = JSON.parse(text) as Deck;
   const point = (p: Point): boolean =>
-    !!p &&
-    Number.isFinite(p.x) &&
-    Number.isFinite(p.y) &&
-    Math.abs(p.x) < 100000 &&
-    Math.abs(p.y) < 100000;
+    !!p && Number.isFinite(p.x) && Number.isFinite(p.y);
   const annotation = (a: Annotation): boolean =>
     !!a &&
     typeof a.id === "string" &&

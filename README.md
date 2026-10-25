@@ -63,9 +63,7 @@ Use the mouse wheel or two-finger scroll to pan. **Shift-wheel** scrolls sideway
 
 Exports automatically frame the whole plan with padding, including negative coordinates and movement paths. Every exported step uses the same frame so the yard stays still during playback. Raster images are capped at 4800 pixels wide; SVG retains vector detail.
 
-Use the **− / +** buttons above the canvas to zoom; larger pages allow more zoom-out range. **Ctrl/⌘ + scroll** zooms around the pointer. Choose **Pan** and drag to move the view, or hold Space while dragging the canvas. Choose Select or another tool to leave Pan mode.
-
-**Fit** frames the current layout and content. **Whole plan** shows the entire selected drawing page. Zoom and pan only change your view: saved positions, snapping, and exports stay the same. Keep the drawing inside the selected page. Every export includes the entire page, regardless of the current zoom or pan. PNG diagrams use the selected page width, capped at 4800 pixels to keep browser memory manageable. SVG remains vector-based. The author decides the scale; the app does not simulate physical lengths or speeds.
+Zoom and pan only change the view; authored positions stay unchanged. The author decides the scale; the app does not simulate physical lengths or speeds.
 
 ## Pauses and presentation
 

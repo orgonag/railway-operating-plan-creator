@@ -45,3 +45,5 @@ Node 25+ exposes experimental web storage that shadows happy-dom in this test st
 - movementRoute preserves actual endpoints, using track suggestions where possible and a direct path otherwise. moveSlide detects snapshot distortion and uses Motion.translate for rigid group movement. Never project off-track units back onto rails or collapse their spacing. Keep one direction per slide.
 - Verify overhanging locomotive/car cuts move again from an off-track car, reverse on a later slide, survive reload and animate correctly in HTML. Validate negative/far-away geometry, wheel/zoom, box/Shift selection, bulk Delete/Undo, and content-framed exports.
 - Expand canvas is view-only: hides steps/notes/timing, retains selection controls below the canvas. Help restores panels so tutorial arrows have visible targets.
+
+Performance: pass a precomputed frame to scene for thumbnails, standalone and video; editor paint uses its viewport directly. Never recompute whole-plan animation bounds inside pointermove/playback frames or once per thumbnail. Imported coordinates accept any finite authored coordinate, including beyond the previous 100000 cutoff.

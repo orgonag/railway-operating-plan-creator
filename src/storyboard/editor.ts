@@ -1,7 +1,6 @@
 import {
   blank,
   drawingBounds,
-  drawingViewBox,
   turnoutTracks,
   validateTracks,
   pauseSeconds,
@@ -344,6 +343,7 @@ export function createStoryboard(root: HTMLElement): void {
       units,
       selected,
       !playing && !presentation,
+      view,
     );
     if (index === 0 && editable()) {
       for (const track of deck.tracks) {
@@ -579,12 +579,16 @@ export function createStoryboard(root: HTMLElement): void {
     root.querySelector(".phase")!.textContent =
       `STEP ${index + 1} / ${deck.slides.length} · ${index === 0 ? "DRAW THE SITE" : index === 1 ? "STARTING SNAPSHOT" : "ONE MOVEMENT"}`;
     steps.replaceChildren();
+    const frame = drawingBounds(deck);
     deck.slides.forEach((s, i) => {
       const b = button(steps, `${i + 1}  ${s.title}`, () => choose(i));
       b.className = i === index ? "slide-card current" : "slide-card";
       const thumb = document.createElementNS(NS, "svg");
-      thumb.setAttribute("viewBox", drawingViewBox(deck));
-      thumb.innerHTML = scene(deck, i);
+      thumb.setAttribute(
+        "viewBox",
+        `${frame.x} ${frame.y} ${frame.width} ${frame.height}`,
+      );
+      thumb.innerHTML = scene(deck, i, undefined, [], false, frame);
       b.prepend(thumb);
     });
     button(

@@ -309,8 +309,8 @@ it("unbounded drawings preserve negative coordinates and frame all slides", () =
   d.tracks = [
     {
       id: "negative",
-      a: { x: -20000, y: -15000 },
-      b: { x: -10000, y: -15000 },
+      a: { x: -200000, y: -150000 },
+      b: { x: -100000, y: -150000 },
     },
   ];
   expect(() => validateTracks(d.tracks, [])).not.toThrow();

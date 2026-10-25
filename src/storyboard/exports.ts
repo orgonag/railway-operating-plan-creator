@@ -4,7 +4,6 @@ import {
   frameAt,
   totalMs,
   drawingBounds,
-  drawingViewBox,
 } from "./model";
 import { escape, scene, standalone } from "./render";
 
@@ -36,6 +35,7 @@ export function slideSvg(
   index: number,
   progress = 1,
   includeText = true,
+  frame = drawingBounds(deck),
 ): { svg: string; height: number } {
   const s = deck.slides[index]!,
     lines = wrap(s.text),
@@ -48,7 +48,7 @@ export function slideSvg(
       : s.units;
   return {
     height,
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}"><rect width="1200" height="${height}" fill="#0e1013"/>${includeText ? titles.map((l, i) => `<text x="24" y="${35 + i * 32}" fill="#d9c48c" font-family="sans-serif" font-size="26">${escape(l)}</text>`).join("") : ""}<svg y="${head}" width="1200" height="700" viewBox="${drawingViewBox(deck)}">${scene(deck, index, units)}</svg>${includeText ? lines.map((l, i) => `<text x="24" y="${head + 730 + i * 25}" fill="#f2efe6" font-family="sans-serif" font-size="20">${escape(l)}</text>`).join("") : ""}</svg>`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}"><rect width="1200" height="${height}" fill="#0e1013"/>${includeText ? titles.map((l, i) => `<text x="24" y="${35 + i * 32}" fill="#d9c48c" font-family="sans-serif" font-size="26">${escape(l)}</text>`).join("") : ""}<svg y="${head}" width="1200" height="700" viewBox="${frame.x} ${frame.y} ${frame.width} ${frame.height}">${scene(deck, index, units, [], false, frame)}</svg>${includeText ? lines.map((l, i) => `<text x="24" y="${head + 730 + i * 25}" fill="#f2efe6" font-family="sans-serif" font-size="20">${escape(l)}</text>`).join("") : ""}</svg>`,
   };
 }
 export function saveBlob(name: string, blob: Blob): void {
@@ -122,6 +122,7 @@ async function recordVideo(
     throw new Error(
       "Video export is unavailable in this browser. Use animated HTML instead.",
     );
+  const frame = drawingBounds(deck);
   const duration = totalMs(deck);
   if (duration <= 0)
     throw new Error(
@@ -156,7 +157,7 @@ async function recordVideo(
   void done.catch(() => undefined);
   async function draw(elapsed: number): Promise<void> {
     const f = frameAt(deck, elapsed),
-      { svg, height } = slideSvg(deck, f.index, f.progress),
+      { svg, height } = slideSvg(deck, f.index, f.progress, true, frame),
       img = await loadSvg(svg);
     const ratio = Math.min(1200 / 1200, 900 / height);
     ctx.fillStyle = "#0e1013";
