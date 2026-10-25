@@ -24,6 +24,10 @@ export interface Annotation {
 }
 export interface Motion {
   translate?: boolean;
+  /** Rail geometry, separate from the exact authored endpoints in path. */
+  railPath?: Point[];
+  /** Track beyond the anchor destination, used by cars ahead of it. */
+  continuation?: Point[];
   ids: string[];
   path: Point[];
   approaches?: Record<string, Point[]>;
@@ -115,6 +119,58 @@ export function snap(
   return best;
 }
 const near = (a: Point, b: Point): boolean => distance(a, b) < 0.1;
+// Small placement errors should not turn an entire cut into a rigid block.
+const RAIL_TOLERANCE = 6;
+function railPoint(
+  p: Point,
+  tracks: Track[],
+  angle?: number,
+): Point | undefined {
+  // At a turnout, a slightly misplaced horizontal car may be closer to the
+  // diagonal than its own rail. Prefer its heading among nearby candidates.
+  if (angle !== undefined) {
+    const candidates = tracks
+      .map((t) => ({
+        point: project(p, t.a, t.b),
+        alignment: Math.abs(
+          Math.cos(
+            (angle * Math.PI) / 180 - Math.atan2(t.b.y - t.a.y, t.b.x - t.a.x),
+          ),
+        ),
+      }))
+      .filter((c) => distance(p, c.point) <= RAIL_TOLERANCE);
+    candidates.sort(
+      (a, b) =>
+        b.alignment - a.alignment ||
+        distance(p, a.point) - distance(p, b.point),
+    );
+    if (candidates.length) return candidates[0]!.point;
+  }
+  const nearest = snap(p, tracks);
+  if (!nearest) return;
+  if (distance(p, nearest.point) <= RAIL_TOLERANCE) return nearest.point;
+  // Continue a free track end for overhanging cars, but never extend a junction.
+  const { a, b } = nearest.track;
+  const endpoint = near(nearest.point, a)
+    ? a
+    : near(nearest.point, b)
+      ? b
+      : undefined;
+  if (
+    !endpoint ||
+    tracks.some(
+      (t) =>
+        t !== nearest.track &&
+        distance(endpoint, project(endpoint, t.a, t.b)) < 0.1,
+    )
+  )
+    return;
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
+  const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1);
+  const extended = { x: a.x + t * dx, y: a.y + t * dy };
+  return distance(p, extended) <= RAIL_TOLERANCE ? extended : undefined;
+}
 /** Geometric routing only: endpoints touching a line form junctions. Crossing lines do not. */
 export function route(
   tracks: Track[],
@@ -183,14 +239,31 @@ export function movementRoute(
   start: Point,
   end: Point,
 ): Point[] {
-  const suggested = route(tracks, start, end);
+  const heading =
+    "angle" in start && typeof start.angle === "number"
+      ? start.angle
+      : undefined;
+  const suggested = route(
+    tracks,
+    railPoint(start, tracks, heading) ?? start,
+    end,
+  );
   if (!suggested)
     return [
       { x: start.x, y: start.y },
       { x: end.x, y: end.y },
     ];
   const path: Point[] = [];
-  for (const p of [start, ...suggested, end]) {
+  // Replace tiny perpendicular endpoint connectors with a gentle approach.
+  // Retain the exact drop position, including when snapping is disabled.
+  const points = [...suggested];
+  if (distance(start, points[0]!) <= RAIL_TOLERANCE) points.shift();
+  if (
+    points.length &&
+    distance(end, points[points.length - 1]!) <= RAIL_TOLERANCE
+  )
+    points.pop();
+  for (const p of [start, ...points, end]) {
     if (path.length && near(path[path.length - 1]!, p)) continue;
     path.push({ x: p.x, y: p.y });
     // Endpoint projections can add a pointless out-and-back along a straight line.
@@ -205,12 +278,66 @@ export function movementRoute(
       path.splice(path.length - 2, 1);
     }
   }
-  if (path.length < 2 || reverses(path))
+  if (path.length < 2)
     return [
       { x: start.x, y: start.y },
       { x: end.x, y: end.y },
     ];
   return path;
+}
+/** Continue past the anchor along connected rails, preferring straight ahead. */
+function continueRoute(
+  tracks: Track[],
+  path: Point[],
+  remaining: number,
+): Point[] {
+  const result = [path[path.length - 1]!];
+  let previous = path[path.length - 2]!;
+  const endpoints = tracks.flatMap((t) => [t.a, t.b]);
+  const visited = new Set<string>();
+  while (remaining > 0.1) {
+    const current = result[result.length - 1]!;
+    const incoming = distance(previous, current);
+    if (incoming < 0.1) break;
+    const candidates: { point: Point; alignment: number; key: string }[] = [];
+    for (let i = 0; i < tracks.length; i++) {
+      const t = tracks[i]!;
+      if (distance(current, project(current, t.a, t.b)) >= 0.1) continue;
+      // Touching endpoints split a track; ordinary crossings remain disconnected.
+      const nodes = endpoints.filter(
+        (p) => distance(p, project(p, t.a, t.b)) < 0.1,
+      );
+      for (const direction of [-1, 1]) {
+        const forward = nodes
+          .filter(
+            (p) =>
+              distance(p, current) > 0.1 &&
+              ((p.x - current.x) * (t.b.x - t.a.x) +
+                (p.y - current.y) * (t.b.y - t.a.y)) *
+                direction >
+                0.1,
+          )
+          .sort((a, b) => distance(current, a) - distance(current, b));
+        const point = forward[0];
+        if (!point) continue;
+        const alignment =
+          ((current.x - previous.x) * (point.x - current.x) +
+            (current.y - previous.y) * (point.y - current.y)) /
+          (incoming * distance(current, point));
+        const key = `${i}:${direction}:${point.x}:${point.y}`;
+        if (alignment >= -0.1 && !visited.has(key))
+          candidates.push({ point, alignment, key });
+      }
+    }
+    candidates.sort((a, b) => b.alignment - a.alignment);
+    const next = candidates[0];
+    if (!next) break; // A free end retains the existing tangent overhang behavior.
+    visited.add(next.key);
+    remaining -= distance(current, next.point);
+    result.push(next.point);
+    previous = current;
+  }
+  return result;
 }
 export const pathLength = (path: Point[]): number =>
   path.slice(1).reduce((sum, p, i) => sum + distance(path[i]!, p), 0);
@@ -253,9 +380,12 @@ export function animatedUnits(
 ): Unit[] {
   const anchor = before.find((u) => u.id === motion.ids[0]);
   if (!anchor || motion.path.length < 2) return copy(before);
-  const first = along(motion.path, 0),
+  const path = motion.translate
+    ? motion.path
+    : (motion.railPath ?? motion.path);
+  const first = along(path, 0),
     r = (first.angle * Math.PI) / 180,
-    len = pathLength(motion.path);
+    len = pathLength(path);
   return before.map((u) => {
     if (!motion.ids.includes(u.id)) return copy(u);
     if (motion.translate) {
@@ -275,15 +405,38 @@ export function animatedUnits(
       motion.approaches && Object.hasOwn(motion.approaches, u.id)
         ? motion.approaches[u.id]
         : undefined;
-    const travel = approach
-      ? [...approach, ...motion.path.slice(1)]
-      : motion.path;
+    const travel = [
+      ...(approach ? [...approach, ...path.slice(1)] : path),
+      ...(motion.continuation?.slice(1) ?? []),
+    ];
     const p = along(travel, len * progress + (approach ? 0 : offset));
     const initialAngle = along(travel, approach ? 0 : offset).angle;
     const direction =
       Math.cos(((u.angle - initialAngle) * Math.PI) / 180) < 0 ? 180 : 0;
     const turn =
       ((((p.angle + direction - u.angle + 180) % 360) + 360) % 360) - 180;
+    if (motion.railPath) {
+      const start = along(travel, approach ? 0 : offset);
+      const end = motion.path[motion.path.length - 1]!;
+      const railEnd = path[path.length - 1]!;
+      // Ease small authored placement differences into/out of the rail route.
+      // This preserves snapshots without extrapolating a perpendicular tail.
+      const initialTurn =
+        ((((initialAngle + direction - u.angle + 180) % 360) + 360) % 360) -
+        180;
+      return {
+        ...u,
+        x:
+          p.x +
+          (u.x - start.x) * (1 - progress) +
+          (end.x - railEnd.x) * progress,
+        y:
+          p.y +
+          (u.y - start.y) * (1 - progress) +
+          (end.y - railEnd.y) * progress,
+        angle: u.angle + turn - initialTurn * (1 - progress),
+      };
+    }
     return { ...u, ...p, angle: u.angle + turn };
   });
 }
@@ -315,17 +468,27 @@ export function moveSlide(
     before = deck.slides[index - 1]!.units;
   if (!ids.length || ids.some((id) => !before.some((u) => u.id === id)))
     throw new Error("Select equipment to move.");
+  const anchor = before.find((u) => u.id === ids[0])!;
+  const railPath = path.map((p, i) =>
+    i === 0 || i === path.length - 1
+      ? (railPoint(p, deck.tracks, i === 0 ? anchor.angle : undefined) ?? p)
+      : p,
+  );
   const motion: Motion = {
     ids: [...ids],
-    path: copy(path),
+    path: copy(railPath),
     approaches: Object.create(null) as Record<string, Point[]>,
     offsets: Object.create(null) as Record<string, number>,
   };
-  const initial = along(path, 0),
+  const initial = along(railPath, 0),
     r = (initial.angle * Math.PI) / 180;
   for (const uid of ids) {
     const unit = before.find((u) => u.id === uid)!;
-    const approach = movementRoute(deck.tracks, unit, path[0]!);
+    const approach = movementRoute(
+      deck.tracks,
+      railPoint(unit, deck.tracks, unit.angle) ?? unit,
+      railPath[0]!,
+    );
     const last = approach[approach.length - 1]!,
       prev = approach[approach.length - 2]!;
     const behind =
@@ -335,25 +498,30 @@ export function moveSlide(
     else motion.offsets![uid] = pathLength(approach);
   }
 
+  const continuation = continueRoute(
+    deck.tracks,
+    railPath,
+    Math.max(0, ...Object.values(motion.offsets!)),
+  );
+  if (continuation.length > 1) motion.continuation = continuation;
+
   // Curved cuts can follow tracks, but arbitrary/off-track arrangements must not
   // collapse onto a projected route. Translate the selection intact in that case.
   const initialUnits = animatedUnits(before, motion, 0);
-  const destinationTrack = snap(path[path.length - 1]!, deck.tracks);
-  const destinationOffTrack =
-    !destinationTrack ||
-    distance(destinationTrack.point, path[path.length - 1]!) > 0.1;
+  const destinationOffTrack = !railPoint(path[path.length - 1]!, deck.tracks);
   if (
     destinationOffTrack ||
-    initialUnits.some(
-      (u, i) =>
-        distance(u, before[i]!) > 0.1 ||
-        Math.cos(((u.angle - before[i]!.angle) * Math.PI) / 180) < 0.99999,
-    )
+    reverses(railPath) ||
+    initialUnits.some((u, i) => distance(u, before[i]!) > RAIL_TOLERANCE)
   ) {
     motion.translate = true;
     delete motion.approaches;
     delete motion.offsets;
+    delete motion.continuation;
+  } else {
+    motion.railPath = copy(railPath);
   }
+  motion.path = copy(path);
   slide.units = animatedUnits(before, motion, 1);
   slide.motion = motion;
   delete slide.needsReview;
@@ -483,6 +651,26 @@ export function parseDeck(text: string): Deck {
       reverses(m.path)
     )
       throw new Error("Invalid movement path.");
+    if (
+      m.railPath !== undefined &&
+      (!Array.isArray(m.railPath) ||
+        m.railPath.length < 2 ||
+        !m.railPath.every(point) ||
+        reverses(m.railPath))
+    )
+      throw new Error("Invalid rail movement path.");
+    if (
+      m.continuation !== undefined &&
+      (!Array.isArray(m.continuation) ||
+        m.continuation.length < 2 ||
+        !m.continuation.every(point) ||
+        reverses([
+          ...((m.railPath ?? m.path) as Point[]),
+          ...m.continuation.slice(1),
+        ]) ||
+        !near(m.continuation[0]!, ((m.railPath ?? m.path) as Point[]).at(-1)!))
+    )
+      throw new Error("Invalid movement continuation.");
     if (m.translate !== undefined && typeof m.translate !== "boolean")
       throw new Error("Invalid movement mode.");
     if (

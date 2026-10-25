@@ -441,3 +441,176 @@ it("rebuilds later movements atomically while keeping notes, annotations and des
   expect(() => rebuildRemaining(d)).toThrow("Step 4");
   expect(JSON.stringify(d)).toBe(before);
 });
+
+describe("turnout playback with small placement offsets", () => {
+  it("turns each car along the rails without changing authored endpoints", () => {
+    const d = blank();
+    d.tracks = tracks;
+    const units = [
+      { ...cars[0]!, kind: "loco" as const, x: 500, y: 201 },
+      { ...cars[1]!, x: 546, y: 201 },
+      { ...cars[2]!, x: 950, y: 200 },
+    ];
+    nextSlide(d).units = units;
+    const s = nextSlide(d);
+    const end = { x: 900, y: 138 };
+    moveSlide(d, 2, ["c0", "c1"], movementRoute(tracks, units[0]!, end));
+    expect(s.motion!.translate).not.toBe(true);
+    expect(animatedUnits(units, s.motion!, 0)).toEqual(units);
+    const middle = animatedUnits(units, s.motion!, 180 / 420);
+    expect(middle[0]!.angle).toBeCloseTo(-36.8698976);
+    expect(middle[1]!.angle).toBeCloseTo(0);
+    expect(middle[0]!.x).toBeCloseTo(664);
+    expect(middle[1]!.x).toBeCloseTo(706);
+    expect(middle[0]!.y - middle[1]!.y).toBeCloseTo(12);
+    expect(s.units[0]!.x).toBe(end.x);
+    expect(s.units[0]!.y).toBe(end.y);
+    expect(s.units[1]!.x - s.units[0]!.x).toBeCloseTo(46);
+    expect(s.units[1]!.y).toBe(end.y);
+    expect(middle[2]).toEqual(units[2]);
+    const loaded = parseDeck(JSON.stringify(d));
+    expect(
+      animatedUnits(
+        loaded.slides[1]!.units,
+        loaded.slides[2]!.motion!,
+        180 / 420,
+      ),
+    ).toEqual(middle);
+  });
+
+  it("uses the car heading at nearby diagonal rails and follows from an overhang", () => {
+    const d = blank();
+    d.tracks = tracks;
+    const units = [
+      { ...cars[0]!, x: -16, y: 202 },
+      { ...cars[1]!, x: 604, y: 198 },
+    ];
+    nextSlide(d).units = units;
+    const s = nextSlide(d);
+    moveSlide(
+      d,
+      2,
+      ["c0", "c1"],
+      movementRoute(tracks, units[0]!, { x: 900, y: 142 }),
+    );
+    expect(s.motion!.translate).not.toBe(true);
+    expect(animatedUnits(units, s.motion!, 0)).toEqual(units);
+    expect(s.units.every((u) => u.angle === 0 && u.y === 142)).toBe(true);
+  });
+
+  it("starts along the rail the car faces beside a turnout", () => {
+    const d = blank();
+    d.tracks = tracks;
+    const u = { ...cars[0]!, x: 604, y: 198 };
+    nextSlide(d).units = [u];
+    const s = nextSlide(d);
+    moveSlide(d, 2, [u.id], movementRoute(tracks, u, { x: 100, y: 200 }));
+    expect(s.motion!.translate).not.toBe(true);
+    expect(animatedUnits([u], s.motion!, 0)).toEqual([u]);
+    expect(animatedUnits([u], s.motion!, 0.5)[0]!.angle).toBe(0);
+  });
+
+  it("does not replace a connected route requiring reversal with a straight shortcut", () => {
+    const d = blank();
+    d.tracks = tracks;
+    const u = { ...cars[0]!, x: 900, y: 201 };
+    nextSlide(d).units = [u];
+    nextSlide(d);
+    const path = movementRoute(tracks, u, { x: 900, y: 139 });
+    expect(path).toContainEqual({ x: 600, y: 200 });
+    expect(() => moveSlide(d, 2, [u.id], path)).toThrow(/reversing/);
+    expect(d.slides[2]!.motion).toBeUndefined();
+  });
+
+  it("validates optional rail geometry and preserves older rigid movements", () => {
+    const d = blank();
+    nextSlide(d).units = structuredClone(cars);
+    const s = nextSlide(d);
+    s.motion = {
+      ids: ["c0"],
+      path: [
+        { x: 50, y: 200 },
+        { x: 100, y: 250 },
+      ],
+      translate: true,
+    };
+    expect(parseDeck(JSON.stringify(d))).toEqual(d);
+    for (const railPath of [
+      null,
+      [],
+      [
+        { x: null, y: 0 },
+        { x: 2, y: 0 },
+      ],
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 0, y: 0 },
+      ],
+    ]) {
+      const invalid = structuredClone(d);
+      Object.assign(invalid.slides[2]!.motion!, { railPath });
+      expect(() => parseDeck(JSON.stringify(invalid))).toThrow(/rail movement/);
+    }
+  });
+});
+
+it("cars ahead of a dragged rear car turn onto connected track beyond its destination", () => {
+  const d = blank();
+  d.tracks = tracks;
+  const units = cars
+    .slice(0, 6)
+    .map((u, i) => ({ ...u, x: 700 + i * 46, y: 140 }));
+  nextSlide(d).units = units;
+  const s = nextSlide(d);
+  const ids = ["c5", "c0", "c1", "c2", "c3", "c4"];
+  moveSlide(d, 2, ids, movementRoute(tracks, units[5]!, { x: 640, y: 170 }));
+  expect(s.motion!.translate).not.toBe(true);
+  expect(animatedUnits(units, s.motion!, 0)).toEqual(units);
+  expect(s.units[0]!.x).toBeCloseTo(420);
+  expect(s.units[0]!.y).toBe(200);
+  expect(s.units[0]!.angle).toBe(0);
+  expect(s.units[4]!.x).toBeCloseTo(603.2);
+  expect(s.units[4]!.y).toBeCloseTo(197.6);
+  expect(s.units[5]!.x).toBe(640);
+  expect(s.units[5]!.y).toBe(170);
+  for (let n = 0; n <= 100; n++) {
+    for (const u of animatedUnits(units, s.motion!, n / 100)) {
+      expect(
+        Math.min(
+          ...tracks.map((t) => {
+            const dx = t.b.x - t.a.x,
+              dy = t.b.y - t.a.y;
+            const f = Math.max(
+              0,
+              Math.min(
+                1,
+                ((u.x - t.a.x) * dx + (u.y - t.a.y) * dy) / (dx * dx + dy * dy),
+              ),
+            );
+            return Math.hypot(u.x - t.a.x - f * dx, u.y - t.a.y - f * dy);
+          }),
+        ),
+      ).toBeLessThan(1e-8);
+    }
+  }
+  const reopened = parseDeck(JSON.stringify(d));
+  expect(
+    animatedUnits(reopened.slides[1]!.units, reopened.slides[2]!.motion!, 1),
+  ).toEqual(s.units);
+  nextSlide(d);
+  moveSlide(d, 3, ids, movementRoute(tracks, s.units[5]!, { x: 950, y: 140 }));
+  expect(d.slides[3]!.motion!.translate).not.toBe(true);
+  expect(animatedUnits(s.units, d.slides[3]!.motion!, 0)).toEqual(s.units);
+  const bad = JSON.parse(JSON.stringify(d));
+  bad.slides[2].motion.continuation[0].x += 10;
+  expect(() => parseDeck(JSON.stringify(bad))).toThrow(/continuation/);
+  for (const useRailPath of [true, false]) {
+    const reversing = structuredClone(d);
+    const motion = reversing.slides[2]!.motion!;
+    if (!useRailPath) delete motion.railPath;
+    const path = motion.railPath ?? motion.path;
+    motion.continuation = [path.at(-1)!, path.at(-2)!];
+    expect(() => parseDeck(JSON.stringify(reversing))).toThrow(/continuation/);
+  }
+});

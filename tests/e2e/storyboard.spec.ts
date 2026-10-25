@@ -1,3 +1,4 @@
+import { blank, nextSlide } from "../../src/storyboard/model";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 async function at(page: Page, x: number, y: number) {
@@ -751,4 +752,139 @@ test("small app notice opens full disclaimer and exported files carry tool credi
     ]);
     expect(readFileSync((await download.path())!, "utf8")).toContain(expected);
   }
+});
+
+test("near-rail drag follows turnouts in preview, after reload and in downloaded HTML", async ({
+  page,
+}) => {
+  const d = blank();
+  d.tracks = [
+    { id: "main", a: { x: 0, y: 200 }, b: { x: 1000, y: 200 } },
+    { id: "branch", a: { x: 600, y: 200 }, b: { x: 680, y: 140 } },
+    { id: "spur", a: { x: 680, y: 140 }, b: { x: 1000, y: 140 } },
+  ];
+  nextSlide(d).units = [
+    {
+      id: "engine",
+      cut: "cut",
+      kind: "loco",
+      x: 500,
+      y: 201,
+      angle: 0,
+      flipped: false,
+    },
+    {
+      id: "car",
+      cut: "cut",
+      kind: "loaded",
+      x: 546,
+      y: 201,
+      angle: 0,
+      flipped: false,
+    },
+  ];
+  nextSlide(d);
+  await page.addInitScript((deck) => {
+    if (!localStorage.getItem("railway-storyboard-v1"))
+      localStorage.setItem("railway-storyboard-v1", JSON.stringify(deck));
+    localStorage.setItem("railway-welcome-v1", "1");
+  }, d);
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await page.locator(".slide-card").nth(2).click();
+  await page.keyboard.down("Alt");
+  await drag(page, await at(page, 500, 201), await at(page, 900, 138));
+  await page.keyboard.up("Alt");
+  const saved = await savedData(page);
+  expect(saved.slides[2].motion.translate).not.toBe(true);
+  expect(saved.slides[2].motion.railPath.length).toBeGreaterThan(2);
+  await page.reload();
+  await page.locator(".slide-card").nth(2).click();
+  await page.clock.install();
+  await page
+    .getByRole("button", { name: "▶ Preview step", exact: true })
+    .click();
+  await page.clock.runFor(1000);
+  const angles = async (selector: string) =>
+    page
+      .locator(selector)
+      .evaluateAll((els) =>
+        els.map((el) =>
+          Number(el.getAttribute("transform")!.match(/rotate\(([-.\d]+)/)![1]),
+        ),
+      );
+  const preview = await angles(".drawing .equipment:not(.ghost)");
+  expect(preview[0]).toBeLessThan(-30);
+  expect(preview[1]).toBeCloseTo(0);
+  await page.screenshot({ path: "test-results/turnout-preview.png" });
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await page.clock.resume();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: /^Animated HTML/ }).click(),
+  ]);
+  await page.setContent(readFileSync((await download.path())!, "utf8"));
+  await page.locator("#next").click();
+  await page.locator("#next").click();
+  await page.clock.runFor(1000);
+  const exported = await angles("svg .equipment:not(.ghost)");
+  expect(exported[0]).toBeLessThan(-30);
+  expect(exported[1]).toBeCloseTo(0);
+  expect(errors).toEqual([]);
+});
+
+test("dragging the rear car onto a turnout keeps the front of the train on the main track", async ({
+  page,
+}) => {
+  const d = blank();
+  d.tracks = [
+    { id: "main", a: { x: 0, y: 200 }, b: { x: 1100, y: 200 } },
+    { id: "turnout", a: { x: 600, y: 200 }, b: { x: 680, y: 140 } },
+    { id: "upper", a: { x: 680, y: 140 }, b: { x: 1100, y: 140 } },
+  ];
+  nextSlide(d).units = Array.from({ length: 6 }, (_, i) => ({
+    id: `u${i}`,
+    cut: "cut",
+    kind: i ? "loaded" : "loco",
+    x: 700 + i * 46,
+    y: 140,
+    angle: 0,
+    flipped: false,
+  }));
+  nextSlide(d);
+  await page.addInitScript((deck) => {
+    if (!localStorage.getItem("railway-storyboard-v1"))
+      localStorage.setItem("railway-storyboard-v1", JSON.stringify(deck));
+    localStorage.setItem("railway-welcome-v1", "1");
+  }, d);
+  await page.goto("/");
+  await page.locator(".slide-card").nth(2).click();
+  await drag(page, await at(page, 930, 140), await at(page, 640, 170));
+  const saved = await savedData(page);
+  expect(saved.slides[2].motion.continuation.length).toBeGreaterThan(1);
+  expect(saved.slides[2].units[0].y).toBeCloseTo(200);
+  expect(saved.slides[2].units[0].angle).toBeCloseTo(0);
+  await page.reload();
+  await page.locator(".slide-card").nth(2).click();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: /^Animated HTML/ }).click(),
+  ]);
+  await page.setContent(readFileSync((await download.path())!, "utf8"));
+  await page.clock.install();
+  await page.locator("#next").click();
+  await page.locator("#next").click();
+  await page.clock.runFor(2300);
+  const transform = await page
+    .locator('svg .equipment:not(.ghost)[data-unit="u0"]')
+    .getAttribute("transform");
+  const coordinates = transform!.match(
+    /translate\(([-.\d]+) ([-.\d]+)\) rotate\(([-.\d]+)\)/,
+  )!;
+  expect(Number(coordinates[1])).toBeCloseTo(420, 3);
+  expect(Number(coordinates[2])).toBeCloseTo(200, 3);
+  expect(Number(coordinates[3])).toBeCloseTo(0, 3);
 });
