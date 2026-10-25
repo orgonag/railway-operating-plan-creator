@@ -2,6 +2,8 @@
 
 **A free, simple tool for drawing and sharing railway operating plans.**
 
+Created by **Orgo Nag**.
+
 Explaining a railway move with words alone can be difficult. A single drawing shows where the cars are, but not how they get from one track to another. Redrawing the same yard for every move takes time.
 
 This tool lets you draw the yard once, place the locomotive and cars, then show the work one animated step at a time—like making a slide presentation.
@@ -17,6 +19,10 @@ A plan that shows **where the train starts, which cars move, where they go, and 
 For example: a train arrives with three loaded cars. Two empty cars are waiting on a customer track. Your plan shows how the loads are delivered and the empties collected.
 
 You decide the movements, routes and scale. The tool helps you draw and explain the plan; it does not decide how to operate the railway.
+
+## Visual-use disclaimer
+
+This is a visual drawing and communication tool only. It does not provide engineering advice, certify a design, or calculate or confirm track capacity, clearances, equipment fit, or safe operating conditions. Drawings and animations are illustrative and may not be to scale. They do not replace qualified engineering review, railway operating rules, or site-specific safety procedures. Users are responsible for verifying their plans before putting them into practice.
 
 ## Make your first plan
 
@@ -83,6 +89,12 @@ Video takes the plan's playback time to record. Keep the tab visible while it ru
 - **Made a mistake?** Use **Undo**. To correct an earlier step, choose **Revise this step**. Then use **Rebuild remaining steps** to update the later movements together. It keeps destinations and notes, but suggests paths again—preview the result.
 - **Want a reminder?** Click **Help** for the short guided tour.
 - **Need more detail?** Read the [full user guide](docs/user-guide.md), including path editing, saving, recovery and keyboard controls.
+
+## Questions, bugs or ideas?
+
+[Open a GitHub issue](https://github.com/orgonag/railway-operating-plan-creator/issues) or contact **Orgo Nag on LinkedIn**. Feedback and suggestions are welcome.
+
+For a bug report, include what you were trying to do, what happened, and a screenshot if possible. This makes it easier to reproduce and fix the problem.
 
 ## For contributors
 
