@@ -37,6 +37,7 @@ export interface Slide {
   annotations: Annotation[];
   motion?: Motion;
   pauseSeconds?: number;
+  needsReview?: boolean;
 }
 export interface Deck {
   canvasWidth?: number;
@@ -299,8 +300,6 @@ export function moveSlide(
   path: Point[],
 ): void {
   if (index < 2) throw new Error("Movements start at Step 3.");
-  if (index !== deck.slides.length - 1)
-    throw new Error("Remove later steps before changing this movement.");
   if (path.length < 2 || pathLength(path) < 1)
     throw new Error("Choose a different destination.");
   if (reverses(path))
@@ -347,6 +346,8 @@ export function moveSlide(
   }
   slide.units = animatedUnits(before, motion, 1);
   slide.motion = motion;
+  delete slide.needsReview;
+  deck.slides.slice(index + 1).forEach((s) => (s.needsReview = true));
 }
 export function parseDeck(text: string): Deck {
   const d = JSON.parse(text) as Deck;
@@ -364,7 +365,6 @@ export function parseDeck(text: string): Deck {
     d.format !== "railway-slides-1" ||
     typeof d.title !== "string" ||
     !Array.isArray(d.tracks) ||
-    d.tracks.length > 2000 ||
     !d.tracks.every(
       (t) =>
         typeof t.id === "string" &&
@@ -375,8 +375,7 @@ export function parseDeck(text: string): Deck {
     !Array.isArray(d.labels) ||
     !d.labels.every(annotation) ||
     !Array.isArray(d.slides) ||
-    !d.slides.length ||
-    d.slides.length > 1000
+    !d.slides.length
   )
     throw new Error("This is not a railway slide plan.");
   if (
@@ -385,6 +384,8 @@ export function parseDeck(text: string): Deck {
   )
     throw new Error("Unsupported drawing size.");
   for (const s of d.slides) {
+    if (s?.needsReview !== undefined && typeof s.needsReview !== "boolean")
+      throw new Error("Invalid review status.");
     if (
       s.pauseSeconds !== undefined &&
       (!Number.isFinite(s.pauseSeconds) ||
@@ -400,7 +401,6 @@ export function parseDeck(text: string): Deck {
       !Array.isArray(s.annotations) ||
       !s.annotations.every(annotation) ||
       !Array.isArray(s.units) ||
-      s.units.length > 2000 ||
       !s.units.every(
         (u) =>
           point(u) &&

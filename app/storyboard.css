@@ -599,3 +599,27 @@
     grid-template-rows: auto auto minmax(450px, 1fr) auto auto;
   }
 }
+
+.save-notice {
+  position: fixed;
+  bottom: 38px;
+  left: 16px;
+  right: 16px;
+  z-index: 80;
+  padding: 14px;
+  border: 1px solid var(--gold);
+  background: #24201a;
+  color: #fff;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  max-height: 30vh;
+  overflow: auto;
+}
+.save-notice[hidden] {
+  display: none;
+}
+.save-notice span {
+  flex-basis: 100%;
+}

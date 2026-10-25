@@ -53,9 +53,7 @@ test("draw, drop ten cars, select five, animate, reload and present offline", as
   await expect(
     page.getByRole("button", { name: "▶ Preview step" }),
   ).toBeEnabled();
-  const saved = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
-  );
+  const saved = await savedData(page);
   expect(saved.slides[2].motion.ids).toHaveLength(5);
   expect(saved.slides[2].units.slice(5)).toEqual(
     saved.slides[1].units.slice(5),
@@ -87,9 +85,7 @@ test("multiple cuts, locomotive, individual selection, flip and undo", async ({
   await drop(page, "loco", 100, 350);
   await expect(page.locator(".drawing [data-unit]")).toHaveCount(4);
   await page.getByRole("button", { name: "Flip", exact: true }).click();
-  let data = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
-  );
+  let data = await savedData(page);
   expect(data.slides[1].units[3].flipped).toBe(true);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "+ Next step", exact: true }).click();
@@ -104,9 +100,7 @@ test("straight drawing, pause persistence, autoplay and actual export files", as
   await page.getByRole("button", { name: "Skip guide", exact: true }).click();
   await page.getByRole("button", { name: "Track", exact: true }).click();
   await drag(page, await at(page, 100, 300), await at(page, 1050, 325));
-  let d = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
-  );
+  let d = await savedData(page);
   expect(d.tracks[0].a.y).toBe(d.tracks[0].b.y);
   await page.getByLabel("Pause before next step (seconds)").fill("0.5");
   await page.getByLabel("Pause before next step (seconds)").press("Tab");
@@ -212,10 +206,7 @@ test("welcome, click-to-draw, grouped turnouts, deletion and zoom", async ({
   await page.mouse.click(p.x, p.y);
   p = await at(page, 1000, 320);
   await page.mouse.click(p.x, p.y);
-  const data = () =>
-    page.evaluate(() =>
-      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
-    );
+  const data = () => savedData(page);
   expect((await data()).tracks).toHaveLength(1);
   expect((await data()).tracks[0].b.y).toBe(300);
   await drag(page, await at(page, 200, 300), await at(page, 700, 300));
@@ -282,10 +273,7 @@ test("annotations select, edit, drag, resize, delete, undo and reopen", async ({
   await page.getByRole("button", { name: "Skip guide", exact: true }).click();
   await page.getByRole("button", { name: "Track", exact: true }).click();
   await drag(page, await at(page, 100, 300), await at(page, 1000, 300));
-  const data = () =>
-    page.evaluate(() =>
-      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
-    );
+  const data = () => savedData(page);
   const text = async (value: string, x: number, y: number) => {
     await page.getByRole("button", { name: "Text", exact: true }).click();
     page.once("dialog", (d) => d.accept(value));
@@ -406,10 +394,7 @@ test("equipment controls, route editing, clearing movement and track endpoints",
   await page.getByRole("button", { name: "−", exact: true }).click();
   await expect(page.locator(".drawing [data-unit]")).toHaveCount(1);
   await page.getByRole("button", { name: "Empty", exact: true }).click();
-  const data = () =>
-    page.evaluate(() =>
-      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
-    );
+  const data = () => savedData(page);
   expect((await data()).slides[1].units[0].kind).toBe("empty");
   await page.getByRole("button", { name: "Loaded", exact: true }).click();
   expect((await data()).slides[1].units[0].kind).toBe("loaded");
@@ -493,9 +478,7 @@ test("expanded canvas and large yards preserve remote tracks in exports", async 
     bx = ax + 800;
   await page.getByRole("button", { name: "Track", exact: true }).click();
   await drag(page, await at(page, ax, ay), await at(page, bx, ay + 7));
-  let data = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
-  );
+  let data = await savedData(page);
   expect(data.tracks[0].b.x).toBeCloseTo(bx, 1);
   expect(data.tracks[0].b.y).toBe(data.tracks[0].a.y);
   expect(data.tracks[0].a.y).toBeLessThan(0);
@@ -558,10 +541,7 @@ test("an overhanging locomotive and cut can move again from an off-track car and
   await drag(page, await at(page, 260, 270), await at(page, 560, 330));
   await expect(page.locator(".drawing .chosen")).toHaveCount(6);
   await drag(page, await at(page, 350, 300), await at(page, 500, 300));
-  const data = () =>
-    page.evaluate(() =>
-      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
-    );
+  const data = () => savedData(page);
   let d = await data();
   const car = d.slides[2].units[4];
   expect(car.x).toBeCloseTo(684, 1);
@@ -617,10 +597,7 @@ test("track box selection, additive selection, wheel navigation and deletion", a
   await page.getByRole("button", { name: "Track", exact: true }).click();
   for (const y of [200, 300, 400])
     await drag(page, await at(page, 100, y), await at(page, 600, y + 8));
-  const data = () =>
-    page.evaluate(() =>
-      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
-    );
+  const data = () => savedData(page);
   expect((await data()).tracks).toHaveLength(3);
   await page.getByRole("button", { name: "Select", exact: true }).click();
   await drag(page, await at(page, 70, 170), await at(page, 630, 330));
@@ -672,3 +649,13 @@ test("track box selection, additive selection, wheel navigation and deletion", a
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   expect((await data()).tracks).toHaveLength(3);
 });
+
+async function savedData(page: Page) {
+  await page.waitForFunction(
+    () =>
+      document.querySelector<HTMLElement>("#app")?.dataset.saving !== "true",
+  );
+  return page.evaluate(() =>
+    JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
+  );
+}

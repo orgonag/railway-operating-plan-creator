@@ -25,7 +25,8 @@ import {
 import { scene, points } from "./render";
 import { openExports } from "./exports";
 import { welcome } from "./tutorial";
-const KEY = "railway-storyboard-v1";
+import { PlanStore, PLAN_KEY, RECOVERY_KEY, DRAFT_KEY } from "./storage";
+const KEY = PLAN_KEY;
 const NS = "http://www.w3.org/2000/svg";
 export function createStoryboard(root: HTMLElement): void {
   let deck = blank(),
@@ -37,6 +38,15 @@ export function createStoryboard(root: HTMLElement): void {
     snapping = true,
     presentation = false,
     token = 0;
+  let revising = false;
+  let editingView: typeof view | null = null;
+  let store: PlanStore | undefined;
+  let saveIssue = "";
+  let recoveryRaw: string | null = null;
+  let unreadableRaw: string | null = null;
+  let unsaved = false;
+  let saveSequence = 0;
+  let textEditing = false;
   let trackSelection: string[] = [];
   let annotationSelection: string | null = null;
   let lastAnnotationPick: { id: string; time: number } | undefined;
@@ -61,12 +71,63 @@ export function createStoryboard(root: HTMLElement): void {
     add: boolean;
   } | null = null;
   try {
-    const saved = localStorage.getItem(KEY);
-    if (saved) deck = parseDeck(saved);
+    store = new PlanStore(localStorage, navigator.locks);
+    recoveryRaw = localStorage.getItem(RECOVERY_KEY);
+    const saved = store.expected;
+    if (saved) {
+      try {
+        deck = parseDeck(saved);
+        view = drawingBounds(deck);
+      } catch {
+        unreadableRaw = saved;
+        try {
+          store.preserveUnreadable(saved);
+          recoveryRaw = saved;
+          unreadableRaw = null;
+        } catch {
+          /* Keep the original key untouched if recovery storage fails. */
+        }
+        saveIssue =
+          "Saved data could not be opened. Download the original recovery copy below; it has not been discarded.";
+      }
+    }
   } catch {
-    message =
-      "Saved data could not be opened. It has been left untouched; use Open to restore a downloaded plan.";
+    saveIssue =
+      "Browser storage is unavailable. Download your plan to keep your work.";
   }
+  const draftPrefix = `${DRAFT_KEY}:`;
+  const currentDraftKey = `${draftPrefix}${crypto.randomUUID()}`;
+  let recoveredDrafts: { key: string; raw: string; session?: boolean }[] = [];
+  let consumedDraftKey: string | null = null;
+  try {
+    for (let n = 0; n < localStorage.length; n++) {
+      const key = localStorage.key(n)!;
+      if (key.startsWith(draftPrefix)) {
+        const raw = localStorage.getItem(key)!;
+        if (raw !== store?.expected) recoveredDrafts.push({ key, raw });
+      }
+    }
+  } catch {
+    /* Durable drafts may be unavailable in this browser. */
+  }
+  try {
+    for (let n = 0; n < sessionStorage.length; n++) {
+      const key = sessionStorage.key(n)!;
+      if (key === DRAFT_KEY || key.startsWith(draftPrefix)) {
+        const raw = sessionStorage.getItem(key)!;
+        if (
+          raw !== store?.expected &&
+          !recoveredDrafts.some((d) => d.raw === raw)
+        )
+          recoveredDrafts.push({ key, raw, session: true });
+      }
+    }
+  } catch {
+    /* Keep Download available when all storage is blocked. */
+  }
+  if (recoveredDrafts.length)
+    saveIssue ||=
+      "Unsaved recovery drafts are available below. Recovery copies are retained; download a copy for safekeeping.";
   root.innerHTML =
     '<div class="storyboard"><header class="story-header"><div class="brand">RAILWAY <span>OPERATING PLAN</span></div><input aria-label="Plan title" class="plan-title"><div class="file-actions"></div></header><nav class="story-tools" aria-label="Drawing tools"></nav><aside class="story-steps" aria-label="Steps"></aside><main class="story-main"><div class="slide-heading"><span class="phase"></span><input aria-label="Step title"></div><div class="drawing"><svg viewBox="0 0 1200 700" aria-label="Railway canvas" role="img"></svg></div><textarea aria-label="Step instructions" placeholder="Explain what happens in this step…"></textarea><div class="play-controls"></div></main><aside class="story-inspector"></aside><footer class="story-status" role="status"></footer></div>';
   const shell = root.querySelector<HTMLElement>(".storyboard")!,
@@ -81,6 +142,71 @@ export function createStoryboard(root: HTMLElement): void {
     )!,
     instructions = root.querySelector<HTMLTextAreaElement>("textarea")!,
     controls = root.querySelector<HTMLElement>(".play-controls")!;
+  const savePanel = document.createElement("aside");
+  savePanel.className = "save-notice";
+  savePanel.setAttribute("role", "alert");
+  root.querySelector(".story-header")!.after(savePanel);
+  function storageNotice(): void {
+    savePanel.replaceChildren();
+    savePanel.hidden =
+      !saveIssue && !recoveryRaw && !unreadableRaw && !recoveredDrafts.length;
+    if (savePanel.hidden) return;
+    const text = document.createElement("span");
+    text.textContent = saveIssue || "A recovery copy is available.";
+    savePanel.append(text);
+    button(savePanel, "Download this tab's plan", () =>
+      download("operating-plan-tab.slides.json", JSON.stringify(deck, null, 2)),
+    );
+    if (recoveryRaw)
+      button(savePanel, "Download recovery copy", () =>
+        download("operating-plan-recovery.json", recoveryRaw!),
+      );
+    if (unreadableRaw)
+      button(savePanel, "Download unreadable original", () =>
+        download("operating-plan-original.json", unreadableRaw!),
+      );
+    recoveredDrafts.forEach((draft, i) => {
+      const suffix = recoveredDrafts.length > 1 ? ` ${i + 1}` : "";
+      button(savePanel, `Download unsaved draft${suffix}`, () =>
+        download("operating-plan-draft.json", draft.raw),
+      );
+      button(savePanel, `Restore unsaved draft${suffix}`, () => {
+        try {
+          const restored = parseDeck(draft.raw);
+          change(() => {
+            deck = restored;
+            index = 0;
+            view = drawingBounds(deck);
+            consumedDraftKey = draft.key;
+          });
+        } catch (e) {
+          tell((e as Error).message);
+        }
+      });
+    });
+    button(savePanel, "Load latest saved plan", () => {
+      if (
+        !window.confirm(
+          "Replace this tab's working view with the latest saved plan? Download this tab's plan first to keep your edits.",
+        )
+      )
+        return;
+      window.location.reload();
+    });
+  }
+  window.addEventListener("storage", (e) => {
+    if (e.key === KEY && e.newValue !== store?.expected) {
+      saveIssue =
+        "Another tab changed the saved plan. Download your edits or load the latest saved plan before continuing.";
+      storageNotice();
+    }
+  });
+  window.addEventListener("beforeunload", (e) => {
+    if (unsaved || recoveredDrafts.some((d) => d.session)) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
   const viewControls = document.createElement("div");
   viewControls.className = "view-controls";
   root.querySelector(".drawing")!.before(viewControls);
@@ -172,7 +298,10 @@ export function createStoryboard(root: HTMLElement): void {
   const slide = () => deck.slides[index]!;
   const canAnnotate = () => !presentation && !playing;
   const editable = () =>
-    index === deck.slides.length - 1 && !presentation && !playing;
+    (index === deck.slides.length - 1 || revising || !!slide().needsReview) &&
+    !presentation &&
+    !playing &&
+    !deck.slides.slice(0, index).some((s) => s.needsReview);
   function button(
     parent: HTMLElement,
     label: string,
@@ -204,7 +333,24 @@ export function createStoryboard(root: HTMLElement): void {
     const previous = JSON.stringify(deck);
     try {
       fn();
+      const prior = JSON.parse(previous) as Deck;
+      if (
+        deck.slides.length === prior.slides.length &&
+        deck.slides[index]?.id === prior.slides[index]?.id
+      ) {
+        const geometryChanged =
+          JSON.stringify(deck.tracks) !== JSON.stringify(prior.tracks) ||
+          JSON.stringify(slide().units) !==
+            JSON.stringify(prior.slides[index]!.units) ||
+          JSON.stringify(slide().motion) !==
+            JSON.stringify(prior.slides[index]!.motion);
+        if (geometryChanged)
+          deck.slides
+            .slice(Math.max(2, index + 1))
+            .forEach((s) => (s.needsReview = true));
+      }
       history.push(previous);
+      if (history.length > 50) history.shift();
       redo = [];
       save();
     } catch (e) {
@@ -214,13 +360,60 @@ export function createStoryboard(root: HTMLElement): void {
     render();
   }
   function save(): void {
+    const raw = JSON.stringify(deck),
+      sequence = ++saveSequence;
+    unsaved = true;
+    root.dataset.saving = "true";
     try {
-      localStorage.setItem(KEY, JSON.stringify(deck));
-      message = "Saved in this browser";
+      localStorage.setItem(currentDraftKey, raw);
     } catch {
-      message =
-        "Could not save in this browser. Download your plan to keep it.";
+      try {
+        sessionStorage.setItem(currentDraftKey, raw);
+      } catch {
+        /* Download remains available. */
+      }
     }
+    if (!store || unreadableRaw) {
+      saveIssue = unreadableRaw
+        ? "Original saved data is protected because its recovery copy could not be stored. Download your current plan and the original."
+        : "Browser storage is unavailable. Download your plan to keep your work.";
+      root.dataset.saving = "false";
+      storageNotice();
+      return;
+    }
+    message = "Saving…";
+    void store
+      .save(raw)
+      .then(() => {
+        if (sequence !== saveSequence) return;
+        unsaved = false;
+        root.dataset.saving = "false";
+        if (!recoveryRaw) saveIssue = "";
+        message = "Saved in this browser";
+        try {
+          localStorage.removeItem(currentDraftKey);
+          sessionStorage.removeItem(currentDraftKey);
+          if (consumedDraftKey) {
+            // Never delete another page's recovery key: it may have newer edits.
+            // Retain that backup; hide this restored version in the current view.
+            recoveredDrafts = recoveredDrafts.filter(
+              (d) => d.key !== consumedDraftKey,
+            );
+            consumedDraftKey = null;
+          }
+        } catch {
+          /* optional */
+        }
+        status.textContent = message;
+        storageNotice();
+      })
+      .catch((e) => {
+        root.dataset.saving = "false";
+        saveIssue = (e as Error).message;
+        message = saveIssue;
+        status.textContent = message;
+        storageNotice();
+      });
   }
   function download(
     name: string,
@@ -270,6 +463,8 @@ export function createStoryboard(root: HTMLElement): void {
           deck = incoming;
           index = 0;
           selected = [];
+          revising = false;
+          view = drawingBounds(deck);
         });
       } catch (e) {
         tell(
@@ -286,11 +481,25 @@ export function createStoryboard(root: HTMLElement): void {
   button(files, "Export", () => {
     cancel();
     render();
+    if (deck.slides.some((s) => s.needsReview)) {
+      tell(
+        "Review the marked steps before exporting. Download still saves your editable draft.",
+      );
+      return;
+    }
     openExports(copy(deck), index, root);
   }).dataset.tourExport = "true";
   button(files, "Present", () => {
     cancel();
+    if (deck.slides.some((s) => s.needsReview)) {
+      tell("Review the marked steps before presenting.");
+      return;
+    }
     presentation = !presentation;
+    if (presentation) {
+      editingView = { ...view };
+      view = drawingBounds(deck);
+    } else if (editingView) view = editingView;
     selected = [];
     index = 0;
     render();
@@ -304,18 +513,34 @@ export function createStoryboard(root: HTMLElement): void {
   legacy.href = "?legacy=1";
   legacy.textContent = "Older plans";
   files.append(legacy);
-  title.onchange = () =>
-    change(() => {
-      deck.title = title.value;
-    });
-  heading.onchange = () =>
-    change(() => {
-      slide().title = heading.value;
-    });
-  instructions.onchange = () =>
-    change(() => {
-      slide().text = instructions.value;
-    });
+  function bindText(
+    input: HTMLInputElement | HTMLTextAreaElement,
+    write: (value: string) => void,
+  ): void {
+    input.onfocus = () => {
+      textEditing = false;
+    };
+    input.oninput = () => {
+      if (!textEditing) {
+        history.push(JSON.stringify(deck));
+        if (history.length > 50) history.shift();
+        redo = [];
+        textEditing = true;
+      }
+      write(input.value);
+      save();
+      const undoButton = Array.from(tools.querySelectorAll("button")).find(
+        (b) => b.textContent === "Undo",
+      );
+      if (undoButton) undoButton.disabled = false;
+    };
+    input.onblur = () => {
+      textEditing = false;
+    };
+  }
+  bindText(title, (value) => (deck.title = value));
+  bindText(heading, (value) => (slide().title = value));
+  bindText(instructions, (value) => (slide().text = value));
   function annotationPreview(a: Annotation): Annotation {
     if (!drag || drag.unit !== a.id) return a;
     if (drag.kind === "annotation-end") return { ...a, [drag.side!]: drag.end };
@@ -509,6 +734,7 @@ export function createStoryboard(root: HTMLElement): void {
   function choose(i: number): void {
     cancel();
     index = i;
+    revising = false;
     annotationSelection = null;
     selected = [];
     trackSelection = [];
@@ -516,6 +742,7 @@ export function createStoryboard(root: HTMLElement): void {
     render();
   }
   function render(): void {
+    storageNotice();
     shell.classList.toggle("presenting", presentation);
     shell.classList.toggle("canvas-focus", canvasFocus && !presentation);
     focusButton.textContent = canvasFocus ? "Restore panels" : "Expand canvas";
@@ -581,7 +808,11 @@ export function createStoryboard(root: HTMLElement): void {
     steps.replaceChildren();
     const frame = drawingBounds(deck);
     deck.slides.forEach((s, i) => {
-      const b = button(steps, `${i + 1}  ${s.title}`, () => choose(i));
+      const b = button(
+        steps,
+        `${i + 1}  ${s.title}${s.needsReview ? " · Review needed" : ""}`,
+        () => choose(i),
+      );
       b.className = i === index ? "slide-card current" : "slide-card";
       const thumb = document.createElementNS(NS, "svg");
       thumb.setAttribute(
@@ -611,7 +842,9 @@ export function createStoryboard(root: HTMLElement): void {
           tool = "select";
         });
       },
-      presentation || index !== deck.slides.length - 1,
+      presentation ||
+        index !== deck.slides.length - 1 ||
+        deck.slides.some((s) => s.needsReview),
     );
     if (deck.slides.length > 1)
       button(
@@ -731,6 +964,12 @@ export function createStoryboard(root: HTMLElement): void {
         cancel();
         render();
       } else {
+        if (deck.slides.some((s) => s.needsReview)) {
+          tell("Review the marked steps before playback.");
+          return;
+        }
+        if (!presentation) editingView = { ...view };
+        view = drawingBounds(deck);
         index = 0;
         presentation = true;
         preview(true);
@@ -762,6 +1001,7 @@ export function createStoryboard(root: HTMLElement): void {
     if (presentation)
       button(controls, "Exit presentation", () => {
         presentation = false;
+        if (editingView) view = editingView;
         cancel();
         render();
       });
@@ -841,13 +1081,71 @@ export function createStoryboard(root: HTMLElement): void {
     const help = document.createElement("p");
     help.textContent =
       !editable() && !presentation
-        ? "Track and equipment positions are preserved. Text, arrows, titles and instructions remain editable. Remove later steps or undo to revise geometry."
+        ? "Track and equipment positions are preserved. Text, arrows, titles and instructions remain editable. Choose Revise this step to make corrections while preserving later slides."
         : index === 0
           ? "Choose Track: click a start and an end, or drag. Lines snap straight. Choose a turnout direction, then place it on a track. Choose Select and drag a box around several pieces, then press Delete. Shift-click adds pieces. Wheel to pan; Ctrl/⌘ + wheel to zoom. Keep drawing in any direction."
           : index === 1
             ? "Drag a locomotive, loaded car, or empty car from the toolbar onto any track. Each drop creates a separate cut."
             : "Click a cut, double-click one car, or box-select individual cars. Shift adds to your selection. Drag the selection to its destination.";
     props.append(help);
+    if (
+      !presentation &&
+      !playing &&
+      index < deck.slides.length - 1 &&
+      !editable() &&
+      !deck.slides.slice(0, index).some((s) => s.needsReview)
+    )
+      button(props, "Revise this step", () => {
+        revising = true;
+        render();
+        tell(
+          "Changes here keep later slides and notes, and mark affected movements for review.",
+        );
+      });
+    if (slide().needsReview && !presentation && !playing) {
+      const p = document.createElement("p");
+      p.textContent =
+        "An earlier step changed. Review in order: rebuild this movement or keep the previous snapshot. Your notes remain.";
+      props.append(p);
+      const blocked = deck.slides.slice(0, index).some((s) => s.needsReview);
+      if (slide().motion)
+        button(
+          props,
+          "Rebuild this movement",
+          () =>
+            change(() => {
+              const m = slide().motion!,
+                before = deck.slides[index - 1]!.units;
+              const anchor = before.find((u) => u.id === m.ids[0]);
+              if (
+                !anchor ||
+                m.ids.some((id) => !before.some((u) => u.id === id))
+              )
+                throw new Error(
+                  "Some equipment was removed. Use the previous snapshot, then select equipment and draw this movement again.",
+                );
+              moveSlide(
+                deck,
+                index,
+                m.ids,
+                movementRoute(deck.tracks, anchor, m.path[m.path.length - 1]!),
+              );
+              delete slide().needsReview;
+            }),
+          blocked,
+        );
+      button(
+        props,
+        "Use previous snapshot",
+        () =>
+          change(() => {
+            slide().units = copy(deck.slides[index - 1]!.units);
+            delete slide().motion;
+            delete slide().needsReview;
+          }),
+        blocked,
+      );
+    }
     if (annotationSelection && canAnnotate()) {
       const a = annotations().find((a) => a.id === annotationSelection)!;
       const p = document.createElement("p");
@@ -956,7 +1254,7 @@ export function createStoryboard(root: HTMLElement): void {
         );
       }
     }
-    if (slide().motion && editable()) {
+    if (slide().motion && editable() && !slide().needsReview) {
       button(props, "Edit path", () => {
         manual = [copy(slide().motion!.path[0]!)];
         tell(
@@ -1489,6 +1787,18 @@ export function createStoryboard(root: HTMLElement): void {
           paint();
           return;
         }
+        if (
+          !before ||
+          d.ids.some(
+            (id) => !deck.slides[index - 1]!.units.some((u) => u.id === id),
+          )
+        ) {
+          tell(
+            "Some equipment was removed in an earlier step. Use previous snapshot, then select equipment again.",
+          );
+          paint();
+          return;
+        }
         const path = movementRoute(deck.tracks, before, destination.point);
         change(() =>
           moveSlide(
@@ -1578,7 +1888,7 @@ export function createStoryboard(root: HTMLElement): void {
       deleteAnnotation();
       return;
     }
-    if (e.key === "Escape") {
+    if (e.key === "Escape" && !typing) {
       annotationSelection = null;
       cancel();
       tool = "select";
@@ -1602,6 +1912,14 @@ export function createStoryboard(root: HTMLElement): void {
     }
   });
   function preview(autoplay = false): void {
+    if (
+      (autoplay ? deck.slides : deck.slides.slice(0, index + 1)).some(
+        (s) => s.needsReview,
+      )
+    ) {
+      tell("Review the marked steps before playback.");
+      return;
+    }
     if (!autoplay && (!slide().motion || index < 2)) return;
     cancel();
     playing = true;

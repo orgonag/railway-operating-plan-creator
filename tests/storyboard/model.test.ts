@@ -122,7 +122,9 @@ describe("slide authoring contract", () => {
           { x: 400, y: 200 },
         ],
       ),
-    ).toThrow(/later/);
+    ).not.toThrow();
+    expect(d.slides[3]!.needsReview).toBe(true);
+    expect(d.slides[3]!.units).toEqual(cars);
   });
   it("round trips a deck and rejects nonfinite coordinates and invalid files", () => {
     const d = blank();
@@ -321,4 +323,30 @@ it("unbounded drawings preserve negative coordinates and frame all slides", () =
   expect(b.x + b.width).toBeGreaterThan(30000);
   expect(b.y + b.height).toBeGreaterThan(20000);
   expect(parseDeck(JSON.stringify(d)).tracks).toEqual(d.tracks);
+});
+
+it("reopens authored plans beyond the former track, unit and step limits", () => {
+  const d = blank();
+  d.tracks = Array.from({ length: 2001 }, (_, i) => ({
+    id: `t${i}`,
+    a: { x: 0, y: i * 20 },
+    b: { x: 100, y: i * 20 },
+  }));
+  nextSlide(d).units = Array.from({ length: 2001 }, (_, i) => ({
+    ...cars[0]!,
+    id: `u${i}`,
+    x: i * 46,
+  }));
+  for (let i = 2; i < 1001; i++)
+    d.slides.push({
+      id: `s${i}`,
+      title: "Step",
+      text: "",
+      units: [],
+      annotations: [],
+    });
+  const restored = parseDeck(JSON.stringify(d));
+  expect(restored.tracks).toHaveLength(2001);
+  expect(restored.slides).toHaveLength(1001);
+  expect(restored.slides[1]!.units).toHaveLength(2001);
 });

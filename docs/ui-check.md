@@ -33,3 +33,13 @@ Checked in Chromium, including a 760px-wide viewport for annotation controls. Th
 Annotations now use editor-only hit targets and selection outlines. Exported diagrams do not include those controls. Delete/Backspace is suppressed while typing or using dialogs. Geometry remains locked after later snapshots exist; annotation changes do not alter equipment or movement paths.
 
 This is browser regression coverage, not a claim of exhaustive screen-reader, touch-device or cross-browser certification.
+
+## Reliability acceptance checks
+
+- Escape while typing and reload preserve plan/step titles and instructions. Clicking a step directly from an input works on the first click.
+- Unreadable original data remains downloadable after subsequent edits and reload. Quota failure preserves the original and session fallback.
+- Stale-tab edits cannot replace newer saves; conflicted drafts survive reload, further editing and tab closure.
+- Earlier revisions preserve downstream notes/snapshots and persist review markers. Rebuild in order, preview repaired steps, handle removed equipment, and block final exports until reviews finish.
+- Startup/Open/Present/Play frame content; leaving presentation restores editing zoom.
+- A 50-step/100-car fixture opens, saves an edit, previews and exports animated HTML. Recorded local timings before final build: about 0.4s open, 0.26s edit/save, 0.38s preview start (includes automation overhead; not a cross-device performance guarantee).
+- Unit round trips cover 2001 tracks, 2001 cars and 1001 slides, plus far/negative coordinates.

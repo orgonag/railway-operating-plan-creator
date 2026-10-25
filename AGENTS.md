@@ -13,7 +13,7 @@ The default app is a snapshot-based slide editor in src/storyboard. The previous
 Run npm test, npm run typecheck, npm run test:e2e and npm run build before committing. There is no server build in this static Vite app; build:player precedes the frontend build through prebuild.
 
 ## Gotchas
-Snapshot edits must not silently rewrite later slides. Layout and starting equipment lock when subsequent steps exist; undo or remove later steps to revise setup. Store storyboard files under a distinct version and storage key. Validate imported files before replacing the current document. Escape authored text in exports.
+Snapshot edits must not silently rewrite later slides. Earlier geometry requires Revise this step. Keep later snapshots/notes intact and mark affected movements needsReview; rebuild them in order or use the previous snapshot. Store storyboard files under a distinct version and storage key. Validate imported files before replacing the current document. Escape authored text in exports.
 
 Node 25+ exposes experimental web storage that shadows happy-dom in this test stack. Run unit tests with NODE_OPTIONS=--no-experimental-webstorage on those hosts. Offline storyboard exports embed precomputed animation frames, not serialized functions (function serialization breaks after minification). Track junctions exist at touching endpoints; plain line crossings do not connect.
 
@@ -27,7 +27,7 @@ Node 25+ exposes experimental web storage that shadows happy-dom in this test st
 
 ## Canvas authoring and onboarding
 - Turnout segments share optional Track.turnout; select/delete/rotate the group. Old files without grouping remain valid individual segments. Do not infer legacy groups from proximity.
-- validateTracks prevents overlaps, interior crossings, zero-length pieces . Endpoint junctions are allowed. This is geometry validation, never operational simulation.
+- validateTracks prevents overlaps, interior crossings, zero-length pieces. Endpoint junctions are allowed. This is geometry validation, never operational simulation.
 - Track tool supports drag and click-start/click-end; it must not resize endpoints. Only Select exposes ordinary endpoint handles. Protect grouped turnout endpoints from partial resizing.
 - ViewBox zoom/pan is view-only. Always convert pointer coordinates through getScreenCTM; palette drops must also check screen bounds. The editor has no page boundary: negative coordinates and positions beyond legacy page dimensions are valid.
 - First-visit/New tutorial uses railway-welcome-v1 separately from plan data, with Help replay. Browser authoring tests dismiss it explicitly; retain a first-visit/New test. Dialogs must not trigger editor Delete/Space handlers.
@@ -47,3 +47,14 @@ Node 25+ exposes experimental web storage that shadows happy-dom in this test st
 - Expand canvas is view-only: hides steps/notes/timing, retains selection controls below the canvas. Help restores panels so tutorial arrows have visible targets.
 
 Performance: pass a precomputed frame to scene for thumbnails, standalone and video; editor paint uses its viewport directly. Never recompute whole-plan animation bounds inside pointermove/playback frames or once per thumbnail. Imported coordinates accept any finite authored coordinate, including beyond the previous 100000 cutoff.
+
+## Reliability and revisions
+- PlanStore saves under a cross-tab Web Lock and compares the last observed raw document before every write. Never silently replace a changed main key; a conflicting tab keeps its working copy and durable UUID-keyed draft. Without Web Locks, offer downloads and report that autosave is unavailable.
+- Preserve failed-load bytes in RECOVERY_KEY before replacing the main key. If backup storage fails or already contains another original, block autosaving over the original and offer both downloads.
+- Durable drafts use a distinct key per page instance. Session storage is a fallback when local storage is full. Discover both at startup. Never auto-delete another page's recovered draft: it may have newer edits than the recovery snapshot. Warn before leaving unsaved/session-only work. Successful saves remove only the current page's draft.
+- Text inputs update the model on input, grouped into one undo entry per focus session. Do not render on blur: it can destroy the next clicked button before its click handler. Escape and canvas shortcuts ignore typing targets. History is capped at 50 snapshots.
+- Authoring and import have no mismatched object-count caps; finite coordinates and document structure remain validated. Test 2001 tracks/units and 1001 slides round trips.
+- needsReview is persisted. Geometry changes mark later movements, not notes. Review in order; Rebuild uses the current previous snapshot and the authored destination; Use previous snapshot preserves text/annotations while clearing the movement. Missing equipment must report a recovery action, not throw from pointer events. Hide manual old-path editing until the step is repaired.
+- Block export/full-plan playback/presentation while reviews remain. A repaired current step can preview even if later steps still need review. Editable JSON downloads always remain available.
+- Startup/Open frame all content. Present and Play plan frame the whole plan; Exit restores the editing viewport.
+- Browser assertions reading autosave must await #app[data-saving=false], since writes are serialized asynchronously. Test actual stale tabs, failed recovery, quota fallback, Escape, single-click navigation after typing, and closed-tab draft restoration.

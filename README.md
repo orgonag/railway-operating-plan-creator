@@ -51,7 +51,11 @@ Use **Preview step** to watch the movement. If the suggested route is wrong, cho
 
 Each slide contains one continuous movement in one direction. **A reversal belongs on the next slide.** Add a title, instructions, arrows, or text to explain what happens. Continue adding steps until the service is complete.
 
-Earlier track and equipment snapshots remain preserved. To revise the track layout or starting equipment, remove later steps or Undo back to the setup. Text, arrows, titles and written instructions remain editable on earlier slides. To change shared layout annotations, select Step 1; those changes appear throughout the plan. There is no automatic rewrite of later movements.
+Earlier snapshots stay protected until you choose **Revise this step**. Correct tracks or equipment without deleting later slides: their end snapshots, instructions and annotations remain intact. Affected movements show **Review needed**.
+
+Work through those marked steps in order. **Rebuild this movement** suggests a fresh path from the corrected previous snapshot to the saved destination. **Use previous snapshot** clears the old movement while keeping the step and notes, so you can draw it again. If equipment was removed, use that second option. Preview each repaired step as you go. Export, Present and Play plan wait until the review is complete; **Download** always saves your editable draft, including review markers. Undo restores the earlier document.
+
+Text and annotations remain editable without unlocking geometry. Shared labels belong to Step 1.
 
 ## Zoom, pan and scale
 
@@ -75,7 +79,15 @@ Movement duration is automatic. There is no movement-duration setting.
 
 ## Save and export
 
-The editor automatically saves in the current browser. **Download** saves an editable `.slides.json` backup; use **Open** to resume it on another browser or computer. Before **New**, download anything you want to keep as a separate plan.
+The editor automatically saves in the current browser and shows when saving finishes. Text is kept as you type, including if you press Escape. Undo keeps up to 50 recent editing snapshots.
+
+Two open tabs cannot silently overwrite each other: a stale tab shows a notice and keeps its working copy. Download that copy, or load the latest saved plan. Conflicting drafts remain recoverable after closing the tab. Recovery copies are retained so another active tab’s newer work cannot be deleted by restoring an older copy. If browser storage is full, the editor offers downloads and keeps a session fallback where possible; download before closing when saving fails.
+
+Unreadable saved data is protected with an original recovery download. If the backup cannot be stored, the original is not overwritten. Browsers without Web Locks use explicit downloads rather than unsafe cross-tab autosaving.
+
+Opening a plan automatically frames its content. Present and Play plan frame the whole drawing; exiting presentation restores your editing view.
+
+ **Download** saves an editable `.slides.json` backup; use **Open** to resume it on another browser or computer. Before **New**, download anything you want to keep as a separate plan.
 
 **Export** creates files on your device:
 
