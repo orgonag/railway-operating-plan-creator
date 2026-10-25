@@ -59,7 +59,7 @@ it("fits tall and wide exports without clipping labels or instructions", () => {
 it("adds a discreet tool credit and visual-use notice without changing the plan", () => {
   const d = blank();
   const original = JSON.stringify(d);
-  expect(slideSvg(d, 0).svg).toContain("Tool by Orgo Nag");
+  expect(slideSvg(d, 0).svg).toContain("Built by Orgo Nag");
   expect(slideSvg(d, 0).svg).toContain("not engineering advice");
   expect(standalone(d)).toContain(FULL_NOTICE);
   const file = JSON.parse(exportedPlan(d));

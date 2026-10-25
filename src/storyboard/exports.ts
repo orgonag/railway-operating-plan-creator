@@ -351,7 +351,7 @@ export function openExports(
       const pptx = new PptxGenJS();
       pptx.layout = "LAYOUT_WIDE";
       pptx.title = deck.title;
-      pptx.author = "Railway Operating Plan Creator — tool by Orgo Nag";
+      pptx.author = "Railway Operating Plan Creator — Built by Orgo Nag";
       for (let i = 0; i < deck.slides.length; i++) {
         if (controller.signal.aborted) return;
         const s = deck.slides[i]!,

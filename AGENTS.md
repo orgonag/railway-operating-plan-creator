@@ -75,7 +75,7 @@ Performance: pass a precomputed frame to scene for thumbnails, standalone and vi
 - drawingBounds(deck, true) returns padded content bounds for static exports. Keep the default framing for editor/HTML/video. Static SVG diagram height follows those bounds, including instructions below it. Raster exports cap both dimensions at 4800; PowerPoint fits the image proportionally inside its available area.
 
 ## Tool credit and notice
-- notice.ts owns the author credit and disclaimer. Credit the tool, not the user's plan: "Tool by Orgo Nag". Keep the app notice outside the canvas and the live save-status region; its accessible dialog contains the full disclaimer.
+- notice.ts owns the author credit and disclaimer. Credit the tool, not the user's plan: "Built by Orgo Nag". Keep the app notice outside the canvas and the live save-status region; its accessible dialog contains the full disclaimer.
 - Static SVG/PNG/PDF/ZIP and video share slideSvg's compact footer. PPTX adds a small editable footer and full notice in notes; HTML has a footer with expandable full notice. Editable downloads add tool metadata without mutating the working deck or autosave/recovery originals. Keep legal/credit text out of railway geometry and animation bounds.
 
 ## Production checks and import/export boundaries
