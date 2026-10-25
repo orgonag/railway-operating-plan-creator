@@ -452,3 +452,71 @@ test("equipment controls, route editing, clearing movement and track endpoints",
   expect((await data()).tracks).toHaveLength(2);
   expect((await data()).tracks[0].b.y).toBe(trackY);
 });
+
+test("expanded canvas and large yards preserve remote tracks in exports", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Skip guide", exact: true }).click();
+  const canvas = page.locator(".drawing");
+  const normal = (await canvas.boundingBox())!;
+  await page
+    .getByRole("button", { name: "Expand canvas", exact: true })
+    .click();
+  const expanded = (await canvas.boundingBox())!;
+  expect(expanded.width).toBeGreaterThan(normal.width + 200);
+  expect(expanded.height).toBeGreaterThan(normal.height);
+  await page.getByLabel("Drawing size", { exact: true }).selectOption("4800");
+  await page.getByRole("button", { name: "Page", exact: true }).click();
+  await expect(page.locator(".drawing svg")).toHaveAttribute(
+    "viewBox",
+    "0 0 4800 2800",
+  );
+  await page.getByRole("button", { name: "Track", exact: true }).click();
+  await drag(page, await at(page, 3000, 1600), await at(page, 4500, 1600));
+  let data = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
+  );
+  expect(data.tracks[0].b.x).toBeCloseTo(4500, 1);
+  await page
+    .getByRole("button", { name: "Restore panels", exact: true })
+    .click();
+  await expect(page.locator(".story-steps")).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Drawing size", { exact: true })).toHaveValue(
+    "4800",
+  );
+  await page.getByRole("button", { name: "Fit", exact: true }).click();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const [svg] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: /^SVG — current/ }).click(),
+  ]);
+  expect(readFileSync((await svg.path())!, "utf8")).toContain(
+    'viewBox="0 0 4800 2800"',
+  );
+  const [png] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: /^PNG — current/ }).click(),
+  ]);
+  expect(readFileSync((await png.path())!).readUInt32BE(16)).toBe(4800);
+  const [html] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: /^Animated HTML/ }).click(),
+  ]);
+  await page.setContent(readFileSync((await html.path())!, "utf8"));
+  await expect(page.locator("svg")).toHaveAttribute("viewBox", "0 0 4800 2800");
+  const inside = await page.locator("[data-track]").evaluate((line) => {
+    const svg = (line as SVGLineElement).ownerSVGElement!,
+      p = svg.createSVGPoint();
+    p.x = 4500;
+    p.y = 1600;
+    const q = p.matrixTransform(svg.getScreenCTM()!),
+      r = svg.getBoundingClientRect();
+    return q.x >= r.left && q.x <= r.right && q.y >= r.top && q.y <= r.bottom;
+  });
+  expect(inside).toBe(true);
+  await page.screenshot({
+    path: test.info().outputPath("large-yard-export.png"),
+  });
+});

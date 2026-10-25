@@ -1,4 +1,4 @@
-import { type Deck, animatedUnits, frameAt, totalMs } from "./model";
+import { type Deck, animatedUnits, frameAt, totalMs, pageSize } from "./model";
 import { escape, scene, standalone } from "./render";
 
 export function wrap(text: string, width = 90): string[] {
@@ -41,7 +41,7 @@ export function slideSvg(
       : s.units;
   return {
     height,
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}"><rect width="1200" height="${height}" fill="#0e1013"/>${includeText ? titles.map((l, i) => `<text x="24" y="${35 + i * 32}" fill="#d9c48c" font-family="sans-serif" font-size="26">${escape(l)}</text>`).join("") : ""}<svg y="${head}" width="1200" height="700" viewBox="0 0 1200 700">${scene(deck, index, units)}</svg>${includeText ? lines.map((l, i) => `<text x="24" y="${head + 730 + i * 25}" fill="#f2efe6" font-family="sans-serif" font-size="20">${escape(l)}</text>`).join("") : ""}</svg>`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}"><rect width="1200" height="${height}" fill="#0e1013"/>${includeText ? titles.map((l, i) => `<text x="24" y="${35 + i * 32}" fill="#d9c48c" font-family="sans-serif" font-size="26">${escape(l)}</text>`).join("") : ""}<svg y="${head}" width="1200" height="700" viewBox="0 0 ${pageSize(deck).width} ${pageSize(deck).height}">${scene(deck, index, units)}</svg>${includeText ? lines.map((l, i) => `<text x="24" y="${head + 730 + i * 25}" fill="#f2efe6" font-family="sans-serif" font-size="20">${escape(l)}</text>`).join("") : ""}</svg>`,
   };
 }
 export function saveBlob(name: string, blob: Blob): void {
@@ -74,11 +74,11 @@ async function raster(
   const { svg, height } = slideSvg(deck, index, 1, includeText);
   const img = await loadSvg(svg),
     canvas = document.createElement("canvas");
-  canvas.width = 1200;
-  canvas.height = height;
+  canvas.width = pageSize(deck).width;
+  canvas.height = Math.ceil((height * canvas.width) / 1200);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas rendering is unavailable.");
-  ctx.drawImage(img, 0, 0);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   return canvas;
 }
 async function png(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -283,18 +283,19 @@ export function openExports(
       for (let i = 0; i < deck.slides.length; i++) {
         if (controller.signal.aborted) return;
         const canvas = await raster(deck, i);
-        const dimensions: [number, number] = [1200, canvas.height];
+        const imageHeight = (canvas.height * 1200) / canvas.width;
+        const dimensions: [number, number] = [1200, imageHeight];
         if (!pdf)
           pdf = new jsPDF({
             unit: "px",
             format: dimensions,
-            orientation: canvas.height > 1200 ? "portrait" : "landscape",
+            orientation: imageHeight > 1200 ? "portrait" : "landscape",
             hotfixes: ["px_scaling"],
           });
         else
           pdf.addPage(
             dimensions,
-            canvas.height > 1200 ? "portrait" : "landscape",
+            imageHeight > 1200 ? "portrait" : "landscape",
           );
         pdf.addImage(
           canvas.toDataURL("image/png"),
@@ -302,7 +303,7 @@ export function openExports(
           0,
           0,
           1200,
-          canvas.height,
+          imageHeight,
         );
       }
       saveBlob("operating-plan.pdf", pdf!.output("blob"));

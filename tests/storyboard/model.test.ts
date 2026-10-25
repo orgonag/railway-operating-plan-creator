@@ -1,4 +1,8 @@
-import { turnoutTracks, validateTracks } from "../../src/storyboard/model";
+import {
+  turnoutTracks,
+  validateTracks,
+  pageSize,
+} from "../../src/storyboard/model";
 import { describe, expect, it } from "vitest";
 import {
   blank,
@@ -189,4 +193,19 @@ describe("track authoring guards", () => {
       ).toThrow(/overlaps/);
     }
   });
+});
+
+it("larger yard dimensions survive saving and permit tracks beyond the old page", () => {
+  const deck = blank();
+  deck.canvasWidth = 4800;
+  const track = { id: "far", a: { x: 3500, y: 1500 }, b: { x: 4600, y: 1500 } };
+  expect(() => validateTracks([track], [], pageSize(deck))).not.toThrow();
+  expect(() => validateTracks([track], [])).toThrow(/drawing page/);
+  expect(pageSize(parseDeck(JSON.stringify(deck)))).toEqual({
+    width: 4800,
+    height: 2800,
+  });
+  expect(pageSize(blank())).toEqual({ width: 1200, height: 700 });
+  deck.canvasWidth = 90000;
+  expect(() => parseDeck(JSON.stringify(deck))).toThrow(/drawing size/);
 });

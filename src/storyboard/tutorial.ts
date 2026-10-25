@@ -35,7 +35,7 @@ export function welcome(root: HTMLElement, force = false): void {
     [
       ".view-controls",
       "Zoom and explore",
-      "Use − and + to zoom, Fit to see the layout, or Page to see the whole drawing. Choose Pan and drag to look around. Ctrl/⌘ + scroll also zooms.",
+      "Expand canvas hides panels for more room. Drawing size adds space for a large yard. Use − / +, Fit or Page to adjust the view, and Pan to look around.",
     ],
     [
       "[data-tour-export]",

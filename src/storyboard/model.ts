@@ -38,6 +38,7 @@ export interface Slide {
   pauseSeconds?: number;
 }
 export interface Deck {
+  canvasWidth?: number;
   format: "railway-slides-1";
   title: string;
   tracks: Track[];
@@ -323,6 +324,11 @@ export function parseDeck(text: string): Deck {
     d.slides.length > 1000
   )
     throw new Error("This is not a railway slide plan.");
+  if (
+    d.canvasWidth !== undefined &&
+    ![1200, 2400, 4800].includes(d.canvasWidth)
+  )
+    throw new Error("Unsupported drawing size.");
   for (const s of d.slides) {
     if (
       s.pauseSeconds !== undefined &&
@@ -452,16 +458,31 @@ export function turnoutTracks(
   ];
 }
 /** Reject stacked rails and interior crossings, but allow endpoint junctions. */
-export function validateTracks(added: Track[], existing: Track[]): void {
+export function pageSize(deck: Pick<Deck, "canvasWidth">): {
+  width: number;
+  height: number;
+} {
+  const width = deck.canvasWidth ?? 1200;
+  return { width, height: (width * 700) / 1200 };
+}
+export function validateTracks(
+  added: Track[],
+  existing: Track[],
+  page = { width: 1200, height: 700 },
+): void {
   const cross = (a: Point, b: Point) => a.x * b.y - a.y * b.x;
   const sub = (a: Point, b: Point) => ({ x: a.x - b.x, y: a.y - b.y });
   for (let i = 0; i < added.length; i++) {
     const a = added[i]!;
     if (distance(a.a, a.b) < 2)
       throw new Error("Track is too short. Choose an end farther away.");
-    if ([a.a, a.b].some((p) => p.x < 0 || p.x > 1200 || p.y < 0 || p.y > 700))
+    if (
+      [a.a, a.b].some(
+        (p) => p.x < 0 || p.x > page.width || p.y < 0 || p.y > page.height,
+      )
+    )
       throw new Error(
-        "Keep tracks inside the drawing page. Zoom out to see its edges.",
+        "Outside the drawing page. Choose a larger Drawing size, or zoom out to see the edges.",
       );
     for (const b of [...existing, ...added.slice(0, i)]) {
       const r = sub(a.b, a.a),

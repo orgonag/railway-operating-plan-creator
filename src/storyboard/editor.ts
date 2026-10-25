@@ -1,5 +1,6 @@
 import {
   blank,
+  pageSize,
   turnoutTracks,
   validateTracks,
   pauseSeconds,
@@ -41,9 +42,10 @@ export function createStoryboard(root: HTMLElement): void {
   let lastAnnotationPick: { id: string; time: number } | undefined;
   let pendingStart: Point | null = null;
   let hover: Point | null = null;
-  let view = { x: 0, y: 0, width: 1200, height: 700 };
+  let view = { x: 0, y: 0, ...pageSize(deck) };
   let pan: { x: number; y: number; view: typeof view } | null = null;
   let space = false;
+  let canvasFocus = false;
   let lastPick: { id: string; time: number } | undefined;
   let history: string[] = [],
     redo: string[] = [],
@@ -93,7 +95,10 @@ export function createStoryboard(root: HTMLElement): void {
     factor: number,
     anchor = { x: view.x + view.width / 2, y: view.y + view.height / 2 },
   ): void {
-    const width = Math.max(240, Math.min(2400, view.width / factor)),
+    const width = Math.max(
+        240,
+        Math.min(pageSize(deck).width * 2, view.width / factor),
+      ),
       ratio = width / view.width;
     view = {
       x: anchor.x - (anchor.x - view.x) * ratio,
@@ -117,7 +122,7 @@ export function createStoryboard(root: HTMLElement): void {
       ...slide().annotations.flatMap((a) => [a.a, a.b]),
     ];
     if (!ps.length) {
-      view = { x: 0, y: 0, width: 1200, height: 700 };
+      view = { x: 0, y: 0, ...pageSize(deck) };
       updateView();
       return;
     }
@@ -141,9 +146,43 @@ export function createStoryboard(root: HTMLElement): void {
     updateView();
   });
   button(viewControls, "Page", () => {
-    view = { x: 0, y: 0, width: 1200, height: 700 };
+    view = { x: 0, y: 0, ...pageSize(deck) };
     updateView();
   });
+  const focusButton = button(viewControls, "Expand canvas", () => {
+    canvasFocus = !canvasFocus;
+    render();
+  });
+  const sizeLabel = document.createElement("label");
+  sizeLabel.className = "drawing-size";
+  sizeLabel.textContent = "Drawing size ";
+  const sizeSelect = document.createElement("select");
+  sizeSelect.setAttribute("aria-label", "Drawing size");
+  for (const [value, label] of [
+    [1200, "Standard · 1200 × 700"],
+    [2400, "Yard · 2400 × 1400"],
+    [4800, "Large yard · 4800 × 2800"],
+  ] as const) {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = label;
+    sizeSelect.append(option);
+  }
+  sizeLabel.append(sizeSelect);
+  viewControls.append(sizeLabel);
+  sizeSelect.onchange = () => {
+    const width = Number(sizeSelect.value);
+    if (width < pageSize(deck).width) {
+      render();
+      return;
+    }
+    change(() => {
+      deck.canvasWidth = width;
+    });
+    tell(
+      "Drawing expanded. Pan to use the extra space, or choose Page to see it all. Existing objects stay in place.",
+    );
+  };
   const panButton = button(viewControls, "Pan", () => {
     cancel();
     tool = tool === "pan" ? "select" : "pan";
@@ -234,9 +273,11 @@ export function createStoryboard(root: HTMLElement): void {
       selected = [];
       trackSelection = [];
       tool = "select";
-      view = { x: 0, y: 0, width: 1200, height: 700 };
+      view = { x: 0, y: 0, ...pageSize(deck) };
       updateView();
     });
+    canvasFocus = false;
+    render();
     welcome(root, true);
   });
   button(files, "Open", () => {
@@ -278,7 +319,11 @@ export function createStoryboard(root: HTMLElement): void {
     index = 0;
     render();
   });
-  button(files, "Help", () => welcome(root, true));
+  button(files, "Help", () => {
+    canvasFocus = false;
+    render();
+    welcome(root, true);
+  });
   const legacy = document.createElement("a");
   legacy.href = "?legacy=1";
   legacy.textContent = "Older plans";
@@ -431,7 +476,7 @@ export function createStoryboard(root: HTMLElement): void {
         const preview = turnoutTracks(snapped.point, orientation);
         let color = "#e0c580";
         try {
-          validateTracks(preview, deck.tracks);
+          validateTracks(preview, deck.tracks, pageSize(deck));
         } catch {
           color = "#ff7869";
         }
@@ -494,6 +539,14 @@ export function createStoryboard(root: HTMLElement): void {
   }
   function render(): void {
     shell.classList.toggle("presenting", presentation);
+    shell.classList.toggle("canvas-focus", canvasFocus && !presentation);
+    focusButton.textContent = canvasFocus ? "Restore panels" : "Expand canvas";
+    focusButton.setAttribute("aria-pressed", String(canvasFocus));
+    focusButton.disabled = presentation || playing;
+    sizeSelect.value = String(pageSize(deck).width);
+    sizeSelect.disabled = playing || presentation;
+    for (const option of Array.from(sizeSelect.options))
+      option.disabled = Number(option.value) < pageSize(deck).width;
     if (!annotations().some((a) => a.id === annotationSelection))
       annotationSelection = null;
     trackSelection = trackSelection.filter((id) =>
@@ -556,7 +609,10 @@ export function createStoryboard(root: HTMLElement): void {
       const b = button(steps, `${i + 1}  ${s.title}`, () => choose(i));
       b.className = i === index ? "slide-card current" : "slide-card";
       const thumb = document.createElementNS(NS, "svg");
-      thumb.setAttribute("viewBox", "0 0 1200 700");
+      thumb.setAttribute(
+        "viewBox",
+        `0 0 ${pageSize(deck).width} ${pageSize(deck).height}`,
+      );
       thumb.innerHTML = scene(deck, i);
       b.prepend(thumb);
     });
@@ -783,7 +839,7 @@ export function createStoryboard(root: HTMLElement): void {
             const old = deck.tracks.filter((t) => t.turnout === selectedGroup);
             const replacement = turnoutTracks(old[0]!.a, i, selectedGroup);
             const rest = deck.tracks.filter((t) => t.turnout !== selectedGroup);
-            validateTracks(replacement, rest);
+            validateTracks(replacement, rest, pageSize(deck));
             deck.tracks = [...rest, ...replacement];
             trackSelection = replacement.map((t) => t.id);
           });
@@ -1005,7 +1061,7 @@ export function createStoryboard(root: HTMLElement): void {
       }
       change(() => {
         const tracks = turnoutTracks(s.point, orientation);
-        validateTracks(tracks, deck.tracks);
+        validateTracks(tracks, deck.tracks, pageSize(deck));
         deck.tracks.push(...tracks);
         trackSelection = tracks.map((t) => t.id);
         tool = "select";
@@ -1256,9 +1312,9 @@ export function createStoryboard(root: HTMLElement): void {
         e.clientY >= bounds.top &&
         e.clientY <= bounds.bottom &&
         p.x >= 0 &&
-        p.x <= 1200 &&
+        p.x <= pageSize(deck).width &&
         p.y >= 0 &&
-        p.y <= 700
+        p.y <= pageSize(deck).height
       )
         place(p);
       return;
@@ -1280,7 +1336,8 @@ export function createStoryboard(root: HTMLElement): void {
     if (distance(d.start, p) < 4) {
       if (d.kind === "annotation") {
         const double =
-          lastAnnotationPick && lastAnnotationPick.id === d.unit &&
+          lastAnnotationPick &&
+          lastAnnotationPick.id === d.unit &&
           performance.now() - lastAnnotationPick.time < 400;
         lastAnnotationPick = { id: d.unit!, time: performance.now() };
         if (double) {
@@ -1325,7 +1382,7 @@ export function createStoryboard(root: HTMLElement): void {
         for (const t of deck.tracks)
           for (const side of ["a", "b"] as const)
             if (distance(t[side], old) < 0.1) t[side] = copy(end);
-        validateTracks(deck.tracks, []);
+        validateTracks(deck.tracks, [], pageSize(deck));
       });
       return;
     }
@@ -1355,7 +1412,7 @@ export function createStoryboard(root: HTMLElement): void {
           a: d.start,
           b: straightEnd(d.start, p, deck.tracks, snapping && !e.altKey),
         };
-        validateTracks([track], deck.tracks);
+        validateTracks([track], deck.tracks, pageSize(deck));
         deck.tracks.push(track);
       });
       return;

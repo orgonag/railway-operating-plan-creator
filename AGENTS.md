@@ -29,10 +29,15 @@ Node 25+ exposes experimental web storage that shadows happy-dom in this test st
 - Turnout segments share optional Track.turnout; select/delete/rotate the group. Old files without grouping remain valid individual segments. Do not infer legacy groups from proximity.
 - validateTracks prevents overlaps, interior crossings, zero-length pieces and off-page creation. Endpoint junctions are allowed. This is geometry validation, never operational simulation.
 - Track tool supports drag and click-start/click-end; it must not resize endpoints. Only Select exposes ordinary endpoint handles. Protect grouped turnout endpoints from partial resizing.
-- ViewBox zoom/pan is view-only. Always convert pointer coordinates through getScreenCTM; palette drops must also check screen bounds. Keep new geometry on the exported 1200x700 page.
+- ViewBox zoom/pan is view-only. Always convert pointer coordinates through getScreenCTM; palette drops must also check screen bounds. Keep new geometry on pageSize(deck), not a hard-coded 1200x700 boundary.
 - First-visit/New tutorial uses railway-welcome-v1 separately from plan data, with Help replay. Browser authoring tests dismiss it explicitly; retain a first-visit/New test. Dialogs must not trigger editor Delete/Space handlers.
 
 ## Annotation interactions
 - Text, arrows and end markers have editor-only hit targets above track hit areas, visible selection and exact-item deletion. Do not put hit targets or selection handles into exported scenes.
 - Annotation editing is independent of geometry locks: earlier slide annotations and Step 1 shared labels remain editable. Shared labels on later steps direct the author to Step 1; never look them up in slide.annotations.
 - Distinguish text double-click from drag on pointerup, and clear click history on other controls. Keep Delete/Backspace inactive in inputs and dialogs. Check narrow inspector visibility, arrow handles, save/open and Undo/Redo.
+
+## Large yards
+- Optional Deck.canvasWidth is 1200, 2400 or 4800; height is width*700/1200. Missing width preserves old 1200x700 plans. UI page sizing is expansion-only and does not move any geometry.
+- Every renderer, thumbnail, placement boundary and exporter must use pageSize. Export raster images at page width; PDF image dimensions must retain aspect ratio. Video remains 1200x900 while fitting the entire diagram.
+- Expand canvas is view-only: hides steps/notes/timing, retains selection controls below the canvas. Help restores panels so tutorial arrows have visible targets.

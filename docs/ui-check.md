@@ -13,7 +13,8 @@ Checked in Chromium, including a 760px-wide viewport for annotation controls. Th
 | Equipment | Independent cuts, locomotive placement, car count +/−, loaded/empty, flip, selection, deletion and Undo |
 | Movement | Five of ten cars, suggested route, manual path, reset path, preview/stop, clear movement |
 | Navigation | Add/remove steps, reload, presentation, autoplay |
-| View | Zoom, pan, Fit and Page recovery; narrow selection panel does not cover canvas |
+| View | Zoom, pan, Fit and Page recovery; narrow selection panel does not cover canvas; expanded canvas increases drawing width and height |
+| Large yards | Expand to 4800x2800, draw beyond old bounds, reload, export full-page SVG/HTML and 4800px-wide PNG |
 | Documents | Plan/step titles, instructions, Download, New confirmation, Open and saved annotation round-trip |
 | Timing | Pause persistence, apply to all, autoplay |
 | Exports | Actual PDF/PPTX/PNG/SVG/ZIP/HTML/video downloads, HTML playback and video decoding |

@@ -55,9 +55,13 @@ Earlier track and equipment snapshots remain preserved. To revise the track layo
 
 ## Zoom, pan and scale
 
-Use the **− / +** buttons above the canvas to zoom from 50% to 500%. **Ctrl/⌘ + scroll** zooms around the pointer. Choose **Pan** and drag to move the view, or hold Space while dragging the canvas. Choose Select or another tool to leave Pan mode.
+Choose **Expand canvas** to hide the step list, notes and timing controls while drawing. Selection controls remain below the canvas so they do not cover your work. **Restore panels** brings the normal editor back. The normal editor also uses tighter spacing to leave more room for the drawing.
 
-**Fit** frames the current layout and content. **Page** restores the entire 1200 × 700 drawing page. Zoom and pan only change your view: saved positions, snapping, and exports stay the same. Keep the drawing inside the page so it appears in all exports. The author decides the scale; the app does not simulate physical lengths or speeds.
+**Drawing size** offers Standard (1200 × 700), Yard (2400 × 1400), and Large yard (4800 × 2800). Expand at any point, even after creating steps: equipment and tracks stay at their original coordinates. Sizes only expand, so existing content cannot be cropped by accidentally shrinking the page.
+
+Use the **− / +** buttons above the canvas to zoom; larger pages allow more zoom-out range. **Ctrl/⌘ + scroll** zooms around the pointer. Choose **Pan** and drag to move the view, or hold Space while dragging the canvas. Choose Select or another tool to leave Pan mode.
+
+**Fit** frames the current layout and content. **Page** shows the entire selected drawing page. Zoom and pan only change your view: saved positions, snapping, and exports stay the same. Keep the drawing inside the selected page. Every export includes the entire page, regardless of the current zoom or pan. PNG diagrams use the selected page width for sharper large-yard images. The author decides the scale; the app does not simulate physical lengths or speeds.
 
 ## Pauses and presentation
 
