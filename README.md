@@ -1,143 +1,91 @@
 # Railway Operating Plan Creator
 
-Draw a railway site, arrange the arriving train, and explain the service one animated step at a time. A slide canvas for the person writing the plan: no switching simulation, prescribed scale, or templates.
+**A free, simple tool for drawing and sharing railway operating plans.**
 
-**[Open the live editor](https://orgonag.github.io/railway-operating-plan-creator/)**
+Explaining a railway move with words alone can be difficult. A single drawing shows where the cars are, but not how they get from one track to another. Redrawing the same yard for every move takes time.
 
-## Your first plan
+This tool lets you draw the yard once, place the locomotive and cars, then show the work one animated step at a time—like making a slide presentation.
 
-### Step 1 — Draw the track layout
+**[Open the free editor →](https://orgonag.github.io/railway-operating-plan-creator/)**
 
-Start from the blank page. Choose **Track**, then either click the start and click the end, or drag between them. A preview follows the pointer. With **Snap: on**, a line stays horizontal or vertical and snaps to the drawing grid and aligned connections. Press Escape to cancel an unfinished line. Hold Alt, or turn snapping off, for free-angle track.
+Runs in your browser. No account or installation needed.
 
-Choose **Turnout** to reveal four small diagrams: **Right up**, **Right down**, **Left up**, and **Left down**. The dot is the connection point; the branch shows exactly where the turnout will go. Select a direction, then click an existing track or drag the Turnout tool onto it. A dashed preview follows the pointer: gold means clear, red means it cannot be placed there. The branch and its short exit are one selectable turnout.
+## What can you make?
 
-The editor rejects stacked/overlapping rails and crossings through the middle of two pieces. Connections at a track end, including an end touching the middle of another track, are allowed. These are drawing aids, not railway operating rules. To join two tracks, make their endpoints touch the intended connection.
+A plan that shows **where the train starts, which cars move, where they go, and what happens next**. Add short instructions, arrows and labels, then play it or export it.
 
-To change or remove a piece:
+For example: a train arrives with three loaded cars. Two empty cars are waiting on a customer track. Your plan shows how the loads are delivered and the empties collected.
 
-- Choose **Select** (or press **V**), then click a track or turnout, or drag a box around several pieces. Selected pieces turn gold. Shift-click adds/removes pieces; Ctrl/⌘+A selects all track pieces.
-- **Drag the middle of a selected line to move it.** A selected group moves together, preserving its shape; turnouts move as one piece. Unselected tracks stay put.
-- Nearby endpoints snap together before the grid takes effect. A green ring previews the connection; the magnetic reach stays consistent as you zoom. Hold **Alt** or turn Snap off for free placement. Overlapping destinations are rejected without changing the drawing.
-- Press **L** or choose **Track** to draw more lines. Select mode moves lines; Track mode draws them.
-- Click **Delete selected track** in the toolbar or inspector, or press Delete/Backspace. A turnout deletes as one piece; its supporting track remains.
-- For a selected turnout, choose a different direction in the inspector. Changes that overlap another piece are rejected.
-- For a selected ordinary line, drag either endpoint to resize it. Connected ordinary endpoints move together. An endpoint attached to a turnout is protected; change/delete the turnout first.
-- **Undo** and **Redo** recover edits. Older saved turnouts without grouping remain individually selectable track sections.
+You decide the movements, routes and scale. The tool helps you draw and explain the plan; it does not decide how to operate the railway.
 
-Add **End of track** markers at track ends, **Text** labels, and **Arrow** annotations. New annotations are selected automatically. Click an existing text label, arrow or end marker to select it; use **Delete annotation** or Delete/Backspace to remove that exact item. Double-click text or choose **Edit text** to change its wording. Drag selected annotations to reposition them; selected arrows have round handles to adjust either end. Undo/Redo restores annotation changes.
+## Make your first plan
 
-Finish the site before choosing **+ Next step**. The layout is shared by the whole plan and locks once the next step exists.
+### 1. Draw the tracks
 
-### Step 2 — Arrange the starting snapshot
+Choose **Track**. Click where a line starts, then click where it ends—or drag between the two points. Keep **Snap: on** to draw straight lines and join nearby ends.
 
-Drag **Locomotive**, **Loaded car**, or **Empty car** onto a track. Each drop creates an independent cut, so you can put equipment on several tracks.
+Choose **Turnout** to add a track connection. Pick one of the four direction pictures, then place it on the drawing. Add **Text** for track names and **End of track** markers where needed.
 
-Click a cut and use **+ / −** in the inspector to change its car count. **Flip** changes which way it faces. **Loaded** and **Empty** change the selected cars. Select equipment and drag to reposition it; **Delete selected** removes it. Locomotives can be placed independently of cars.
+To change something, choose **Select**, click it and drag it. Drag a box to select several pieces. Press **Delete** to remove them, or **Undo** to bring them back.
 
-This is the initial situation: for example, loaded cars arriving with a locomotive while empties wait on a customer track. Choose **+ Next step** when it looks right.
+![Step 1: the Track and Turnout tools above a simple two-track yard.](docs/images/01-draw-tracks.png)
 
-### Step 3 onward — One animation per step
+When the layout is ready, click **+ Next step**. The same tracks are used throughout the plan.
 
-The new slide copies the preceding equipment positions. Select the equipment that moves:
+### 2. Show the starting position
 
-| Action | Selection |
+Drag **Locomotive**, **Loaded car** and **Empty car** from the toolbar onto the tracks. Place equipment on as many tracks as you need.
+
+Click a group of cars and use **+ / −** to change how many it contains. Use **Flip** to change which way equipment faces. Gold cars marked **L** are loaded; dark cars marked **E** are empty.
+
+![Step 2: a locomotive and three loaded cars on the lower track, with two empty cars on the upper track.](docs/images/02-place-train.png)
+
+This step is the starting picture—not a movement. Click **+ Next step** when everything is in place.
+
+### 3. Show one move per step
+
+Select the locomotive and cars that should move, then **drag them to their destination**. The app suggests a path. Click **Preview step** to watch it.
+
+- **Click a car:** select its group, also called a cut.
+- **Double-click a car:** select just that car.
+- **Drag a box:** select only the cars inside it.
+- **Hold Shift:** add more equipment to your selection, such as the locomotive.
+
+Give the step a short title and write what the crew should do. Add arrows or labels if they help. If the suggested route is wrong, use **Edit path** to adjust it.
+
+![Step 3: the selected locomotive and loaded cars moved toward the turnout, with a dashed line showing their path.](docs/images/03-create-movement.png)
+
+**One step = one movement. If the train reverses, start a new step.** Keep clicking **+ Next step** until the work is explained.
+
+### 4. Play it, save it and share it
+
+Set **Pause before next step** to give viewers time to read each instruction. Click **Play plan** to watch the whole sequence, or **Present** to move through it yourself.
+
+**Download** saves an editable plan file. Keep this as your backup; use **Open** to continue editing it later. The browser also saves your work automatically, but a downloaded file lets you keep separate plans or move to another computer.
+
+Choose **Export** when you are ready to share:
+
+| You want to… | Choose… |
 | --- | --- |
-| Click a car | Its cut |
-| Double-click a car | That individual car |
-| Drag a box | The individual cars inside it |
-| Hold Shift while selecting | Add to the existing selection, including a locomotive |
+| Share an animation that opens in a browser | **Animated HTML** |
+| Share a video | **Video** — MP4 where supported, otherwise WebM |
+| Print the steps or send them for review | **PDF** |
+| Put the plan into a presentation | **PowerPoint** — still diagrams with editable titles and instructions |
+| Use individual diagrams in another document | **PNG** or **SVG** |
 
-For example, box-select five cars from a cut of ten, add the locomotive with Shift, and drag the selection to its destination. The editor suggests a path along connected tracks. Selected equipment moves together; unselected equipment stays put. Cars and locomotives may extend beyond track ends or move off track. Their actual positions and spacing carry into the next step. Track geometry suggests a route but never blocks a movement; when track-following would distort the selection, it moves intact along the path.
+![Export menu showing editable files, animated HTML, PDF, PowerPoint, images and video.](docs/images/04-export-plan.png)
 
-Use **Preview step** to watch the movement. If the suggested route is wrong, choose **Edit path**, click waypoints on or off track along the route, and choose **Finish path**. **Reset path** restores the suggestion. **Clear movement** returns to the prior snapshot so you can start again.
+Video takes the plan's playback time to record. Keep the tab visible while it runs. Animated HTML is the quick option when you want to share movement.
 
-Each slide contains one continuous movement in one direction. **A reversal belongs on the next slide.** Add a title, instructions, arrows, or text to explain what happens. Continue adding steps until the service is complete.
+## A few useful tips
 
-Earlier snapshots stay protected until you choose **Revise this step**. Correct tracks or equipment without deleting later slides: their end snapshots, instructions and annotations remain intact. Affected movements show **Review needed**.
+- **Need more room?** Scroll to move around the drawing. Use the zoom buttons or Ctrl/⌘ + scroll to zoom. There are no fixed canvas edges. **Fit** brings the current step back into view.
+- **Made a mistake?** Use **Undo**. To correct an earlier step, choose **Revise this step**. Then use **Rebuild remaining steps** to update the later movements together. It keeps destinations and notes, but suggests paths again—preview the result.
+- **Want a reminder?** Click **Help** for the short guided tour.
+- **Need more detail?** Read the [full user guide](docs/user-guide.md), including path editing, saving, recovery and keyboard controls.
 
-Work through those marked steps in order. **Rebuild this movement** suggests a fresh path from the corrected previous snapshot to the saved destination. **Use previous snapshot** clears the old movement while keeping the step and notes, so you can draw it again. If equipment was removed, use that second option. Preview each repaired step as you go. Export, Present and Play plan wait until the review is complete; **Download** always saves your editable draft, including review markers. Undo restores the earlier document.
+## For contributors
 
-Text and annotations remain editable without unlocking geometry. Shared labels belong to Step 1.
+The app is open source under the [Apache 2.0 licence](LICENSE). Example plans and screenshots use a made-up yard.
 
-## Zoom, pan and scale
-
-Choose **Expand canvas** to hide the step list, notes and timing controls while drawing. Selection controls remain below the canvas so they do not cover your work. **Restore panels** brings the normal editor back. The normal editor also uses tighter spacing to leave more room for the drawing.
-
-**The drawing canvas has no fixed edges.** Keep drawing left, right, up or down—even if you started near the old page boundary. Existing drawings keep their coordinates. There is no drawing-size setting to manage.
-
-Use the mouse wheel or two-finger scroll to pan. **Shift-wheel** scrolls sideways; **Ctrl/⌘ + wheel** zooms around the pointer. You can also hold Space and drag, use Pan, or use the zoom buttons. **Fit** frames the current step; **Whole plan** frames all tracks, annotations and equipment across every step. New plans start at a comfortable 100% view.
-
-Exports automatically frame the whole plan with padding, including negative coordinates and movement paths. Every exported step uses the same frame so the yard stays still during playback. Raster images are capped at 4800 pixels wide; SVG retains vector detail.
-
-Zoom and pan only change the view; authored positions stay unchanged. The author decides the scale; the app does not simulate physical lengths or speeds.
-
-## Pauses and presentation
-
-Set **Pause before next step (seconds)** to control how long the completed slide stays visible. **Apply pause to all steps** copies that value throughout the plan. The default is three seconds; zero advances immediately after movement finishes. You can enter up to 3600 seconds.
-
-Movement duration is automatic. There is no movement-duration setting.
-
-**Play plan** starts at Step 1 and advances automatically, honoring each pause. **Present** provides a larger canvas with manual Previous/Next controls. **Preview step** plays only the current movement and then waits. Stop playback at any time.
-
-## Save and export
-
-The editor automatically saves in the current browser and shows when saving finishes. Text is kept as you type, including if you press Escape. Undo keeps up to 50 recent editing snapshots.
-
-Two open tabs cannot silently overwrite each other: a stale tab shows a notice and keeps its working copy. Download that copy, or load the latest saved plan. Conflicting drafts remain recoverable after closing the tab. Recovery copies are retained so another active tab’s newer work cannot be deleted by restoring an older copy. If browser storage is full, the editor offers downloads and keeps a session fallback where possible; download before closing when saving fails.
-
-Unreadable saved data is protected with an original recovery download. If the backup cannot be stored, the original is not overwritten. Browsers without Web Locks use explicit downloads rather than unsafe cross-tab autosaving.
-
-Opening a plan automatically frames its content. Present and Play plan frame the whole drawing; exiting presentation restores your editing view.
-
- **Download** saves an editable `.slides.json` backup; use **Open** to resume it on another browser or computer. Before **New**, download anything you want to keep as a separate plan.
-
-**Export** creates files on your device:
-
-| Format | Best for | What is included |
-| --- | --- | --- |
-| Editable JSON | Backups and continued editing | Layout, snapshots, paths, text and pauses |
-| Animated HTML | Sharing an offline presentation | Self-contained playback, manual controls and autoplay with pauses |
-| Video | Watching without the editor | MP4 where supported, otherwise WebM; animations and pauses |
-| PDF | Printing and review | One page per step |
-| PowerPoint | Putting the plan in a presentation | Static diagram images with editable titles and instructions |
-| PNG / SVG | Using a diagram elsewhere | Current step, or all steps in a ZIP archive |
-
-Video records in real time. Keep the tab visible while recording; closing the export dialog cancels it. PowerPoint export does not contain native railway shapes or native animations. Animated HTML and video preserve movement. Hosted sharing links are not part of the slide editor.
-
-## A short guide when you need it
-
-An arrow-guided introduction appears on the first visit and after **New**. It points out the drawing tools, the first two setup steps, later movement slides, pause settings, zoom, and Export. Skip it at any time; **Help** reopens it. Once dismissed, it stays dismissed on normal refreshes in that browser.
-
-## Older plans
-
-**Older plans** opens the previous editor at `?legacy=1`. Existing `#plan=` share links also open there. The slide editor uses a separate storage key and file format so it does not overwrite legacy plans. Automatic conversion is not included.
-
-The historical [research spec](docs/spec.md), [architecture review](docs/research/architecture-review.md), and [demo expected states](docs/reference/demo-expected-states.md) describe that earlier simulation-based editor; they are not the current authoring workflow.
-
-## Development
-
-```sh
-npm ci
-npm run dev
-```
-
-The app is TypeScript and Vite. `src/storyboard/` contains the default slide editor; the legacy engine/editor remain separate. Read [AGENTS.md](AGENTS.md) and the [slide-authoring maintenance guide](docs/skills/slide-authoring/SKILL.md) before changes.
-
-```sh
-npm test
-npm run typecheck
-npx playwright install chromium # once per machine
-npm run test:e2e
-npm run build
-```
-
-On Node 25+ use `NODE_OPTIONS=--no-experimental-webstorage npm test` so happy-dom supplies isolated browser storage. Run tests and builds sequentially: the player build regenerates files used by tests.
-
-There is no server build. `npm run build` first builds the standalone player through `prebuild`, then typechecks and builds the frontend into `app/dist`. GitHub Actions deploys `main` to GitHub Pages through `.github/workflows/pages.yml`. Browser tests start or reuse a dev server on port 5181.
-
-All example plans are synthetic. Licensed under [Apache 2.0](LICENSE).
-
-After an early correction, choose **Rebuild remaining steps** on any flagged step to update the later movements together. Destinations and notes are preserved; paths are suggested again. Preview the result, or Undo once to restore the previous version. Individual step review remains available.
-
-Static PDF, PNG and SVG exports fit the yard's shape; PowerPoint uses the available slide area without stretching the diagram. Video export shows its expected recording time. Choose animated HTML for a quick offline animated presentation.
+For local setup, tests and project structure, see [Development](docs/user-guide.md#development), [AGENTS.md](AGENTS.md) and the [slide-authoring maintenance guide](docs/skills/slide-authoring/SKILL.md).
