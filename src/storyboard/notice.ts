@@ -1,8 +1,8 @@
 import type { Deck } from "./model";
 
-export const TOOL_CREDIT = "Tool by Orgo Nag";
+export const TOOL_CREDIT = "Built by Orgo Nag";
 export const NOTICE_LINES = [
-  "Tool by Orgo Nag · Illustrations only; not engineering advice, design certification or verification of capacity, clearances or safety.",
+  "Built by Orgo Nag · Illustrations only; not engineering advice, design certification or verification of capacity, clearances or safety.",
   "Verify plans with qualified personnel and applicable railway rules before use.",
 ];
 export const FULL_NOTICE =

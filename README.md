@@ -28,6 +28,6 @@ This is a visual tool only. It isn't engineering advice or a check of track capa
 
 ---
 
-Created by **Orgo Nag**. Found a bug or have an idea? [Open an issue](https://github.com/orgonag/railway-operating-plan-creator/issues) or reach out to me on LinkedIn.
+Built by **Orgo Nag**. Found a bug or have an idea? [Open an issue](https://github.com/orgonag/railway-operating-plan-creator/issues) or reach out to me on LinkedIn.
 
 [Apache 2.0 licence](LICENSE) · [Development guide](docs/user-guide.md#development) · [Architecture](docs/architecture.md)

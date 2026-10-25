@@ -732,7 +732,7 @@ test("small app notice opens full disclaimer and exported files carry tool credi
 }) => {
   await setup(page);
   const notice = page.getByRole("button", {
-    name: "Tool by Orgo Nag · Visual use only",
+    name: "Built by Orgo Nag · Visual use only",
     exact: true,
   });
   await notice.click();
@@ -743,7 +743,7 @@ test("small app notice opens full disclaimer and exported files carry tool credi
   await page.getByRole("button", { name: "Export", exact: true }).click();
   for (const [label, expected] of [
     [/^Editable plan/, '"author": "Orgo Nag"'],
-    [/^SVG — current/, "Tool by Orgo Nag"],
+    [/^SVG — current/, "Built by Orgo Nag"],
     [/^Animated HTML/, "Full visual-use disclaimer"],
   ] as const) {
     const [download] = await Promise.all([
