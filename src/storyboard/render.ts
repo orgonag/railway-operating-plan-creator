@@ -1,4 +1,11 @@
-import { type Deck, type Unit, type Point, animatedUnits } from "./model";
+import {
+  type Deck,
+  type Unit,
+  type Point,
+  animatedUnits,
+  pauseSeconds,
+  movementMs,
+} from "./model";
 export const escape = (s: string): string =>
   s.replace(
     /[&<>"']/g,
@@ -48,6 +55,8 @@ export function standalone(deck: Deck): string {
   const slides = deck.slides.map((s, i) => ({
     title: s.title,
     text: s.text,
+    hold: pauseSeconds(s) * 1000,
+    movement: movementMs(s, i),
     markup: scene(deck, i),
     frames:
       s.motion && i > 1
@@ -63,6 +72,7 @@ export function standalone(deck: Deck): string {
           )
         : null,
   }));
-  const js = `const slides=${JSON.stringify(slides).replace(/</g, "\\u003c")};let index=0,token=0;const canvas=document.querySelector('svg'),caption=document.querySelector('#caption');function show(i){index=Math.max(0,Math.min(slides.length-1,i));const s=slides[index],run=++token;caption.textContent=(index+1)+' / '+slides.length+' — '+s.title+' — '+s.text;document.querySelector('#previous').disabled=index===0;document.querySelector('#next').disabled=index===slides.length-1;canvas.innerHTML=s.markup;const units=new Map([...canvas.querySelectorAll('[data-unit]')].map(el=>[el.dataset.unit,el]));const start=performance.now();function frame(now){if(run!==token||!s.frames)return;const t=Math.min(1,(now-start)/2200),ease=t*t*(3-2*t),sample=s.frames[Math.round(ease*60)];for(const u of sample){units.get(u.id)?.setAttribute('transform','translate('+u.x+' '+u.y+') rotate('+u.angle+')');}if(t<1)requestAnimationFrame(frame);}requestAnimationFrame(frame);}document.querySelector('#previous').onclick=()=>show(index-1);document.querySelector('#next').onclick=()=>show(index+1);document.querySelector('#replay').onclick=()=>show(index);show(0);`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escape(deck.title)}</title><style>body{background:#0e1013;color:#f2efe6;font:16px system-ui;margin:24px}svg{width:100%;max-height:75vh}.ghost{opacity:.2}button{padding:12px;margin-right:8px}#caption{white-space:pre-wrap}</style></head><body><h1>${escape(deck.title)}</h1><svg viewBox="0 0 1200 700"></svg><p id="caption"></p><button id="previous">Previous</button><button id="replay">Replay</button><button id="next">Next</button><script>${js}</script></body></html>`;
+  const js = `const slides=${JSON.stringify(slides).replace(/</g, "\\u003c")};let index=0,token=0,auto=false;const canvas=document.querySelector('svg'),caption=document.querySelector('#caption'),play=document.querySelector('#autoplay');function show(i){index=Math.max(0,Math.min(slides.length-1,i));const s=slides[index],run=++token;caption.textContent=(index+1)+' / '+slides.length+' — '+s.title+' — '+s.text;document.querySelector('#previous').disabled=index===0;document.querySelector('#next').disabled=index===slides.length-1;play.textContent=auto?'Stop autoplay':'Autoplay';canvas.innerHTML=s.markup;const units=new Map([...canvas.querySelectorAll('[data-unit]')].map(el=>[el.dataset.unit,el]));const start=performance.now();function frame(now){if(run!==token)return;const elapsed=now-start,t=s.movement?Math.min(1,elapsed/s.movement):1,ease=t*t*(3-2*t);if(s.frames)for(const u of s.frames[Math.round(ease*60)])units.get(u.id)?.setAttribute('transform','translate('+u.x+' '+u.y+') rotate('+u.angle+')');if(auto&&elapsed>=s.movement+s.hold){if(index<slides.length-1)show(index+1);else{auto=false;play.textContent='Autoplay';}return;}if(t<1||auto)requestAnimationFrame(frame);}requestAnimationFrame(frame);}document.querySelector('#previous').onclick=()=>{auto=false;show(index-1);};document.querySelector('#next').onclick=()=>{auto=false;show(index+1);};document.querySelector('#replay').onclick=()=>{auto=false;show(index);};play.onclick=()=>{if(auto){auto=false;++token;play.textContent='Autoplay';}else{auto=true;show(0);}};show(0);`;
+
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escape(deck.title)}</title><style>body{background:#0e1013;color:#f2efe6;font:16px system-ui;margin:24px}svg{width:100%;max-height:75vh}.ghost{opacity:.2}button{padding:12px;margin-right:8px}#caption{white-space:pre-wrap}</style></head><body><h1>${escape(deck.title)}</h1><svg viewBox="0 0 1200 700"></svg><p id="caption"></p><button id="autoplay">Autoplay</button><button id="previous">Previous</button><button id="replay">Replay</button><button id="next">Next</button><script>${js}</script></body></html>`;
 }

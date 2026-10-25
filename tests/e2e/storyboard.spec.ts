@@ -62,9 +62,10 @@ test("draw, drop ten cars, select five, animate, reload and present offline", as
   await page.reload();
   await page.locator(".slide-card").nth(2).click();
   await expect(page.locator(".drawing .motion-path")).toHaveCount(1);
+  await page.getByRole("button", { name: "Export", exact: true }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Export animation" }).click(),
+    page.getByRole("button", { name: /^Animated HTML/ }).click(),
   ]);
   const html = readFileSync((await download.path())!, "utf8");
   const errors: string[] = [];
@@ -93,4 +94,98 @@ test("multiple cuts, locomotive, individual selection, flip and undo", async ({
   await page.getByRole("button", { name: "+ Next step", exact: true }).click();
   await page.locator(".drawing [data-unit]").first().dblclick();
   await expect(page.locator(".drawing .chosen")).toHaveCount(1);
+});
+
+test("straight drawing, pause persistence, autoplay and actual export files", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Track", exact: true }).click();
+  await drag(page, await at(page, 100, 300), await at(page, 1050, 325));
+  let d = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
+  );
+  expect(d.tracks[0].a.y).toBe(d.tracks[0].b.y);
+  await page.getByLabel("Pause before next step (seconds)").fill("0.5");
+  await page.getByLabel("Pause before next step (seconds)").press("Tab");
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drop(page, "loco", 200, 300);
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drag(page, await at(page, 200, 300), await at(page, 600, 300));
+  await page
+    .getByLabel("Step instructions")
+    .fill("Export check: loaded cars and empties.");
+  await page.getByLabel("Step instructions").press("Tab");
+  await page.getByRole("button", { name: "Apply pause to all steps" }).click();
+  await page.reload();
+  await page.locator(".slide-card").nth(2).click();
+  await expect(page.getByLabel("Pause before next step (seconds)")).toHaveValue(
+    "0.5",
+  );
+  await page.getByRole("button", { name: "▶ Play plan" }).click();
+  await expect(page.locator(".phase")).toContainText("STEP 3 / 3", {
+    timeout: 5000,
+  });
+  await expect(page.getByRole("button", { name: "▶ Play plan" })).toBeVisible({
+    timeout: 5000,
+  });
+  await page.getByRole("button", { name: "Exit presentation" }).click();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const files: Record<string, Buffer> = {};
+  for (const label of [
+    /^PDF —/,
+    /^PowerPoint/,
+    /^PNG — current/,
+    /^SVG — current/,
+    /^SVG — all/,
+    /^PNG — all/,
+    /^Animated HTML/,
+    /^Video \(/,
+  ]) {
+    const b = page.getByRole("button", { name: label });
+    if (label.source.startsWith("^Video") && (await b.count()) === 0) continue;
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      b.click(),
+    ]);
+    files[download.suggestedFilename()] = readFileSync(
+      (await download.path())!,
+    );
+    await expect(
+      page.getByRole("status").filter({ hasText: "Export ready" }),
+    ).toBeVisible();
+  }
+  expect(files["operating-plan.pdf"]!.subarray(0, 4).toString()).toBe("%PDF");
+  expect(files["operating-plan.pptx"]!.subarray(0, 2).toString()).toBe("PK");
+  expect(files["step-3.png"]![0]).toBe(137);
+  expect(files["step-3.svg"]!.toString()).toContain("Export check");
+  const { unzipSync, strFromU8 } = await import("fflate");
+  const ppt = unzipSync(files["operating-plan.pptx"]!);
+  expect(strFromU8(ppt["ppt/slides/slide3.xml"]!)).toContain("Export check");
+  expect(Object.keys(unzipSync(files["operating-plan-svg.zip"]!))).toHaveLength(
+    3,
+  );
+  const video = Object.keys(files).find((n) => /\.(mp4|webm)$/.test(n));
+  expect(video).toBeTruthy();
+  expect(files[video!]!.length).toBeGreaterThan(1000);
+  const mime = video!.endsWith("mp4") ? "video/mp4" : "video/webm";
+  await page.setContent(
+    `<video controls src="data:${mime};base64,${files[video!]!.toString("base64")}"></video>`,
+  );
+  await expect
+    .poll(() =>
+      page.locator("video").evaluate((v) => (v as HTMLVideoElement).readyState),
+    )
+    .toBeGreaterThan(0);
+  expect(
+    await page
+      .locator("video")
+      .evaluate((v) => (v as HTMLVideoElement).videoWidth),
+  ).toBe(1200);
+  await page.setContent(files["operating-plan.html"]!.toString());
+  await page.locator("#autoplay").click();
+  await expect(page.locator("#caption")).toContainText("3 / 3", {
+    timeout: 5000,
+  });
+  await expect(page.locator("#autoplay")).toHaveText("Autoplay");
 });

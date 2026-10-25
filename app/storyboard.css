@@ -304,3 +304,62 @@
     grid-template-rows: auto minmax(0, 1fr) auto;
   }
 }
+.slide-timing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--steel);
+}
+.slide-timing input {
+  width: 75px;
+  border: 1px solid var(--rail);
+  background: var(--panel);
+}
+.slide-timing button {
+  font-size: 11px;
+}
+.play-controls {
+  flex-wrap: wrap;
+}
+.export-dialog {
+  width: min(800px, 95vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+.export-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+.export-choices button {
+  text-align: left;
+  padding: 14px;
+  color: var(--gold);
+}
+.export-choices small {
+  display: block;
+  font-size: 12px;
+  color: var(--steel);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.export-choices button:disabled {
+  opacity: 0.45;
+}
+.export-dialog > button {
+  float: right;
+}
+@media (max-width: 600px) {
+  .export-choices {
+    grid-template-columns: 1fr;
+  }
+  .slide-timing {
+    gap: 4px;
+  }
+  .play-controls {
+    gap: 4px;
+  }
+}

@@ -1,5 +1,9 @@
 import {
   blank,
+  pauseSeconds,
+  movementMs,
+  durationMs,
+  straightEnd,
   copy,
   id,
   nextSlide,
@@ -15,7 +19,8 @@ import {
   type Unit,
   type Annotation,
 } from "./model";
-import { scene, points, standalone } from "./render";
+import { scene, points } from "./render";
+import { openExports } from "./exports";
 const KEY = "railway-storyboard-v1";
 const NS = "http://www.w3.org/2000/svg";
 export function createStoryboard(root: HTMLElement): void {
@@ -25,6 +30,7 @@ export function createStoryboard(root: HTMLElement): void {
     tool = "select",
     orientation = 0,
     playing = false,
+    snapping = true,
     presentation = false,
     token = 0;
   let lastPick: { id: string; time: number } | undefined;
@@ -62,8 +68,12 @@ export function createStoryboard(root: HTMLElement): void {
     )!,
     instructions = root.querySelector<HTMLTextAreaElement>("textarea")!,
     controls = root.querySelector<HTMLElement>(".play-controls")!;
+  const timing = document.createElement("div");
+  timing.className = "slide-timing";
+  controls.before(timing);
   const slide = () => deck.slides[index]!;
-  const editable = () => index === deck.slides.length - 1 && !presentation;
+  const editable = () =>
+    index === deck.slides.length - 1 && !presentation && !playing;
   function button(
     parent: HTMLElement,
     label: string,
@@ -89,6 +99,7 @@ export function createStoryboard(root: HTMLElement): void {
     drag = null;
   }
   function change(fn: () => void): void {
+    cancel();
     const previous = JSON.stringify(deck);
     try {
       fn();
@@ -164,9 +175,11 @@ export function createStoryboard(root: HTMLElement): void {
   button(files, "Download", () =>
     download("operating-plan.slides.json", JSON.stringify(deck, null, 2)),
   );
-  button(files, "Export animation", () =>
-    download("operating-plan.html", standalone(deck), "text/html"),
-  );
+  button(files, "Export", () => {
+    cancel();
+    render();
+    openExports(copy(deck), index, root);
+  });
   button(files, "Present", () => {
     cancel();
     presentation = !presentation;
@@ -256,8 +269,50 @@ export function createStoryboard(root: HTMLElement): void {
     title.value = deck.title;
     heading.value = slide().title;
     instructions.value = slide().text;
-    heading.disabled = presentation;
-    instructions.disabled = presentation;
+    heading.disabled = presentation || playing;
+    instructions.disabled = presentation || playing;
+    title.disabled = playing;
+    timing.replaceChildren();
+    if (!presentation) {
+      const label = document.createElement("label");
+      label.textContent = "Pause before next step (seconds) ";
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "0";
+      input.max = "3600";
+      input.step = "0.5";
+      input.value = String(pauseSeconds(slide()));
+      input.setAttribute("aria-label", "Pause before next step (seconds)");
+      input.disabled = playing;
+      input.onchange = () => {
+        const value = Number(input.value);
+        if (
+          input.value.trim() === "" ||
+          !Number.isFinite(value) ||
+          value < 0 ||
+          value > 3600
+        ) {
+          tell("Enter a pause from 0 to 3600 seconds.");
+          input.value = String(pauseSeconds(slide()));
+          return;
+        }
+        change(() => {
+          slide().pauseSeconds = value;
+        });
+      };
+      label.append(input);
+      timing.append(label);
+      button(
+        timing,
+        "Apply pause to all steps",
+        () =>
+          change(() => {
+            const value = pauseSeconds(slide());
+            deck.slides.forEach((s) => (s.pauseSeconds = value));
+          }),
+        playing,
+      );
+    }
     root.querySelector(".phase")!.textContent =
       `STEP ${index + 1} / ${deck.slides.length} · ${index === 0 ? "DRAW THE SITE" : index === 1 ? "STARTING SNAPSHOT" : "ONE MOVEMENT"}`;
     steps.replaceChildren();
@@ -394,7 +449,26 @@ export function createStoryboard(root: HTMLElement): void {
         },
         !editable(),
       );
+    button(
+      tools,
+      snapping ? "Snap: on" : "Snap: off",
+      () => {
+        snapping = !snapping;
+        render();
+      },
+      playing,
+    );
     controls.replaceChildren();
+    button(controls, playing ? "Stop playback" : "▶ Play plan", () => {
+      if (playing) {
+        cancel();
+        render();
+      } else {
+        index = 0;
+        presentation = true;
+        preview(true);
+      }
+    });
     button(controls, "Previous", () => choose(index - 1), index === 0);
     button(
       controls,
@@ -585,7 +659,8 @@ export function createStoryboard(root: HTMLElement): void {
     const q = p.matrixTransform(matrix.inverse());
     return { x: q.x, y: q.y };
   }
-  function grid(p: Point): Point {
+  function grid(p: Point, bypass = false): Point {
+    if (!snapping || bypass) return p;
     const s = snap(p, deck.tracks);
     if (s && distance(s.point, p) < 12) return s.point;
     return { x: Math.round(p.x / 20) * 20, y: Math.round(p.y / 20) * 20 };
@@ -648,7 +723,13 @@ export function createStoryboard(root: HTMLElement): void {
       const text = window.prompt("Label text");
       if (text?.trim())
         change(() =>
-          annotations().push({ id: id(), kind: "text", a: p, b: p, text }),
+          annotations().push({
+            id: id(),
+            kind: "text",
+            a: grid(p),
+            b: grid(p),
+            text,
+          }),
         );
     }
   }
@@ -702,7 +783,7 @@ export function createStoryboard(root: HTMLElement): void {
     if (tool === "track" || tool === "arrow") {
       drag = {
         kind: tool,
-        start: tool === "track" ? grid(p) : p,
+        start: grid(p, e.altKey),
         end: p,
         ids: [],
         add: false,
@@ -772,7 +853,10 @@ export function createStoryboard(root: HTMLElement): void {
   });
   window.addEventListener("pointermove", (e) => {
     if (!drag || drag.kind === "palette") return;
-    drag.end = point(e);
+    drag.end =
+      drag.kind === "track"
+        ? straightEnd(drag.start, point(e), deck.tracks, snapping && !e.altKey)
+        : point(e);
     if (drag.kind === "units") {
       const dx = drag.end.x - drag.start.x,
         dy = drag.end.y - drag.start.y;
@@ -809,11 +893,24 @@ export function createStoryboard(root: HTMLElement): void {
         const track = deck.tracks.find((t) => t.id === d.unit)!;
         const old = copy(track[d.side!]);
         const others = deck.tracks.filter((t) => t.id !== track.id);
-        const projected = snap(p, others);
+        const candidate =
+          Math.abs(track.a.x - track.b.x) < 0.1 ||
+          Math.abs(track.a.y - track.b.y) < 0.1
+            ? straightEnd(
+                track[d.side === "a" ? "b" : "a"],
+                p,
+                others,
+                snapping && !e.altKey,
+              )
+            : grid(p, e.altKey);
+        const projected = snap(candidate, others);
         const end =
-          projected && distance(projected.point, p) < 12
+          snapping &&
+          !e.altKey &&
+          projected &&
+          distance(projected.point, candidate) < 12
             ? projected.point
-            : { x: Math.round(p.x / 20) * 20, y: Math.round(p.y / 20) * 20 };
+            : candidate;
         for (const t of deck.tracks)
           for (const side of ["a", "b"] as const)
             if (distance(t[side], old) < 0.1) t[side] = copy(end);
@@ -823,8 +920,9 @@ export function createStoryboard(root: HTMLElement): void {
     if (d.kind === "annotation") {
       change(() => {
         const a = annotations().find((a) => a.id === d.unit)!;
-        const dx = p.x - d.start.x,
-          dy = p.y - d.start.y;
+        const target = grid(p, e.altKey);
+        const dx = target.x - d.start.x,
+          dy = target.y - d.start.y;
         a.a = { x: a.a.x + dx, y: a.a.y + dy };
         a.b = { x: a.b.x + dx, y: a.b.y + dy };
       });
@@ -832,7 +930,11 @@ export function createStoryboard(root: HTMLElement): void {
     }
     if (d.kind === "track") {
       change(() =>
-        deck.tracks.push({ id: id(), a: grid(d.start), b: grid(p) }),
+        deck.tracks.push({
+          id: id(),
+          a: d.start,
+          b: straightEnd(d.start, p, deck.tracks, snapping && !e.altKey),
+        }),
       );
       return;
     }
@@ -932,26 +1034,40 @@ export function createStoryboard(root: HTMLElement): void {
       });
     }
   });
-  function preview(): void {
-    const m = slide().motion;
-    if (!m || index < 2) return;
+  function preview(autoplay = false): void {
+    if (!autoplay && (!slide().motion || index < 2)) return;
     cancel();
     playing = true;
     selected = [];
     render();
-    const run = ++token,
-      start = performance.now();
+    const run = ++token;
+    let start = performance.now();
     function frame(now: number): void {
       if (run !== token) return;
-      const t = Math.min(1, (now - start) / 2200);
+      const current = slide(),
+        elapsed = now - start,
+        move = movementMs(current, index);
+      const t = move ? Math.min(1, elapsed / move) : 1;
       paint(
-        animatedUnits(deck.slides[index - 1]!.units, m!, t * t * (3 - 2 * t)),
+        current.motion && index > 1
+          ? animatedUnits(
+              deck.slides[index - 1]!.units,
+              current.motion,
+              t * t * (3 - 2 * t),
+            )
+          : current.units,
       );
-      if (t < 1) requestAnimationFrame(frame);
-      else {
-        playing = false;
-        render();
-      }
+      if (autoplay ? elapsed >= durationMs(current, index) : t >= 1) {
+        if (autoplay && index < deck.slides.length - 1) {
+          index++;
+          start = now;
+          render();
+          requestAnimationFrame(frame);
+        } else {
+          playing = false;
+          render();
+        }
+      } else requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
   }

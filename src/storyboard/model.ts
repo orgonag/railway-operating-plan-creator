@@ -34,6 +34,7 @@ export interface Slide {
   units: Unit[];
   annotations: Annotation[];
   motion?: Motion;
+  pauseSeconds?: number;
 }
 export interface Deck {
   format: "railway-slides-1";
@@ -67,6 +68,7 @@ export function nextSlide(deck: Deck): Slide {
         ? "Starting snapshot"
         : `Service step ${deck.slides.length - 1}`,
     text: "",
+    pauseSeconds: pauseSeconds(prev),
     units: copy(prev.units),
     annotations: [],
   };
@@ -318,6 +320,13 @@ export function parseDeck(text: string): Deck {
     throw new Error("This is not a railway slide plan.");
   for (const s of d.slides) {
     if (
+      s.pauseSeconds !== undefined &&
+      (!Number.isFinite(s.pauseSeconds) ||
+        s.pauseSeconds < 0 ||
+        s.pauseSeconds > 3600)
+    )
+      throw new Error("Pause must be between 0 and 3600 seconds.");
+    if (
       !s ||
       typeof s.id !== "string" ||
       typeof s.title !== "string" ||
@@ -362,4 +371,58 @@ export function parseDeck(text: string): Deck {
       throw new Error("Invalid movement path.");
   }
   return d;
+}
+
+/** Fixed automatic animation duration; only the hold is author-controlled. */
+export const MOVEMENT_MS = 2200;
+export const DEFAULT_PAUSE = 3;
+export function pauseSeconds(slide: Slide): number {
+  return slide.pauseSeconds ?? DEFAULT_PAUSE;
+}
+export function movementMs(slide: Slide, index: number): number {
+  return index > 1 && slide.motion ? MOVEMENT_MS : 0;
+}
+export function durationMs(slide: Slide, index: number): number {
+  return movementMs(slide, index) + pauseSeconds(slide) * 1000;
+}
+export function totalMs(deck: Deck): number {
+  return deck.slides.reduce((sum, s, i) => sum + durationMs(s, i), 0);
+}
+export function frameAt(
+  deck: Deck,
+  elapsed: number,
+): { index: number; progress: number } {
+  let index = 0;
+  for (; index < deck.slides.length - 1; index++) {
+    const duration = durationMs(deck.slides[index]!, index);
+    if (elapsed < duration) break;
+    elapsed -= duration;
+  }
+  const movement = movementMs(deck.slides[index]!, index);
+  const t = movement ? Math.min(1, Math.max(0, elapsed / movement)) : 1;
+  return { index, progress: t * t * (3 - 2 * t) };
+}
+/** Orthogonal new tracks, with connections only if they preserve the chosen axis. */
+export function straightEnd(
+  start: Point,
+  target: Point,
+  tracks: Track[],
+  enabled = true,
+): Point {
+  if (!enabled) return { ...target };
+  const horizontal =
+    Math.abs(target.x - start.x) >= Math.abs(target.y - start.y);
+  const end = horizontal
+    ? { x: Math.round(target.x / 20) * 20, y: start.y }
+    : { x: start.x, y: Math.round(target.y / 20) * 20 };
+  const candidate = snap(end, tracks);
+  if (
+    candidate &&
+    distance(candidate.point, end) < 12 &&
+    (horizontal
+      ? Math.abs(candidate.point.y - start.y) < 0.1
+      : Math.abs(candidate.point.x - start.x) < 0.1)
+  )
+    return candidate.point;
+  return end;
 }

@@ -35,3 +35,11 @@ From Step 3, click a cut, double-click an individual car, or drag a box around a
 Next step copies equipment positions. Each step has its own instructions, labels and arrows. Track layout and starting equipment become locked when later steps exist; remove later steps (or Undo) before revising setup. Earlier titles and instructions remain editable. Save locally, download the `.slides.json` file, or export a self-contained animated HTML presentation. Existing plan data is preserved; use **Older plans** (`?legacy=1`) for the previous editor. Old share links also open there. Automatic conversion and PowerPoint export are not included.
 
 On Node versions exposing experimental global web storage, use `NODE_OPTIONS=--no-experimental-webstorage npm test` so happy-dom supplies isolated browser storage. This is a runtime compatibility issue in the existing test stack, not a change to application storage.
+
+### Pauses, straight snapping and exports
+
+Each slide now has **Pause before next step (seconds)** and **Apply pause to all steps**. **Play plan** starts autoplay; movement duration stays automatic and fixed. Manual Preview/Next still waits for you. Older files default to a three-second pause. Pauses are saved in the editable plan and carried into animated HTML and video.
+
+**Snap: on** keeps new track lines horizontal or vertical and preserves turnout diagonals. Turn snapping off, or hold Alt while drawing, for a free-angle line.
+
+**Export** offers editable JSON, offline animated HTML with autoplay, one-page-per-step PDF, static PowerPoint with editable titles/instructions, current-step PNG/SVG, all-step PNG/SVG ZIP archives, and video. The browser selects MP4 when supported or WebM otherwise. Video records in real time: keep the tab visible; closing the export dialog cancels recording. Exports are created on your device. Hosted share links and native PowerPoint animations are not included.
