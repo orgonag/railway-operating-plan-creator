@@ -664,7 +664,10 @@ export function parseDeck(text: string): Deck {
       (!Array.isArray(m.continuation) ||
         m.continuation.length < 2 ||
         !m.continuation.every(point) ||
-        reverses(m.continuation) ||
+        reverses([
+          ...((m.railPath ?? m.path) as Point[]),
+          ...m.continuation.slice(1),
+        ]) ||
         !near(m.continuation[0]!, ((m.railPath ?? m.path) as Point[]).at(-1)!))
     )
       throw new Error("Invalid movement continuation.");

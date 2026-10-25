@@ -605,4 +605,12 @@ it("cars ahead of a dragged rear car turn onto connected track beyond its destin
   const bad = JSON.parse(JSON.stringify(d));
   bad.slides[2].motion.continuation[0].x += 10;
   expect(() => parseDeck(JSON.stringify(bad))).toThrow(/continuation/);
+  for (const useRailPath of [true, false]) {
+    const reversing = structuredClone(d);
+    const motion = reversing.slides[2]!.motion!;
+    if (!useRailPath) delete motion.railPath;
+    const path = motion.railPath ?? motion.path;
+    motion.continuation = [path.at(-1)!, path.at(-2)!];
+    expect(() => parseDeck(JSON.stringify(reversing))).toThrow(/continuation/);
+  }
 });

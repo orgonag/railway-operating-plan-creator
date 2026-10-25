@@ -48,7 +48,7 @@ The new slide copies the preceding equipment positions. Select the equipment tha
 | Drag a box | The individual cars inside it |
 | Hold Shift while selecting | Add to the existing selection, including a locomotive |
 
-For example, box-select five cars from a cut of ten, add the locomotive with Shift, and drag the selection to its destination. The editor suggests a path along connected tracks. Selected equipment moves together; unselected equipment stays put. Cars and locomotives may extend beyond track ends or move off track. Their actual positions and spacing carry into the next step. Track geometry suggests a route but never blocks a movement; when track-following would distort the selection, it moves intact along the path.
+For example, box-select five cars from a cut of ten, add the locomotive with Shift, and drag the selection to its destination. The editor suggests a path along connected tracks. Selected equipment moves together; unselected equipment stays put. Cars and locomotives may extend beyond track ends or move off track. Their actual positions and spacing carry into the next step. When track-following would distort the selection, it moves intact along the path. If a suggested route requires reversing, stop before the reversal and add the next movement on a new slide.
 
 Use **Preview step** to watch the movement. If the suggested route is wrong, choose **Edit path**, click waypoints on or off track along the route, and choose **Finish path**. **Reset path** restores the suggestion. **Clear movement** returns to the prior snapshot so you can start again.
 
