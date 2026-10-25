@@ -38,6 +38,6 @@ Node 25+ exposes experimental web storage that shadows happy-dom in this test st
 - Distinguish text double-click from drag on pointerup, and clear click history on other controls. Keep Delete/Backspace inactive in inputs and dialogs. Check narrow inspector visibility, arrow handles, save/open and Undo/Redo.
 
 ## Large yards
-- Optional Deck.canvasWidth is 1200, 2400 or 4800; height is width*700/1200. Missing width preserves old 1200x700 plans. UI page sizing is expansion-only and does not move any geometry.
-- Every renderer, thumbnail, placement boundary and exporter must use pageSize. Export raster images at page width; PDF image dimensions must retain aspect ratio. Video remains 1200x900 while fitting the entire diagram.
+- Optional Deck.canvasWidth is 1200, 2400, 4800 or 9600; height is width*700/1200. New plans explicitly use 9600; missing width preserves old 1200x700 plans. Initial/New view stays 1200x700 at 100% zoom. UI page sizing is expansion-only and does not move any geometry.
+- Every renderer, thumbnail, placement boundary and exporter must use pageSize. Export raster images at page width capped at 4800; PDF image dimensions must retain aspect ratio. Video remains 1200x900 while fitting the entire diagram.
 - Expand canvas is view-only: hides steps/notes/timing, retains selection controls below the canvas. Help restores panels so tutorial arrows have visible targets.

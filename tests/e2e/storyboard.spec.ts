@@ -256,7 +256,7 @@ test("welcome, click-to-draw, grouped turnouts, deletion and zoom", async ({
   await page.getByRole("button", { name: "Page", exact: true }).click();
   await expect(page.locator(".drawing svg")).toHaveAttribute(
     "viewBox",
-    "0 0 1200 700",
+    "0 0 9600 5600",
   );
   await page.reload();
   await expect(
@@ -466,25 +466,31 @@ test("expanded canvas and large yards preserve remote tracks in exports", async 
   const expanded = (await canvas.boundingBox())!;
   expect(expanded.width).toBeGreaterThan(normal.width + 200);
   expect(expanded.height).toBeGreaterThan(normal.height);
-  await page.getByLabel("Drawing size", { exact: true }).selectOption("4800");
+  await expect(page.getByLabel("Drawing size", { exact: true })).toHaveValue(
+    "9600",
+  );
+  await expect(page.locator(".drawing svg")).toHaveAttribute(
+    "viewBox",
+    "0 0 1200 700",
+  );
   await page.getByRole("button", { name: "Page", exact: true }).click();
   await expect(page.locator(".drawing svg")).toHaveAttribute(
     "viewBox",
-    "0 0 4800 2800",
+    "0 0 9600 5600",
   );
   await page.getByRole("button", { name: "Track", exact: true }).click();
-  await drag(page, await at(page, 3000, 1600), await at(page, 4500, 1600));
+  await drag(page, await at(page, 7000, 4600), await at(page, 9000, 4600));
   let data = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
   );
-  expect(data.tracks[0].b.x).toBeCloseTo(4500, 1);
+  expect(data.tracks[0].b.x).toBeCloseTo(9000, 1);
   await page
     .getByRole("button", { name: "Restore panels", exact: true })
     .click();
   await expect(page.locator(".story-steps")).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Drawing size", { exact: true })).toHaveValue(
-    "4800",
+    "9600",
   );
   await page.getByRole("button", { name: "Fit", exact: true }).click();
   await page.getByRole("button", { name: "Export", exact: true }).click();
@@ -493,7 +499,7 @@ test("expanded canvas and large yards preserve remote tracks in exports", async 
     page.getByRole("button", { name: /^SVG — current/ }).click(),
   ]);
   expect(readFileSync((await svg.path())!, "utf8")).toContain(
-    'viewBox="0 0 4800 2800"',
+    'viewBox="0 0 9600 5600"',
   );
   const [png] = await Promise.all([
     page.waitForEvent("download"),
@@ -505,12 +511,12 @@ test("expanded canvas and large yards preserve remote tracks in exports", async 
     page.getByRole("button", { name: /^Animated HTML/ }).click(),
   ]);
   await page.setContent(readFileSync((await html.path())!, "utf8"));
-  await expect(page.locator("svg")).toHaveAttribute("viewBox", "0 0 4800 2800");
+  await expect(page.locator("svg")).toHaveAttribute("viewBox", "0 0 9600 5600");
   const inside = await page.locator("[data-track]").evaluate((line) => {
     const svg = (line as SVGLineElement).ownerSVGElement!,
       p = svg.createSVGPoint();
-    p.x = 4500;
-    p.y = 1600;
+    p.x = 9000;
+    p.y = 4600;
     const q = p.matrixTransform(svg.getScreenCTM()!),
       r = svg.getBoundingClientRect();
     return q.x >= r.left && q.x <= r.right && q.y >= r.top && q.y <= r.bottom;

@@ -9,3 +9,5 @@ For canvas changes, verify click-click and drag drawing, endpoint continuation, 
 Annotation checks: add/select/edit/move/delete text, arrows and end markers; resize arrow endpoints; use zoom and a narrow viewport. Verify labels overlapping tracks remain selectable, text double-click does not swallow drags, typing Delete does not delete the selection, and earlier-slide notes remain editable without unlocking geometry. Exercise save/open and local versus shared annotation ownership.
 
 For larger canvas changes, draw beyond the old 1200x700 boundary, reload, and export PNG/SVG/HTML. Verify remote track visibility and raster resolution, legacy page fallback, Page/Fit and expanded-view selection controls. Enlarging a page must not move objects or alter earlier snapshots.
+
+New plans use a 9600x5600 page with a 1200x700 starting view. Verify New resets that view, older files without canvasWidth remain 1200x700, and PNG width caps at 4800 while SVG/HTML preserve the full page.

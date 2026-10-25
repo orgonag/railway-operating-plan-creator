@@ -42,7 +42,7 @@ export function createStoryboard(root: HTMLElement): void {
   let lastAnnotationPick: { id: string; time: number } | undefined;
   let pendingStart: Point | null = null;
   let hover: Point | null = null;
-  let view = { x: 0, y: 0, ...pageSize(deck) };
+  let view = { x: 0, y: 0, width: 1200, height: 700 };
   let pan: { x: number; y: number; view: typeof view } | null = null;
   let space = false;
   let canvasFocus = false;
@@ -162,6 +162,7 @@ export function createStoryboard(root: HTMLElement): void {
     [1200, "Standard · 1200 × 700"],
     [2400, "Yard · 2400 × 1400"],
     [4800, "Large yard · 4800 × 2800"],
+    [9600, "Extra large · 9600 × 5600"],
   ] as const) {
     const option = document.createElement("option");
     option.value = String(value);
@@ -273,7 +274,7 @@ export function createStoryboard(root: HTMLElement): void {
       selected = [];
       trackSelection = [];
       tool = "select";
-      view = { x: 0, y: 0, ...pageSize(deck) };
+      view = { x: 0, y: 0, width: 1200, height: 700 };
       updateView();
     });
     canvasFocus = false;

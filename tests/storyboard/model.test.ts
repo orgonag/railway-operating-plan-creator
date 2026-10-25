@@ -205,7 +205,17 @@ it("larger yard dimensions survive saving and permit tracks beyond the old page"
     width: 4800,
     height: 2800,
   });
-  expect(pageSize(blank())).toEqual({ width: 1200, height: 700 });
+  expect(pageSize(blank())).toEqual({ width: 9600, height: 5600 });
+  const old = blank();
+  delete old.canvasWidth;
+  expect(pageSize(parseDeck(JSON.stringify(old)))).toEqual({
+    width: 1200,
+    height: 700,
+  });
+  expect(pageSize(parseDeck(JSON.stringify(blank())))).toEqual({
+    width: 9600,
+    height: 5600,
+  });
   deck.canvasWidth = 90000;
   expect(() => parseDeck(JSON.stringify(deck))).toThrow(/drawing size/);
 });

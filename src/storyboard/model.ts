@@ -53,6 +53,7 @@ export const distance = (a: Point, b: Point): number =>
 export function blank(): Deck {
   return {
     format: "railway-slides-1",
+    canvasWidth: 9600,
     title: "Untitled operating plan",
     tracks: [],
     labels: [],
@@ -326,7 +327,7 @@ export function parseDeck(text: string): Deck {
     throw new Error("This is not a railway slide plan.");
   if (
     d.canvasWidth !== undefined &&
-    ![1200, 2400, 4800].includes(d.canvasWidth)
+    ![1200, 2400, 4800, 9600].includes(d.canvasWidth)
   )
     throw new Error("Unsupported drawing size.");
   for (const s of d.slides) {

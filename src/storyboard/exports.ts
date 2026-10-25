@@ -74,7 +74,7 @@ async function raster(
   const { svg, height } = slideSvg(deck, index, 1, includeText);
   const img = await loadSvg(svg),
     canvas = document.createElement("canvas");
-  canvas.width = pageSize(deck).width;
+  canvas.width = Math.min(4800, pageSize(deck).width);
   canvas.height = Math.ceil((height * canvas.width) / 1200);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas rendering is unavailable.");
