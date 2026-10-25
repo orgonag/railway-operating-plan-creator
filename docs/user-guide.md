@@ -1,6 +1,6 @@
 # Detailed user guide
 
-Draw a railway site, arrange the arriving train, and explain the service one animated step at a time. A slide canvas for the person writing the plan: no switching simulation, prescribed scale, or templates.
+Draw a railway site, arrange the arriving train, and explain the service one animated step at a time. A slide canvas for the person writing the plan: no switching simulation or templates.
 
 **[Open the live editor](https://orgonag.github.io/railway-operating-plan-creator/)**
 
@@ -62,7 +62,7 @@ To review individually, work through those marked steps in order. **Rebuild this
 
 Text and annotations remain editable without unlocking geometry. Shared labels belong to Step 1.
 
-## Zoom, pan and scale
+## Zoom and pan
 
 Choose **Expand canvas** to hide the step list, notes and timing controls while drawing. Selection controls remain below the canvas so they do not cover your work. **Restore panels** brings the normal editor back. The normal editor also uses tighter spacing to leave more room for the drawing.
 
@@ -72,7 +72,7 @@ Use the mouse wheel or two-finger scroll to pan. **Shift-wheel** scrolls sideway
 
 Exports automatically frame the whole plan with padding, including negative coordinates and movement paths. Every exported step uses the same frame so the yard stays still during playback. Raster images are capped at 4800 pixels on either side; SVG retains vector detail.
 
-Zoom and pan only change the view; authored positions stay unchanged. The author decides the scale; the app does not simulate physical lengths or speeds.
+Zoom and pan only change the view; authored positions stay unchanged. The drawing is a visual explanation; the app does not calculate physical lengths or speeds.
 
 ## Pauses and presentation
 

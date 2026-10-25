@@ -18,11 +18,11 @@ A plan that shows **where the train starts, which cars move, where they go, and 
 
 For example: a train arrives with three loaded cars. Two empty cars are waiting on a customer track. Your plan shows how the loads are delivered and the empties collected.
 
-You decide the movements, routes and scale. The tool helps you draw and explain the plan; it does not decide how to operate the railway.
+You decide the movements and routes. The tool helps you draw and explain the plan; it does not decide how to operate the railway.
 
 ## Visual-use disclaimer
 
-This is a visual drawing and communication tool only. It does not provide engineering advice, certify a design, or calculate or confirm track capacity, clearances, equipment fit, or safe operating conditions. Drawings and animations are illustrative and may not be to scale. They do not replace qualified engineering review, railway operating rules, or site-specific safety procedures. Users are responsible for verifying their plans before putting them into practice.
+This is a visual drawing and communication tool only. It does not provide engineering advice, certify a design, or calculate or confirm track capacity, clearances, equipment fit, or safe operating conditions. Drawings and animations are illustrative only. They do not replace qualified engineering review, railway operating rules, or site-specific safety procedures. Users are responsible for verifying their plans before putting them into practice.
 
 ## Make your first plan
 
