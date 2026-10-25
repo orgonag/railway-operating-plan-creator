@@ -10,13 +10,13 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:5181",
     viewport: { width: 1400, height: 900 },
-    trace: "retain-on-failure"
+    trace: "retain-on-failure",
   },
   webServer: {
     command: "npm run dev -- --port 5181 --strictPort",
     url: "http://localhost:5181",
-    reuseExistingServer: true,
-    timeout: 120_000
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }]
+  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
 });

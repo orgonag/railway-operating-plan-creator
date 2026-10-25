@@ -124,6 +124,7 @@ The historical [research spec](spec.md), [architecture review](research/architec
 ## Development
 
 ```sh
+nvm use # Node 24; see .nvmrc
 npm ci
 npm run dev
 ```
@@ -140,6 +141,6 @@ npm run build
 
 On Node 25+ use `NODE_OPTIONS=--no-experimental-webstorage npm test` so happy-dom supplies isolated browser storage. Run tests and builds sequentially: the player build regenerates files used by tests.
 
-There is no server build. `npm run build` first builds the standalone player through `prebuild`, then typechecks and builds the frontend into `app/dist`. GitHub Actions deploys `main` to GitHub Pages through `.github/workflows/pages.yml`. Browser tests start or reuse a dev server on port 5181.
+There is no server build. `npm run build` first builds the standalone player through `prebuild`, then typechecks and builds the frontend into `app/dist`. GitHub Actions deploys `main` to GitHub Pages through `.github/workflows/pages.yml`. Browser tests start a dev server on port 5181 (local runs may reuse it; CI always starts a fresh server). `npm run check` runs all checks in sequence, including schema examples and the minified production browser suite. Pull requests run these checks and a dependency audit before main-branch deployment. See [architecture and maintenance](architecture.md) for module boundaries.
 
 All example plans are synthetic. Licensed under [Apache 2.0](../LICENSE).

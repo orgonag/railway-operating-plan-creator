@@ -431,6 +431,7 @@ export function createStoryboard(root: HTMLElement): void {
         storageNotice();
       })
       .catch((e) => {
+        if (sequence !== saveSequence) return;
         root.dataset.saving = "false";
         saveIssue = (e as Error).message;
         message = saveIssue;

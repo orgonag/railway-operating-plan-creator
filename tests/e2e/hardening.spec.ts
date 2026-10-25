@@ -450,3 +450,76 @@ test("one rebuild repairs all later steps and one Undo restores the review state
   await page.reload();
   expect((await data(page)).slides.some((s: any) => s.needsReview)).toBe(false);
 });
+
+test("cancelling while PNG encoding is pending prevents the late download", async ({
+  page,
+}) => {
+  await seed(page, plan());
+  await page.evaluate(() => {
+    const original = HTMLCanvasElement.prototype.toBlob;
+    const state = window as typeof window & {
+      finishPng?: () => void;
+      pngReady?: boolean;
+    };
+    HTMLCanvasElement.prototype.toBlob = function (callback, ...args) {
+      original.call(
+        this,
+        (blob) => {
+          state.finishPng = () => callback(blob);
+          state.pngReady = true;
+        },
+        ...args,
+      );
+    };
+  });
+  const downloads: string[] = [];
+  page.on("download", (d) => downloads.push(d.suggestedFilename()));
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByRole("button", { name: /^PNG — current step/ }).click();
+  await page.waitForFunction(
+    () => (window as typeof window & { pngReady?: boolean }).pngReady,
+  );
+  await page
+    .getByRole("button", { name: "Cancel export", exact: true })
+    .click();
+  await page.evaluate(() =>
+    (window as typeof window & { finishPng?: () => void }).finishPng!(),
+  );
+  await page.waitForTimeout(200);
+  expect(downloads).toEqual([]);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("a video encoder construction failure releases every capture track", async ({
+  page,
+}) => {
+  await seed(page, plan());
+  await page.evaluate(() => {
+    const original = HTMLCanvasElement.prototype.captureStream;
+    const state = window as typeof window & {
+      capturedTracks?: MediaStreamTrack[];
+    };
+    HTMLCanvasElement.prototype.captureStream = function (rate) {
+      const stream = original.call(this, rate);
+      state.capturedTracks = stream.getTracks();
+      return stream;
+    };
+    window.MediaRecorder = new Proxy(MediaRecorder, {
+      construct() {
+        throw new Error("Encoder initialization failed");
+      },
+    });
+  });
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByRole("button", { name: /^Video \(/ }).click();
+  await expect(page.getByRole("dialog").getByRole("status")).toHaveText(
+    "Encoder initialization failed",
+  );
+  const states = await page.evaluate(() =>
+    (
+      window as typeof window & { capturedTracks?: MediaStreamTrack[] }
+    ).capturedTracks!.map((t) => t.readyState),
+  );
+  expect(states.length).toBeGreaterThan(0);
+  expect(states.every((s) => s === "ended")).toBe(true);
+});

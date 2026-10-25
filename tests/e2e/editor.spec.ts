@@ -176,9 +176,14 @@ test("standalone export downloads an html file that plays", async ({ page }) => 
   const [download] = await Promise.all([page.waitForEvent("download"), page.locator('.export-menu button[data-action="standalone"]').click()]);
   expect(download.suggestedFilename()).toBe("how-a-train-services-a-customer.html");
   const html = readFileSync((await download.path())!, "utf8");
+  const errors: string[] = [];
+  page.on("pageerror", e => errors.push(e.message));
   const requests: string[] = [];
   page.on("request", (r) => requests.push(r.url()));
   await page.setContent(html);
+  await expect(page).toHaveTitle("How a Train Services a Customer | Railway Operating Plan");
+  await expect(page.locator(".problems > *")).toHaveCount(0);
+  expect(errors).toEqual([]);
   await expect(page.locator(".player .dot")).toHaveCount(9);
   await expect(page.locator("svg.plan g.unit")).toHaveCount(6);
   await page.locator(".player button.next").click();
