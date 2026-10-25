@@ -81,18 +81,15 @@ async function raster(
   deck: Deck,
   index: number,
   includeText = true,
+  frame = drawingBounds(deck, true),
 ): Promise<HTMLCanvasElement> {
-  const { svg, height } = slideSvg(deck, index, 1, includeText);
+  const { svg, height } = slideSvg(deck, index, 1, includeText, frame);
   const img = await loadSvg(svg),
     canvas = document.createElement("canvas");
   canvas.width = Math.max(
     1,
     Math.floor(
-      Math.min(
-        4800,
-        Math.max(1200, drawingBounds(deck, true).width),
-        (4800 * 1200) / height,
-      ),
+      Math.min(4800, Math.max(1200, frame.width), (4800 * 1200) / height),
     ),
   );
   canvas.height = Math.max(1, Math.ceil((height * canvas.width) / 1200));
@@ -144,75 +141,79 @@ async function recordVideo(
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
   canvas.height = 900;
-  const ctx = canvas.getContext("2d")!;
-  const stream = canvas.captureStream(30),
-    recorder = new MediaRecorder(stream, {
-      mimeType: type.mime,
-      videoBitsPerSecond: 5000000,
-    }),
-    chunks: Blob[] = [];
-  let failure: Error | undefined;
-  const done = new Promise<Blob>((resolve, reject) => {
-    recorder.ondataavailable = (e) => {
-      if (e.data.size) chunks.push(e.data);
-    };
-    recorder.onerror = () => {
-      failure = new Error(
-        "The browser could not encode the video. Try animated HTML.",
-      );
-    };
-    recorder.onstop = () => {
-      if (failure) reject(failure);
-      else resolve(new Blob(chunks, { type: type.mime }));
-    };
-  });
-  // Attach a rejection handler immediately while the recording loop is running.
-  void done.catch(() => undefined);
-  async function draw(elapsed: number): Promise<void> {
-    const f = frameAt(deck, elapsed),
-      { svg, height } = slideSvg(deck, f.index, f.progress, true, frame),
-      img = await loadSvg(svg);
-    const ratio = Math.min(1200 / 1200, 900 / height);
-    ctx.fillStyle = "#0e1013";
-    ctx.fillRect(0, 0, 1200, 900);
-    ctx.drawImage(
-      img,
-      (1200 - 1200 * ratio) / 2,
-      (900 - height * ratio) / 2,
-      1200 * ratio,
-      height * ratio,
-    );
-  }
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas rendering is unavailable.");
+  const ctx = context;
+  const stream = canvas.captureStream(30);
   try {
-    await draw(0);
-    if (signal.aborted) throw new Error("Export cancelled.");
-    recorder.start();
-    const started = performance.now();
-    while (true) {
-      if (signal.aborted) throw new Error("Export cancelled.");
-      if (document.hidden)
-        throw new Error(
-          "Video export stopped because the tab was hidden. Keep this tab visible while exporting.",
+    const recorder = new MediaRecorder(stream, {
+        mimeType: type.mime,
+        videoBitsPerSecond: 5000000,
+      }),
+      chunks: Blob[] = [];
+    let failure: Error | undefined;
+    const done = new Promise<Blob>((resolve, reject) => {
+      recorder.ondataavailable = (e) => {
+        if (e.data.size) chunks.push(e.data);
+      };
+      recorder.onerror = () => {
+        failure = new Error(
+          "The browser could not encode the video. Try animated HTML.",
         );
-      if (failure) throw failure;
-      const elapsed = performance.now() - started;
-      await draw(Math.min(elapsed, duration));
-      report(
-        `Recording ${Math.min(100, Math.round((elapsed / duration) * 100))}% — keep this tab visible.`,
+      };
+      recorder.onstop = () => {
+        if (failure) reject(failure);
+        else resolve(new Blob(chunks, { type: type.mime }));
+      };
+    });
+    // Attach a rejection handler immediately while the recording loop is running.
+    void done.catch(() => undefined);
+    async function draw(elapsed: number): Promise<void> {
+      const f = frameAt(deck, elapsed),
+        { svg, height } = slideSvg(deck, f.index, f.progress, true, frame),
+        img = await loadSvg(svg);
+      const ratio = Math.min(1200 / 1200, 900 / height);
+      ctx.fillStyle = "#0e1013";
+      ctx.fillRect(0, 0, 1200, 900);
+      ctx.drawImage(
+        img,
+        (1200 - 1200 * ratio) / 2,
+        (900 - height * ratio) / 2,
+        1200 * ratio,
+        height * ratio,
       );
-      if (elapsed >= duration) break;
-      await new Promise((r) => setTimeout(r, 25));
     }
-    recorder.stop();
-    const blob = await done;
-    if (!blob.size) throw new Error("The browser produced an empty video.");
-    saveBlob(`operating-plan.${type.extension}`, blob);
-  } catch (error) {
-    if (recorder.state !== "inactive") {
-      failure = error as Error;
+    try {
+      await draw(0);
+      if (signal.aborted) throw new Error("Export cancelled.");
+      recorder.start();
+      const started = performance.now();
+      while (true) {
+        if (signal.aborted) throw new Error("Export cancelled.");
+        if (document.hidden)
+          throw new Error(
+            "Video export stopped because the tab was hidden. Keep this tab visible while exporting.",
+          );
+        if (failure) throw failure;
+        const elapsed = performance.now() - started;
+        await draw(Math.min(elapsed, duration));
+        report(
+          `Recording ${Math.min(100, Math.round((elapsed / duration) * 100))}% — keep this tab visible.`,
+        );
+        if (elapsed >= duration) break;
+        await new Promise((r) => setTimeout(r, 25));
+      }
       recorder.stop();
+      const blob = await done;
+      if (!blob.size) throw new Error("The browser produced an empty video.");
+      if (!signal.aborted) saveBlob(`operating-plan.${type.extension}`, blob);
+    } catch (error) {
+      if (recorder.state !== "inactive") {
+        failure = error as Error;
+        recorder.stop();
+      }
+      throw error;
     }
-    throw error;
   } finally {
     stream.getTracks().forEach((t) => t.stop());
   }
@@ -236,6 +237,11 @@ export function openExports(
   dialog.append(title, intro, grid, status);
   const controller = new AbortController();
   let busy = false;
+  let staticFrame: ReturnType<typeof drawingBounds> | undefined;
+  const frame = () => (staticFrame ??= drawingBounds(deck, true));
+  function download(name: string, blob: Blob): void {
+    if (!controller.signal.aborted) saveBlob(name, blob);
+  }
   const close = document.createElement("button");
   close.textContent = "Close";
   close.onclick = () => {
@@ -281,7 +287,7 @@ export function openExports(
     if (disabled) b.dataset.unavailable = "true";
   }
   option("Editable plan (JSON)", "Reopen and continue editing.", () =>
-    saveBlob(
+    download(
       "operating-plan.slides.json",
       new Blob([exportedPlan(deck)], { type: "application/json" }),
     ),
@@ -290,7 +296,7 @@ export function openExports(
     "Animated HTML",
     "Offline presentation with manual controls and autoplay.",
     () =>
-      saveBlob(
+      download(
         "operating-plan.html",
         new Blob([standalone(deck)], { type: "text/html" }),
       ),
@@ -303,7 +309,7 @@ export function openExports(
       let pdf: InstanceType<typeof jsPDF> | undefined;
       for (let i = 0; i < deck.slides.length; i++) {
         if (controller.signal.aborted) return;
-        const canvas = await raster(deck, i);
+        const canvas = await raster(deck, i, true, frame());
         const imageHeight = (canvas.height * 1200) / canvas.width;
         const pdfScale = Math.min(1, 10000 / imageHeight);
         const dimensions: [number, number] = [
@@ -334,7 +340,7 @@ export function openExports(
           "FAST",
         );
       }
-      saveBlob("operating-plan.pdf", pdf!.output("blob"));
+      download("operating-plan.pdf", pdf!.output("blob"));
     },
   );
   option(
@@ -360,7 +366,7 @@ export function openExports(
           color: "D9C48C",
           fit: "shrink",
         });
-        const diagram = await raster(deck, i, false);
+        const diagram = await raster(deck, i, false, frame());
         const scale = Math.min(12.7 / diagram.width, 5.2 / diagram.height);
         const w = diagram.width * scale,
           h = diagram.height * scale;
@@ -394,19 +400,24 @@ export function openExports(
         out.addNotes(`${s.text}\n\n${TOOL_CREDIT}\n${FULL_NOTICE}`);
       }
       const blob = await pptx.write({ outputType: "blob" });
-      saveBlob("operating-plan.pptx", blob as Blob);
+      download("operating-plan.pptx", blob as Blob);
     },
   );
   option("PNG — current step", "Image with title and instructions.", async () =>
-    saveBlob(`step-${index + 1}.png`, await png(await raster(deck, index))),
+    download(
+      `step-${index + 1}.png`,
+      await png(await raster(deck, index, true, frame())),
+    ),
   );
   option(
     "SVG — current step",
     "Scalable diagram with title and instructions.",
     () =>
-      saveBlob(
+      download(
         `step-${index + 1}.svg`,
-        new Blob([slideSvg(deck, index).svg], { type: "image/svg+xml" }),
+        new Blob([slideSvg(deck, index, 1, true, frame()).svg], {
+          type: "image/svg+xml",
+        }),
       ),
   );
   for (const format of ["PNG", "SVG"] as const)
@@ -422,12 +433,14 @@ export function openExports(
             `step-${String(i + 1).padStart(3, "0")}.${format.toLowerCase()}`
           ] =
             format === "SVG"
-              ? strToU8(slideSvg(deck, i).svg)
+              ? strToU8(slideSvg(deck, i, 1, true, frame()).svg)
               : new Uint8Array(
-                  await (await png(await raster(deck, i))).arrayBuffer(),
+                  await (
+                    await png(await raster(deck, i, true, frame()))
+                  ).arrayBuffer(),
                 );
         }
-        saveBlob(
+        download(
           `operating-plan-${format.toLowerCase()}.zip`,
           new Blob([zipSync(files)], { type: "application/zip" }),
         );

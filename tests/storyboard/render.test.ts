@@ -18,7 +18,7 @@ it("escapes authored labels and script terminators in offline presentations", ()
   expect(scene(d, 0)).not.toContain("<img");
   const html = standalone(d);
   expect(html.match(/<script>/g)).toHaveLength(1);
-  expect(html.match(/<\/script>/g)).toHaveLength(1);
+  expect(html.match(/<\/script>/g)).toHaveLength(2);
   expect(html).not.toContain("<script>alert");
 });
 

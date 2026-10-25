@@ -267,9 +267,14 @@ export function animatedUnits(
       };
     }
     const offset =
-      motion.offsets?.[u.id] ??
+      (motion.offsets && Object.hasOwn(motion.offsets, u.id)
+        ? motion.offsets[u.id]
+        : undefined) ??
       (u.x - anchor.x) * Math.cos(r) + (u.y - anchor.y) * Math.sin(r);
-    const approach = motion.approaches?.[u.id];
+    const approach =
+      motion.approaches && Object.hasOwn(motion.approaches, u.id)
+        ? motion.approaches[u.id]
+        : undefined;
     const travel = approach
       ? [...approach, ...motion.path.slice(1)]
       : motion.path;
@@ -313,8 +318,8 @@ export function moveSlide(
   const motion: Motion = {
     ids: [...ids],
     path: copy(path),
-    approaches: {},
-    offsets: {},
+    approaches: Object.create(null) as Record<string, Point[]>,
+    offsets: Object.create(null) as Record<string, number>,
   };
   const initial = along(path, 0),
     r = (initial.angle * Math.PI) / 180;
@@ -384,99 +389,120 @@ export function rebuildRemaining(deck: Deck): number {
   deck.slides = draft.slides;
   return count;
 }
+/** Validate untrusted files before they can replace the current working plan. */
 export function parseDeck(text: string): Deck {
-  const d = JSON.parse(text) as Deck;
-  const point = (p: Point): boolean =>
-    !!p && Number.isFinite(p.x) && Number.isFinite(p.y);
-  const annotation = (a: Annotation): boolean =>
-    !!a &&
-    typeof a.id === "string" &&
-    ["text", "arrow", "end"].includes(a.kind) &&
-    point(a.a) &&
-    point(a.b) &&
-    typeof a.text === "string";
+  const value: unknown = JSON.parse(text);
+  const record = (v: unknown): v is Record<string, unknown> =>
+    typeof v === "object" && v !== null && !Array.isArray(v);
+  const point = (v: unknown): v is Point =>
+    record(v) && Number.isFinite(v.x) && Number.isFinite(v.y);
+  const identifier = (v: unknown): v is string =>
+    typeof v === "string" && v.length > 0;
+  const unique = (ids: string[]): boolean => new Set(ids).size === ids.length;
+  const annotation = (v: unknown): v is Annotation =>
+    record(v) &&
+    identifier(v.id) &&
+    typeof v.kind === "string" &&
+    ["text", "arrow", "end"].includes(v.kind) &&
+    point(v.a) &&
+    point(v.b) &&
+    typeof v.text === "string";
+  const annotations = (v: unknown): v is Annotation[] =>
+    Array.isArray(v) && v.every(annotation) && unique(v.map((a) => a.id));
+  const track = (v: unknown): v is Track =>
+    record(v) &&
+    identifier(v.id) &&
+    (v.turnout === undefined || identifier(v.turnout)) &&
+    point(v.a) &&
+    point(v.b);
+  const unit = (v: unknown): v is Unit =>
+    record(v) &&
+    point(v) &&
+    identifier(v.id) &&
+    identifier(v.cut) &&
+    typeof v.kind === "string" &&
+    ["loco", "loaded", "empty"].includes(v.kind) &&
+    Number.isFinite(v.angle) &&
+    typeof v.flipped === "boolean";
   if (
-    !d ||
-    d.format !== "railway-slides-1" ||
-    typeof d.title !== "string" ||
-    !Array.isArray(d.tracks) ||
-    !d.tracks.every(
-      (t) =>
-        typeof t.id === "string" &&
-        (t.turnout === undefined || typeof t.turnout === "string") &&
-        point(t.a) &&
-        point(t.b),
-    ) ||
-    !Array.isArray(d.labels) ||
-    !d.labels.every(annotation) ||
-    !Array.isArray(d.slides) ||
-    !d.slides.length
+    !record(value) ||
+    value.format !== "railway-slides-1" ||
+    typeof value.title !== "string" ||
+    !Array.isArray(value.tracks) ||
+    !value.tracks.every(track) ||
+    !unique(value.tracks.map((t) => t.id)) ||
+    !annotations(value.labels) ||
+    !Array.isArray(value.slides) ||
+    !value.slides.length
   )
     throw new Error("This is not a railway slide plan.");
   if (
-    d.canvasWidth !== undefined &&
-    ![1200, 2400, 4800, 9600].includes(d.canvasWidth)
+    value.canvasWidth !== undefined &&
+    (typeof value.canvasWidth !== "number" ||
+      ![1200, 2400, 4800, 9600].includes(value.canvasWidth))
   )
     throw new Error("Unsupported drawing size.");
-  for (const s of d.slides) {
-    if (s?.needsReview !== undefined && typeof s.needsReview !== "boolean")
+  const slideIds: string[] = [];
+  for (const s of value.slides) {
+    if (
+      !record(s) ||
+      !identifier(s.id) ||
+      typeof s.title !== "string" ||
+      typeof s.text !== "string" ||
+      !annotations(s.annotations) ||
+      !Array.isArray(s.units) ||
+      !s.units.every(unit) ||
+      !unique(s.units.map((u) => u.id)) ||
+      !unique([...value.labels, ...s.annotations].map((a) => a.id))
+    )
+      throw new Error("Invalid slide data.");
+    slideIds.push(s.id);
+    if (s.needsReview !== undefined && typeof s.needsReview !== "boolean")
       throw new Error("Invalid review status.");
     if (
       s.pauseSeconds !== undefined &&
-      (!Number.isFinite(s.pauseSeconds) ||
+      (typeof s.pauseSeconds !== "number" ||
+        !Number.isFinite(s.pauseSeconds) ||
         s.pauseSeconds < 0 ||
         s.pauseSeconds > 3600)
     )
       throw new Error("Pause must be between 0 and 3600 seconds.");
+    if (s.motion === undefined) continue;
+    const units = s.units;
+    const m = s.motion;
     if (
-      !s ||
-      typeof s.id !== "string" ||
-      typeof s.title !== "string" ||
-      typeof s.text !== "string" ||
-      !Array.isArray(s.annotations) ||
-      !s.annotations.every(annotation) ||
-      !Array.isArray(s.units) ||
-      !s.units.every(
-        (u) =>
-          point(u) &&
-          typeof u.id === "string" &&
-          typeof u.cut === "string" &&
-          ["loco", "loaded", "empty"].includes(u.kind) &&
-          Number.isFinite(u.angle) &&
-          typeof u.flipped === "boolean",
-      ) ||
-      new Set(s.units.map((u) => u.id)).size !== s.units.length
+      !record(m) ||
+      !Array.isArray(m.ids) ||
+      !m.ids.length ||
+      !m.ids.every(identifier) ||
+      !unique(m.ids) ||
+      !m.ids.every((id) => units.some((u) => u.id === id)) ||
+      !Array.isArray(m.path) ||
+      m.path.length < 2 ||
+      !m.path.every(point) ||
+      reverses(m.path)
     )
-      throw new Error("Invalid slide data.");
-    if (
-      s.motion?.translate !== undefined &&
-      typeof s.motion.translate !== "boolean"
-    )
+      throw new Error("Invalid movement path.");
+    if (m.translate !== undefined && typeof m.translate !== "boolean")
       throw new Error("Invalid movement mode.");
     if (
-      s.motion?.approaches &&
-      !Object.values(s.motion.approaches).every(
-        (p) => Array.isArray(p) && p.length >= 2 && p.every(point),
-      )
+      m.approaches !== undefined &&
+      (!record(m.approaches) ||
+        !Object.values(m.approaches).every(
+          (p) => Array.isArray(p) && p.length >= 2 && p.every(point),
+        ))
     )
       throw new Error("Invalid approach path.");
     if (
-      s.motion?.offsets &&
-      !Object.values(s.motion.offsets).every(Number.isFinite)
+      m.offsets !== undefined &&
+      (!record(m.offsets) || !Object.values(m.offsets).every(Number.isFinite))
     )
       throw new Error("Invalid movement offset.");
-    if (
-      s.motion &&
-      (!Array.isArray(s.motion.ids) ||
-        !s.motion.ids.every((i) => s.units.some((u) => u.id === i)) ||
-        !Array.isArray(s.motion.path) ||
-        s.motion.path.length < 2 ||
-        !s.motion.path.every(point) ||
-        reverses(s.motion.path))
-    )
-      throw new Error("Invalid movement path.");
   }
-  return d;
+  if (!unique(slideIds)) throw new Error("Step identifiers must be unique.");
+  // All persisted fields consumed by the editor have now been checked. Retain
+  // unknown metadata and reviewable snapshots for backwards-compatible recovery.
+  return value as unknown as Deck;
 }
 
 /** Fixed automatic animation duration; only the hold is author-controlled. */

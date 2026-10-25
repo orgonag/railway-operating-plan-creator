@@ -1,6 +1,6 @@
 # Editor reliability acceptance — October 24, 2026
 
-A fresh Astra/high review identified six concrete gaps. This release addresses all six and retains the simple drawing/snapshot workflow; it adds no railway simulation rules.
+The October 24 reliability pass addressed six concrete gaps while retaining the drawing/snapshot workflow. The subsequent [production review](production-review-2026-10-25.md) covers tooling, release checks, imports and exports.
 
 | Finding | Resolution | Verification |
 | --- | --- | --- |
@@ -13,7 +13,7 @@ A fresh Astra/high review identified six concrete gaps. This release addresses a
 
 Recovery drafts are not automatically deleted from another page: that page might have written newer edits since the recovery list was loaded. Local-storage failure retains separately discoverable session drafts where possible, shows the saving problem, and warns before leaving unsaved/session-only work. Download remains available. Clearing browser data can still remove browser-local documents; downloaded JSON is the portable backup.
 
-The reviewer rechecked the final source and reported no concrete remaining blocker. This is source-review clearance, not exhaustive certification for every browser, device or document size.
+The regressions below define the acceptance checks for this reliability pass. Passing them is not exhaustive certification for every browser, device or document size.
 
 ## Performance exercise
 

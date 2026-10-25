@@ -4,5 +4,17 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "files": [],
-  "include": ["src/render", "src/player", "src/editor", "src/export", "app", "tests/render", "tests/player", "tests/editor", "tests/export"]
+  "include": [
+    "src/render",
+    "src/player",
+    "src/editor",
+    "src/export",
+    "app",
+    "tests/render",
+    "tests/player",
+    "tests/editor",
+    "tests/export",
+    "src/storyboard",
+    "tests/storyboard"
+  ]
 }
