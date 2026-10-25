@@ -1,3 +1,4 @@
+import { TOOL_CREDIT, FULL_NOTICE, exportedPlan } from "./notice";
 import {
   blank,
   drawingBounds,
@@ -134,7 +135,7 @@ export function createStoryboard(root: HTMLElement): void {
     saveIssue ||=
       "Unsaved recovery drafts are available below. Recovery copies are retained; download a copy for safekeeping.";
   root.innerHTML =
-    '<div class="storyboard"><header class="story-header"><div class="brand">RAILWAY <span>OPERATING PLAN</span></div><input aria-label="Plan title" class="plan-title"><div class="file-actions"></div></header><nav class="story-tools" aria-label="Drawing tools"></nav><aside class="story-steps" aria-label="Steps"></aside><main class="story-main"><div class="slide-heading"><span class="phase"></span><input aria-label="Step title"></div><div class="drawing"><svg viewBox="0 0 1200 700" aria-label="Railway canvas" role="img"></svg></div><textarea aria-label="Step instructions" placeholder="Explain what happens in this step…"></textarea><div class="play-controls"></div></main><aside class="story-inspector"></aside><footer class="story-status" role="status"></footer></div>';
+    '<div class="storyboard"><header class="story-header"><div class="brand">RAILWAY <span>OPERATING PLAN</span></div><input aria-label="Plan title" class="plan-title"><div class="file-actions"></div></header><nav class="story-tools" aria-label="Drawing tools"></nav><aside class="story-steps" aria-label="Steps"></aside><main class="story-main"><div class="slide-heading"><span class="phase"></span><input aria-label="Step title"></div><div class="drawing"><svg viewBox="0 0 1200 700" aria-label="Railway canvas" role="img"></svg></div><textarea aria-label="Step instructions" placeholder="Explain what happens in this step…"></textarea><div class="play-controls"></div></main><aside class="story-inspector"></aside><footer class="story-footer"><span class="story-status" role="status"></span><button class="tool-notice" type="button">Tool by Orgo Nag · Visual use only</button></footer></div>';
   const shell = root.querySelector<HTMLElement>(".storyboard")!,
     tools = root.querySelector<HTMLElement>(".story-tools")!,
     steps = root.querySelector<HTMLElement>(".story-steps")!,
@@ -147,6 +148,22 @@ export function createStoryboard(root: HTMLElement): void {
     )!,
     instructions = root.querySelector<HTMLTextAreaElement>("textarea")!,
     controls = root.querySelector<HTMLElement>(".play-controls")!;
+  root.querySelector<HTMLButtonElement>(".tool-notice")!.onclick = () => {
+    const dialog = document.createElement("dialog");
+    dialog.className = "notice-dialog";
+    dialog.setAttribute("aria-label", "About this visual tool");
+    const heading = document.createElement("h2");
+    heading.textContent = TOOL_CREDIT;
+    const text = document.createElement("p");
+    text.textContent = FULL_NOTICE;
+    const close = document.createElement("button");
+    close.textContent = "Close";
+    close.onclick = () => dialog.close();
+    dialog.addEventListener("close", () => dialog.remove());
+    dialog.append(heading, text, close);
+    document.body.append(dialog);
+    dialog.showModal();
+  };
   const savePanel = document.createElement("aside");
   savePanel.className = "save-notice";
   savePanel.setAttribute("role", "alert");
@@ -160,7 +177,7 @@ export function createStoryboard(root: HTMLElement): void {
     text.textContent = saveIssue || "A recovery copy is available.";
     savePanel.append(text);
     button(savePanel, "Download this tab's plan", () =>
-      download("operating-plan-tab.slides.json", JSON.stringify(deck, null, 2)),
+      download("operating-plan-tab.slides.json", exportedPlan(deck)),
     );
     if (recoveryRaw)
       button(savePanel, "Download recovery copy", () =>
@@ -482,7 +499,7 @@ export function createStoryboard(root: HTMLElement): void {
     input.click();
   });
   button(files, "Download", () =>
-    download("operating-plan.slides.json", JSON.stringify(deck, null, 2)),
+    download("operating-plan.slides.json", exportedPlan(deck)),
   );
   button(files, "Export", () => {
     cancel();

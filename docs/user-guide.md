@@ -84,6 +84,8 @@ Movement duration is automatic. There is no movement-duration setting.
 
 ## Save and export
 
+A small **Tool by Orgo Nag · Visual use only** link at the bottom of the app opens the full disclaimer. Shared exports include a compact tool credit and visual-use notice; editable plan downloads include the same information as metadata. This credits the tool, not the author of your plan.
+
 The editor automatically saves in the current browser and shows when saving finishes. Text is kept as you type, including if you press Escape. Undo keeps up to 50 recent editing snapshots.
 
 Two open tabs cannot silently overwrite each other: a stale tab shows a notice and keeps its working copy. Download that copy, or load the latest saved plan. Conflicting drafts remain recoverable after closing the tab. Recovery copies are retained so another active tab’s newer work cannot be deleted by restoring an older copy. If browser storage is full, the editor offers downloads and keeps a session fallback where possible; download before closing when saving fails.

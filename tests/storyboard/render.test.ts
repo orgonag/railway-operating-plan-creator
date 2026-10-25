@@ -1,3 +1,4 @@
+import { FULL_NOTICE, exportedPlan } from "../../src/storyboard/notice";
 import { drawingBounds, drawingViewBox } from "../../src/storyboard/model";
 import { slideSvg } from "../../src/storyboard/exports";
 import { expect, it } from "vitest";
@@ -53,4 +54,16 @@ it("fits tall and wide exports without clipping labels or instructions", () => {
   expect(bounds.x + bounds.width).toBeGreaterThan(4000);
   d.tracks[0]!.b = { x: -4000, y: 8100 };
   expect(slideSvg(d, 0).height).toBeGreaterThan(700);
+});
+
+it("adds a discreet tool credit and visual-use notice without changing the plan", () => {
+  const d = blank();
+  const original = JSON.stringify(d);
+  expect(slideSvg(d, 0).svg).toContain("Tool by Orgo Nag");
+  expect(slideSvg(d, 0).svg).toContain("not engineering advice");
+  expect(standalone(d)).toContain(FULL_NOTICE);
+  const file = JSON.parse(exportedPlan(d));
+  expect(file.tool.author).toBe("Orgo Nag");
+  expect(file.tool.disclaimer).toBe(FULL_NOTICE);
+  expect(JSON.stringify(d)).toBe(original);
 });

@@ -725,3 +725,30 @@ test("middle-car off-track drops never fold the cut into a vertical tail", async
   await page.reload();
   check((await savedData(page)).slides[3].units);
 });
+
+test("small app notice opens full disclaimer and exported files carry tool credit", async ({
+  page,
+}) => {
+  await setup(page);
+  const notice = page.getByRole("button", {
+    name: "Tool by Orgo Nag · Visual use only",
+    exact: true,
+  });
+  await notice.click();
+  const dialog = page.getByRole("dialog", { name: "About this visual tool" });
+  await expect(dialog).toContainText("does not provide engineering advice");
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(notice).toBeVisible();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  for (const [label, expected] of [
+    [/^Editable plan/, '"author": "Orgo Nag"'],
+    [/^SVG — current/, "Tool by Orgo Nag"],
+    [/^Animated HTML/, "Full visual-use disclaimer"],
+  ] as const) {
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: label }).click(),
+    ]);
+    expect(readFileSync((await download.path())!, "utf8")).toContain(expected);
+  }
+});

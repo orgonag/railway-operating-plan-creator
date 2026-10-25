@@ -1,3 +1,4 @@
+import { NOTICE_LINES, TOOL_CREDIT, FULL_NOTICE, exportedPlan } from "./notice";
 import {
   type Deck,
   animatedUnits,
@@ -43,7 +44,7 @@ export function slideSvg(
     head = includeText ? 35 + titles.length * 32 : 0;
   const diagramHeight = (1200 * frame.height) / frame.width;
   const height = includeText
-    ? head + diagramHeight + 30 + lines.length * 25
+    ? head + diagramHeight + 30 + lines.length * 25 + 44
     : diagramHeight;
   const units =
     s.motion && index > 1
@@ -51,7 +52,7 @@ export function slideSvg(
       : s.units;
   return {
     height,
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}"><rect width="1200" height="${height}" fill="#0e1013"/>${includeText ? titles.map((l, i) => `<text x="24" y="${35 + i * 32}" fill="#d9c48c" font-family="sans-serif" font-size="26">${escape(l)}</text>`).join("") : ""}<svg y="${head}" width="1200" height="${diagramHeight}" viewBox="${frame.x} ${frame.y} ${frame.width} ${frame.height}">${scene(deck, index, units, [], false, frame)}</svg>${includeText ? lines.map((l, i) => `<text x="24" y="${head + diagramHeight + 30 + i * 25}" fill="#f2efe6" font-family="sans-serif" font-size="20">${escape(l)}</text>`).join("") : ""}</svg>`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}"><rect width="1200" height="${height}" fill="#0e1013"/>${includeText ? titles.map((l, i) => `<text x="24" y="${35 + i * 32}" fill="#d9c48c" font-family="sans-serif" font-size="26">${escape(l)}</text>`).join("") : ""}<svg y="${head}" width="1200" height="${diagramHeight}" viewBox="${frame.x} ${frame.y} ${frame.width} ${frame.height}">${scene(deck, index, units, [], false, frame)}</svg>${includeText ? lines.map((l, i) => `<text x="24" y="${head + diagramHeight + 30 + i * 25}" fill="#f2efe6" font-family="sans-serif" font-size="20">${escape(l)}</text>`).join("") : ""}${includeText ? NOTICE_LINES.map((line, i) => `<text x="24" y="${height - 24 + i * 16}" fill="#aeb5bd" font-family="sans-serif" font-size="12">${escape(line)}</text>`).join("") : ""}</svg>`,
   };
 }
 export function saveBlob(name: string, blob: Blob): void {
@@ -282,7 +283,7 @@ export function openExports(
   option("Editable plan (JSON)", "Reopen and continue editing.", () =>
     saveBlob(
       "operating-plan.slides.json",
-      new Blob([JSON.stringify(deck, null, 2)], { type: "application/json" }),
+      new Blob([exportedPlan(deck)], { type: "application/json" }),
     ),
   );
   option(
@@ -344,7 +345,7 @@ export function openExports(
       const pptx = new PptxGenJS();
       pptx.layout = "LAYOUT_WIDE";
       pptx.title = deck.title;
-      pptx.author = "Railway Operating Plan Creator";
+      pptx.author = "Railway Operating Plan Creator — tool by Orgo Nag";
       for (let i = 0; i < deck.slides.length; i++) {
         if (controller.signal.aborted) return;
         const s = deck.slides[i]!,
@@ -374,13 +375,23 @@ export function openExports(
           x: 0.3,
           y: 6.1,
           w: 12.7,
-          h: 1.1,
+          h: 0.95,
           fontSize: 16,
           color: "F2EFE6",
           fit: "shrink",
           breakLine: false,
         });
-        out.addNotes(s.text);
+        out.addText(NOTICE_LINES.join("\n"), {
+          x: 0.3,
+          y: 7.15,
+          w: 12.7,
+          h: 0.28,
+          fontSize: 7,
+          color: "AEB5BD",
+          margin: 0,
+          fit: "shrink",
+        });
+        out.addNotes(`${s.text}\n\n${TOOL_CREDIT}\n${FULL_NOTICE}`);
       }
       const blob = await pptx.write({ outputType: "blob" });
       saveBlob("operating-plan.pptx", blob as Blob);
