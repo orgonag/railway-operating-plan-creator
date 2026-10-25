@@ -7,6 +7,8 @@ import {
   movementMs,
   durationMs,
   straightEnd,
+  trackSnap,
+  translateTracks,
   copy,
   id,
   nextSlide,
@@ -52,6 +54,8 @@ export function createStoryboard(root: HTMLElement): void {
   let lastAnnotationPick: { id: string; time: number } | undefined;
   let pendingStart: Point | null = null;
   let hover: Point | null = null;
+  let trackPreview: ReturnType<typeof translateTracks> | null = null;
+  let trackMoveBlocked = false;
   let view = { x: 0, y: 0, width: 1200, height: 700 };
   let pan: { x: number; y: number; view: typeof view } | null = null;
   let space = false;
@@ -327,6 +331,7 @@ export function createStoryboard(root: HTMLElement): void {
     drag = null;
     pendingStart = null;
     hover = null;
+    trackPreview = null;
   }
   function change(fn: () => void): void {
     cancel();
@@ -556,6 +561,9 @@ export function createStoryboard(root: HTMLElement): void {
   function paint(units?: Unit[]): void {
     const drawingDeck = {
       ...deck,
+      tracks: deck.tracks.map(
+        (t) => trackPreview?.tracks.find((p) => p.id === t.id) ?? t,
+      ),
       labels: deck.labels.map(annotationPreview),
       slides: deck.slides.map((s) => ({
         ...s,
@@ -571,7 +579,7 @@ export function createStoryboard(root: HTMLElement): void {
       view,
     );
     if (index === 0 && editable()) {
-      for (const track of deck.tracks) {
+      for (const track of drawingDeck.tracks) {
         const line = document.createElementNS(NS, "line");
         for (const [k, v] of Object.entries({
           x1: track.a.x,
@@ -583,7 +591,11 @@ export function createStoryboard(root: HTMLElement): void {
         line.dataset.track = track.id;
         line.setAttribute(
           "stroke",
-          trackSelection.includes(track.id) ? "#e0c580" : "transparent",
+          trackSelection.includes(track.id)
+            ? trackPreview && trackMoveBlocked
+              ? "#e8432f"
+              : "#e0c580"
+            : "transparent",
         );
         line.setAttribute(
           "stroke-width",
@@ -596,7 +608,7 @@ export function createStoryboard(root: HTMLElement): void {
         );
         svg.append(line);
       }
-      for (const track of deck.tracks.filter(
+      for (const track of drawingDeck.tracks.filter(
         (t) => trackSelection.includes(t.id) && !t.turnout,
       )) {
         for (const side of ["a", "b"] as const) {
@@ -698,6 +710,26 @@ export function createStoryboard(root: HTMLElement): void {
           svg.append(l);
         }
       }
+    }
+    const connection =
+      (trackMoveBlocked ? null : trackPreview?.connection) ??
+      (drag?.kind === "track" &&
+      snap(drag.end, deck.tracks) &&
+      distance(snap(drag.end, deck.tracks)!.point, drag.end) < 0.1
+        ? drag.end
+        : null);
+    if (connection) {
+      const marker = document.createElementNS(NS, "circle");
+      marker.setAttribute("cx", String(connection.x));
+      marker.setAttribute("cy", String(connection.y));
+      marker.setAttribute("r", String(snapTolerance() * 0.6));
+      marker.setAttribute("fill", "none");
+      marker.setAttribute("stroke", "#70e0ad");
+      marker.setAttribute("stroke-width", "2");
+      marker.setAttribute("vector-effect", "non-scaling-stroke");
+      marker.setAttribute("pointer-events", "none");
+      marker.dataset.snapTarget = "true";
+      svg.append(marker);
     }
     if (manual && manual.length) {
       const p = document.createElementNS(NS, "polyline");
@@ -1083,7 +1115,7 @@ export function createStoryboard(root: HTMLElement): void {
       !editable() && !presentation
         ? "Track and equipment positions are preserved. Text, arrows, titles and instructions remain editable. Choose Revise this step to make corrections while preserving later slides."
         : index === 0
-          ? "Choose Track: click a start and an end, or drag. Lines snap straight. Choose a turnout direction, then place it on a track. Choose Select and drag a box around several pieces, then press Delete. Shift-click adds pieces. Wheel to pan; Ctrl/⌘ + wheel to zoom. Keep drawing in any direction."
+          ? "Choose Track: click a start and an end, or drag. Lines snap straight. Choose a turnout direction, then place it on a track. Choose Select (V) to drag a line or box-select several. Nearby ends snap together. Delete removes selected pieces. Track (L) draws more lines; Alt bypasses snapping. Wheel to pan; Ctrl/⌘ + wheel to zoom. Keep drawing in any direction."
           : index === 1
             ? "Drag a locomotive, loaded car, or empty car from the toolbar onto any track. Each drop creates a separate cut."
             : "Click a cut, double-click one car, or box-select individual cars. Shift adds to your selection. Drag the selection to its destination.";
@@ -1163,10 +1195,10 @@ export function createStoryboard(root: HTMLElement): void {
       const p = document.createElement("p");
       p.textContent =
         trackSelection.length > (t?.turnout ? 2 : 1)
-          ? `${trackSelection.length} track pieces selected. Delete removes the selection; Undo restores it.`
+          ? `${trackSelection.length} track pieces selected. Drag a selected line to move them together; Delete removes them. Undo restores the change.`
           : t?.turnout
-            ? "Turnout selected. Both pieces delete together. Choose a direction to change it."
-            : "Track selected. Drag either end to resize; Delete removes only this section.";
+            ? "Turnout selected. Drag either piece to move the whole turnout. Both pieces delete together. Choose a direction to change it."
+            : "Track selected. Drag the line to move it, or either end to resize. Nearby endpoints snap together; hold Alt for free placement. Delete removes this section.";
       props.append(p);
       if (t?.turnout && trackSelection.length === 2)
         directionButtons(props, t.turnout);
@@ -1305,11 +1337,12 @@ export function createStoryboard(root: HTMLElement): void {
     const q = p.matrixTransform(matrix.inverse());
     return { x: q.x, y: q.y };
   }
+  function snapTolerance(): number {
+    return 12 / (svg.getScreenCTM()?.a || 1);
+  }
   function grid(p: Point, bypass = false): Point {
     if (!snapping || bypass) return p;
-    const s = snap(p, deck.tracks);
-    if (s && distance(s.point, p) < 12) return s.point;
-    return { x: Math.round(p.x / 20) * 20, y: Math.round(p.y / 20) * 20 };
+    return trackSnap(p, deck.tracks, snapTolerance()).point;
   }
   function place(p: Point): void {
     if (!canAnnotate() || (tool !== "text" && !editable())) return;
@@ -1374,7 +1407,10 @@ export function createStoryboard(root: HTMLElement): void {
   root.addEventListener(
     "pointerdown",
     (e) => {
-      if (!svg.contains(e.target as Node)) lastAnnotationPick = undefined;
+      if (!svg.contains(e.target as Node)) {
+        lastAnnotationPick = undefined;
+        lastPick = undefined;
+      }
     },
     true,
   );
@@ -1479,7 +1515,17 @@ export function createStoryboard(root: HTMLElement): void {
         ? group.every((id) => trackSelection.includes(id))
           ? trackSelection.filter((id) => !group.includes(id))
           : [...new Set([...trackSelection, ...group])]
-        : group;
+        : trackSelection.includes(t.id)
+          ? trackSelection
+          : group;
+      if (!e.shiftKey)
+        drag = {
+          kind: "tracks",
+          start: p,
+          end: p,
+          ids: [...trackSelection],
+          add: false,
+        };
       if (t?.turnout) {
         const branch = deck.tracks.find((v) => v.turnout === t.turnout)!;
         orientation =
@@ -1561,6 +1607,7 @@ export function createStoryboard(root: HTMLElement): void {
           hover,
           deck.tracks,
           snapping && !e.altKey,
+          snapTolerance(),
         ),
         ids: [],
         add: false,
@@ -1575,9 +1622,33 @@ export function createStoryboard(root: HTMLElement): void {
     }
     drag.end =
       drag.kind === "track"
-        ? straightEnd(drag.start, point(e), deck.tracks, snapping && !e.altKey)
+        ? straightEnd(
+            drag.start,
+            point(e),
+            deck.tracks,
+            snapping && !e.altKey,
+            snapTolerance(),
+          )
         : point(e);
-    if (drag.kind === "units") {
+    if (drag.kind === "tracks") {
+      trackPreview = translateTracks(
+        deck.tracks.filter((t) => drag!.ids.includes(t.id)),
+        deck.tracks.filter((t) => !drag!.ids.includes(t.id)),
+        { x: drag.end.x - drag.start.x, y: drag.end.y - drag.start.y },
+        snapping && !e.altKey,
+        snapTolerance(),
+      );
+      try {
+        validateTracks(
+          trackPreview.tracks,
+          deck.tracks.filter((t) => !drag!.ids.includes(t.id)),
+        );
+        trackMoveBlocked = false;
+      } catch {
+        trackMoveBlocked = true;
+      }
+      paint();
+    } else if (drag.kind === "units") {
       const dx = drag.end.x - drag.start.x,
         dy = drag.end.y - drag.start.y;
       paint(
@@ -1595,6 +1666,7 @@ export function createStoryboard(root: HTMLElement): void {
     if (!drag) return;
     const d = drag;
     drag = null;
+    trackPreview = null;
     if (d.kind === "palette") {
       const p = point(e);
       const bounds = svg.getBoundingClientRect();
@@ -1654,6 +1726,23 @@ export function createStoryboard(root: HTMLElement): void {
       render();
       return;
     }
+    if (d.kind === "tracks") {
+      change(() => {
+        const moved = translateTracks(
+          deck.tracks.filter((t) => d.ids.includes(t.id)),
+          deck.tracks.filter((t) => !d.ids.includes(t.id)),
+          { x: p.x - d.start.x, y: p.y - d.start.y },
+          snapping && !e.altKey,
+          snapTolerance(),
+        );
+        const rest = deck.tracks.filter((t) => !d.ids.includes(t.id));
+        validateTracks(moved.tracks, rest);
+        deck.tracks = deck.tracks.map(
+          (t) => moved.tracks.find((m) => m.id === t.id) ?? t,
+        );
+      });
+      return;
+    }
     if (d.kind === "endpoint") {
       change(() => {
         const track = deck.tracks.find((t) => t.id === d.unit)!;
@@ -1667,16 +1756,10 @@ export function createStoryboard(root: HTMLElement): void {
                 p,
                 others,
                 snapping && !e.altKey,
+                snapTolerance(),
               )
             : grid(p, e.altKey);
-        const projected = snap(candidate, others);
-        const end =
-          snapping &&
-          !e.altKey &&
-          projected &&
-          distance(projected.point, candidate) < 12
-            ? projected.point
-            : candidate;
+        const end = candidate;
         if (
           deck.tracks.some(
             (t) => t.turnout && [t.a, t.b].some((p) => distance(p, old) < 0.1),
@@ -1716,7 +1799,13 @@ export function createStoryboard(root: HTMLElement): void {
         const track = {
           id: id(),
           a: d.start,
-          b: straightEnd(d.start, p, deck.tracks, snapping && !e.altKey),
+          b: straightEnd(
+            d.start,
+            p,
+            deck.tracks,
+            snapping && !e.altKey,
+            snapTolerance(),
+          ),
         };
         validateTracks([track], deck.tracks);
         deck.tracks.push(track);
@@ -1728,6 +1817,7 @@ export function createStoryboard(root: HTMLElement): void {
       return;
     }
     if (d.kind === "units") {
+      lastPick = undefined;
       const anchor = slide().units.find((u) => u.id === d.unit)!;
       const target = {
         x: anchor.x + p.x - d.start.x,
@@ -1832,6 +1922,7 @@ export function createStoryboard(root: HTMLElement): void {
     if (e.code === "Space") space = false;
   });
   window.addEventListener("pointercancel", () => {
+    trackPreview = null;
     drag = null;
     pan = null;
     paint();
@@ -1845,6 +1936,21 @@ export function createStoryboard(root: HTMLElement): void {
     const typing =
       e.target instanceof HTMLInputElement ||
       e.target instanceof HTMLTextAreaElement;
+    if (
+      !typing &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey &&
+      index === 0 &&
+      canAnnotate() &&
+      ["v", "l"].includes(e.key.toLowerCase())
+    ) {
+      e.preventDefault();
+      cancel();
+      tool = e.key.toLowerCase() === "v" ? "select" : "track";
+      render();
+      return;
+    }
     if (
       !typing &&
       index === 0 &&

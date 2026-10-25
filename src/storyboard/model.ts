@@ -333,7 +333,12 @@ export function moveSlide(
   // Curved cuts can follow tracks, but arbitrary/off-track arrangements must not
   // collapse onto a projected route. Translate the selection intact in that case.
   const initialUnits = animatedUnits(before, motion, 0);
+  const destinationTrack = snap(path[path.length - 1]!, deck.tracks);
+  const destinationOffTrack =
+    !destinationTrack ||
+    distance(destinationTrack.point, path[path.length - 1]!) > 0.1;
   if (
+    destinationOffTrack ||
     initialUnits.some(
       (u, i) =>
         distance(u, before[i]!) > 0.1 ||
@@ -473,29 +478,122 @@ export function frameAt(
   const t = movement ? Math.min(1, Math.max(0, elapsed / movement)) : 1;
   return { index, progress: t * t * (3 - 2 * t) };
 }
-/** Orthogonal new tracks, with connections only if they preserve the chosen axis. */
+/** Prefer exact endpoints, then rail connections, then grid; tolerance is supplied in world units. */
+export function trackSnap(
+  p: Point,
+  tracks: Track[],
+  tolerance = 12,
+): { point: Point; connected: boolean } {
+  const endpoints = tracks.flatMap((t) => [t.a, t.b]);
+  const nearest = endpoints.sort((a, b) => distance(a, p) - distance(b, p))[0];
+  if (nearest && distance(nearest, p) <= tolerance)
+    return { point: copy(nearest), connected: true };
+  const rail = snap(p, tracks);
+  if (rail && distance(rail.point, p) <= tolerance)
+    return { point: rail.point, connected: true };
+  return {
+    point: { x: Math.round(p.x / 20) * 20, y: Math.round(p.y / 20) * 20 },
+    connected: false,
+  };
+}
+/** Orthogonal drawing; test raw pointer proximity before rounding to the grid. */
 export function straightEnd(
   start: Point,
   target: Point,
   tracks: Track[],
   enabled = true,
+  tolerance = 12,
 ): Point {
   if (!enabled) return { ...target };
   const horizontal =
     Math.abs(target.x - start.x) >= Math.abs(target.y - start.y);
-  const end = horizontal
-    ? { x: Math.round(target.x / 20) * 20, y: start.y }
-    : { x: start.x, y: Math.round(target.y / 20) * 20 };
-  const candidate = snap(end, tracks);
-  if (
-    candidate &&
-    distance(candidate.point, end) < 12 &&
+  const raw = horizontal
+    ? { x: target.x, y: start.y }
+    : { x: start.x, y: target.y };
+  const candidates = tracks
+    .flatMap((t) => [t.a, t.b])
+    .filter((p) =>
+      horizontal
+        ? Math.abs(p.y - start.y) < 0.1
+        : Math.abs(p.x - start.x) < 0.1,
+    );
+  const endpoint = candidates.sort(
+    (a, b) => distance(a, raw) - distance(b, raw),
+  )[0];
+  if (endpoint && distance(endpoint, raw) <= tolerance) return copy(endpoint);
+  // Intersect the chosen axis with any rail; never bend the new line to meet it.
+  let best: Point | undefined,
+    nearest = tolerance;
+  for (const t of tracks) {
+    const span = horizontal ? t.b.y - t.a.y : t.b.x - t.a.x;
+    if (Math.abs(span) < 0.001) continue;
+    const f = (horizontal ? start.y - t.a.y : start.x - t.a.x) / span;
+    if (f < 0 || f > 1) continue;
+    const p = {
+      x: t.a.x + f * (t.b.x - t.a.x),
+      y: t.a.y + f * (t.b.y - t.a.y),
+    };
+    const d = distance(p, raw);
+    if (d <= nearest) {
+      nearest = d;
+      best = p;
+    }
+  }
+  return (
+    best ??
     (horizontal
-      ? Math.abs(candidate.point.y - start.y) < 0.1
-      : Math.abs(candidate.point.x - start.x) < 0.1)
-  )
-    return candidate.point;
-  return end;
+      ? { x: Math.round(target.x / 20) * 20, y: start.y }
+      : { x: start.x, y: Math.round(target.y / 20) * 20 })
+  );
+}
+/** Translate a selection rigidly; the closest moved endpoint chooses a single connection. */
+export function translateTracks(
+  selected: Track[],
+  rest: Track[],
+  delta: Point,
+  enabled = true,
+  tolerance = 12,
+): { tracks: Track[]; connection?: Point } {
+  let dx = delta.x,
+    dy = delta.y,
+    connection: Point | undefined;
+  if (enabled) {
+    let best = tolerance;
+    // Endpoints have priority over projections onto rail interiors.
+    for (const endpointOnly of [true, false]) {
+      let found = false;
+      for (const t of selected)
+        for (const p of [t.a, t.b]) {
+          const target = { x: p.x + delta.x, y: p.y + delta.y };
+          const candidates = endpointOnly
+            ? rest.flatMap((t) => [t.a, t.b])
+            : rest.map((t) => project(target, t.a, t.b));
+          for (const q of candidates) {
+            const d = distance(target, q);
+            if (d <= best) {
+              best = d;
+              dx = delta.x + q.x - target.x;
+              dy = delta.y + q.y - target.y;
+              connection = copy(q);
+              found = true;
+            }
+          }
+        }
+      if (found) break;
+    }
+    if (!connection) {
+      dx = Math.round(delta.x / 20) * 20;
+      dy = Math.round(delta.y / 20) * 20;
+    }
+  }
+  return {
+    tracks: selected.map((t) => ({
+      ...t,
+      a: { x: t.a.x + dx, y: t.a.y + dy },
+      b: { x: t.b.x + dx, y: t.b.y + dy },
+    })),
+    connection,
+  };
 }
 
 /** A turnout is one selectable object made of two connected segments. */

@@ -16,7 +16,10 @@ The editor rejects stacked/overlapping rails and crossings through the middle of
 
 To change or remove a piece:
 
-- Choose **Select**, then click a track or turnout, or drag a box around several pieces. Selected pieces turn gold. Shift-click adds/removes pieces; Ctrl/⌘+A selects all track pieces.
+- Choose **Select** (or press **V**), then click a track or turnout, or drag a box around several pieces. Selected pieces turn gold. Shift-click adds/removes pieces; Ctrl/⌘+A selects all track pieces.
+- **Drag the middle of a selected line to move it.** A selected group moves together, preserving its shape; turnouts move as one piece. Unselected tracks stay put.
+- Nearby endpoints snap together before the grid takes effect. A green ring previews the connection; the magnetic reach stays consistent as you zoom. Hold **Alt** or turn Snap off for free placement. Overlapping destinations are rejected without changing the drawing.
+- Press **L** or choose **Track** to draw more lines. Select mode moves lines; Track mode draws them.
 - Click **Delete selected track** in the toolbar or inspector, or press Delete/Backspace. A turnout deletes as one piece; its supporting track remains.
 - For a selected turnout, choose a different direction in the inspector. Changes that overlap another piece are rejected.
 - For a selected ordinary line, drag either endpoint to resize it. Connected ordinary endpoints move together. An endpoint attached to a turnout is protected; change/delete the turnout first.

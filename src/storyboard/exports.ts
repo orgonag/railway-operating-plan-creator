@@ -299,6 +299,7 @@ export function openExports(
             format: dimensions,
             orientation: imageHeight > 1200 ? "portrait" : "landscape",
             hotfixes: ["px_scaling"],
+            compress: true,
           });
         else
           pdf.addPage(
@@ -312,6 +313,8 @@ export function openExports(
           0,
           1200,
           imageHeight,
+          undefined,
+          "FAST",
         );
       }
       saveBlob("operating-plan.pdf", pdf!.output("blob"));

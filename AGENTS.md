@@ -58,3 +58,12 @@ Performance: pass a precomputed frame to scene for thumbnails, standalone and vi
 - Block export/full-plan playback/presentation while reviews remain. A repaired current step can preview even if later steps still need review. Editable JSON downloads always remain available.
 - Startup/Open frame all content. Present and Play plan frame the whole plan; Exit restores the editing viewport.
 - Browser assertions reading autosave must await #app[data-saving=false], since writes are serialized asynchronously. Test actual stale tabs, failed recovery, quota fallback, Escape, single-click navigation after typing, and closed-tab draft restoration.
+
+## Track repositioning and magnets
+- Select (V) drags an entire line or selected set. Turnouts remain grouped; moving selected tracks does not move unselected tracks/equipment. Validate the complete result before committing; overlaps/crossings roll back and Undo restores a move.
+- Keep Track (L) as the drawing mode for rapid repeated lines. Whole-line dragging is only in Select; endpoints still resize. Clicking a selected piece keeps the multi-selection intact; Shift toggles groups.
+- trackSnap prefers endpoints before rail interiors before grid. straightEnd considers raw pointer proximity before grid rounding and never changes the chosen horizontal/vertical axis. translateTracks chooses one endpoint connection and translates the selection rigidly.
+- Magnetic reach is 12 screen pixels converted through getScreenCTM, including zoom. A green ring previews a connection. Alt/Snap off bypasses magnets and grid. Clear trackPreview on cancel, pointercancel and commit.
+- Off-track movement destinations use rigid selection translation: a short perpendicular connector at the route end must never extrapolate cars into a vertical tail. Preserve spacing and orientation throughout the animation.
+- PDF PNG pages must use jsPDF compression (FAST); uncompressed full-resolution RGB pages can turn a modest 18-step plan into a 165 MiB file. Verify output size with a realistic plan.
+- Clear equipment double-click history after a drag and when clicking outside the canvas. A fast Next step followed by dragging the same car must select the cut, not silently select only one car.

@@ -659,3 +659,69 @@ async function savedData(page: Page) {
     JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
   );
 }
+
+test("move whole tracks and a selection, connect endpoints, reject overlaps and undo", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Skip guide", exact: true }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).click();
+  await drag(page, await at(page, 100, 200), await at(page, 500, 200));
+  await drag(page, await at(page, 700, 300), await at(page, 900, 300));
+  await drag(page, await at(page, 100, 500), await at(page, 500, 500));
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  // A nearby endpoint attracts the whole segment, rather than rounding it away.
+  const a = await at(page, 800, 300),
+    b = await at(page, 604, 204);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y, { steps: 8 });
+  await expect(page.locator("[data-snap-target]")).toHaveCount(1);
+  await page.mouse.up();
+  let d = await savedData(page);
+  expect(d.tracks[1].a).toEqual({ x: 500, y: 200 });
+  expect(d.tracks[1].b).toEqual({ x: 700, y: 200 });
+  await drag(page, await at(page, 70, 170), await at(page, 730, 230));
+  await expect(page.locator(".track-chosen")).toHaveCount(2);
+  // Moving onto an occupied rail is rejected without partial changes.
+  await drag(page, await at(page, 300, 200), await at(page, 300, 500));
+  await expect(page.getByRole("status")).toContainText("overlaps");
+  expect((await savedData(page)).tracks).toEqual(d.tracks);
+  await drag(page, await at(page, 300, 200), await at(page, 704, 504));
+  d = await savedData(page);
+  expect(d.tracks[0].a).toEqual({ x: 500, y: 500 });
+  expect(d.tracks[1].b).toEqual({ x: 1100, y: 500 });
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  expect((await savedData(page)).tracks[0].a).toEqual({ x: 100, y: 200 });
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await drag(page, await at(page, 300, 200), await at(page, 704, 504));
+  expect((await savedData(page)).tracks[0].a).toEqual({ x: 500, y: 500 });
+  await page.reload();
+  expect((await savedData(page)).tracks[1].b).toEqual({ x: 1100, y: 500 });
+});
+
+test("middle-car off-track drops never fold the cut into a vertical tail", async ({
+  page,
+}) => {
+  await setup(page);
+  for (let i = 1; i < 10; i++)
+    await page.getByRole("button", { name: "+", exact: true }).click();
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drag(page, await at(page, 410, 350), await at(page, 750, 380));
+  let d = await savedData(page);
+  expect(d.slides[2].motion.translate).toBe(true);
+  const check = (units: any[]) => {
+    for (let i = 1; i < units.length; i++) {
+      expect(units[i].x - units[i - 1].x).toBeCloseTo(46);
+      expect(units[i].y).toBeCloseTo(units[0].y);
+      expect(units[i].angle).toBe(0);
+    }
+  };
+  check(d.slides[2].units);
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drag(page, await at(page, 750, 380), await at(page, 600, 350));
+  d = await savedData(page);
+  check(d.slides[3].units);
+  await page.reload();
+  check((await savedData(page)).slides[3].units);
+});

@@ -43,3 +43,13 @@ This is browser regression coverage, not a claim of exhaustive screen-reader, to
 - Startup/Open/Present/Play frame content; leaving presentation restores editing zoom.
 - A 50-step/100-car fixture opens, saves an edit, previews and exports animated HTML. Recorded local timings before final build: about 0.4s open, 0.26s edit/save, 0.38s preview start (includes automation overhead; not a cross-device performance guarantee).
 - Unit round trips cover 2001 tracks, 2001 cars and 1001 slides, plus far/negative coordinates.
+
+## Track movement and snap acceptance
+
+Select/V moves whole lines and rigid multi-selections, including grouped turnouts. Endpoint magnets take priority over grid rounding and use screen-scaled reach. Green rings indicate connections; invalid overlapping/crossing moves preview red and leave geometry untouched on release. Browser regression covers exact endpoint connection, multi-selection movement, rejection rollback, Undo, zoom and reload. Track/L remains repeat drawing mode.
+
+Live yard review (2026-10-25, Astra/high): authored 18 track segments, seven labels, 14 units and 16 movements (18 slides). Revised an early snapshot, rebuilt all later movements, reloaded, edited/reset a manual path, played the plan, and exported HTML, PDF, PPTX, PNG, SVG ZIP and MP4. Titles/instructions survived; PPTX contained all 18 slide notes. MP4 decoded successfully (37.03 seconds, 1200×900). No page errors observed. Evidence: /tmp/railway-live-review-20261025.
+
+Emailed screenshot regression: a middle-car drag to 35 units off a straight lead appended a perpendicular path tail and rotated four units vertically. Off-track destinations now use rigid group translation. Automated checks cover ten cars, unchanged spacing/orientation throughout animation, the next move back onto track and reload. Existing authored snapshots are preserved; rebuild an affected movement from its correct preceding snapshot.
+
+The realistic PDF was 173,221,733 bytes before PNG compression; jsPDF FAST compression is required. Very panoramic yard PDFs still use the common plan frame and may have substantial vertical whitespace; diagrams are rasterized. Do not claim selectable PDF diagram text or perfect page fitting.

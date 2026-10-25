@@ -1,5 +1,8 @@
 import {
   turnoutTracks,
+  trackSnap,
+  straightEnd,
+  translateTracks,
   validateTracks,
   pageSize,
   drawingBounds,
@@ -227,6 +230,30 @@ it("larger yard dimensions survive saving and permit tracks beyond the old page"
 });
 
 describe("movement beyond drawn track", () => {
+  it("keeps a cut intact when a drop adds a perpendicular off-track tail", () => {
+    const d = blank();
+    d.tracks = tracks;
+    nextSlide(d).units = structuredClone(cars);
+    const s = nextSlide(d);
+    const anchor = cars[5]!;
+    const destination = { x: 800, y: 225 };
+    moveSlide(
+      d,
+      2,
+      [anchor.id, ...cars.filter((u) => u.id !== anchor.id).map((u) => u.id)],
+      movementRoute(tracks, anchor, destination),
+    );
+    expect(s.motion!.translate).toBe(true);
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      const frame = animatedUnits(cars, s.motion!, t);
+      for (let i = 1; i < frame.length; i++) {
+        expect(frame[i]!.x - frame[i - 1]!.x).toBeCloseTo(46);
+        expect(frame[i]!.y).toBeCloseTo(frame[0]!.y);
+        expect(frame[i]!.angle).toBe(0);
+      }
+    }
+    expect(s.units[5]).toMatchObject(destination);
+  });
   it("preserves an overhanging cut when dragging its off-track car on later slides", () => {
     const d = blank();
     d.tracks = [{ id: "short", a: { x: 100, y: 200 }, b: { x: 500, y: 200 } }];
@@ -349,4 +376,36 @@ it("reopens authored plans beyond the former track, unit and step limits", () =>
   expect(restored.tracks).toHaveLength(2001);
   expect(restored.slides).toHaveLength(1001);
   expect(restored.slides[1]!.units).toHaveLength(2001);
+});
+
+it("track endpoint magnets beat grid rounding and preserve the drawing axis", () => {
+  const rest = [
+    { id: "offgrid", a: { x: 503, y: 200 }, b: { x: 800, y: 200 } },
+  ];
+  expect(trackSnap({ x: 510, y: 205 }, rest, 12).point).toEqual({
+    x: 503,
+    y: 200,
+  });
+  expect(
+    straightEnd({ x: 100, y: 200 }, { x: 510, y: 203 }, rest, true, 12),
+  ).toEqual({ x: 503, y: 200 });
+  expect(
+    straightEnd({ x: 100, y: 180 }, { x: 510, y: 203 }, rest, true, 12).y,
+  ).toBe(180);
+  expect(trackSnap({ x: 510, y: 205 }, rest, 2).connected).toBe(false);
+});
+it("whole-track dragging snaps a rigid group without changing its dimensions", () => {
+  const selected = [
+    { id: "a", a: { x: 700, y: 300 }, b: { x: 900, y: 300 } },
+    { id: "b", a: { x: 900, y: 300 }, b: { x: 1000, y: 360 } },
+  ];
+  const rest = [{ id: "fixed", a: { x: 100, y: 200 }, b: { x: 503, y: 200 } }];
+  const moved = translateTracks(selected, rest, { x: -190, y: -96 }, true, 12);
+  expect(moved.connection).toEqual({ x: 503, y: 200 });
+  expect(moved.tracks[0]!.a).toEqual({ x: 503, y: 200 });
+  expect(moved.tracks[1]!.b).toEqual({ x: 803, y: 260 });
+  expect(selected[0]!.a).toEqual({ x: 700, y: 300 });
+  expect(
+    translateTracks(selected, rest, { x: -190, y: -96 }, false).tracks[0]!.a,
+  ).toEqual({ x: 510, y: 204 });
 });
