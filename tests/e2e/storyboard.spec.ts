@@ -32,6 +32,7 @@ async function drop(page: Page, tool: string, x: number, y: number) {
 }
 async function setup(page: Page) {
   await page.goto("/");
+  await page.getByRole("button", { name: "Skip guide", exact: true }).click();
   await page.getByRole("button", { name: "Track", exact: true }).click();
   await drag(page, await at(page, 80, 350), await at(page, 1100, 350));
   await page.getByRole("button", { name: "+ Next step", exact: true }).click();
@@ -100,6 +101,7 @@ test("straight drawing, pause persistence, autoplay and actual export files", as
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Skip guide", exact: true }).click();
   await page.getByRole("button", { name: "Track", exact: true }).click();
   await drag(page, await at(page, 100, 300), await at(page, 1050, 325));
   let d = await page.evaluate(() =>
@@ -188,4 +190,83 @@ test("straight drawing, pause persistence, autoplay and actual export files", as
     timeout: 5000,
   });
   await expect(page.locator("#autoplay")).toHaveText("Autoplay");
+});
+
+test("welcome, click-to-draw, grouped turnouts, deletion and zoom", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("dialog", { name: "Quick start guide" }),
+  ).toBeVisible();
+  for (let i = 0; i < 6; i++)
+    await page.getByRole("button", { name: "Next tip", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Export when you are done" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Start drawing", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Track", exact: true }).click();
+  let p = await at(page, 100, 300);
+  await page.mouse.click(p.x, p.y);
+  p = await at(page, 1000, 320);
+  await page.mouse.click(p.x, p.y);
+  const data = () =>
+    page.evaluate(() =>
+      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
+    );
+  expect((await data()).tracks).toHaveLength(1);
+  expect((await data()).tracks[0].b.y).toBe(300);
+  await drag(page, await at(page, 200, 300), await at(page, 700, 300));
+  await expect(page.getByRole("status")).toContainText("overlaps");
+  expect((await data()).tracks).toHaveLength(1);
+  await page.getByRole("button", { name: "Turnout", exact: true }).click();
+  await page.getByRole("button", { name: "Right up", exact: true }).click();
+  p = await at(page, 400, 300);
+  await page.mouse.click(p.x, p.y);
+  expect((await data()).tracks).toHaveLength(3);
+  await page.getByRole("button", { name: "Left down", exact: true }).click();
+  expect((await data()).tracks[2].b.x).toBeCloseTo(200, 2);
+  expect((await data()).tracks[2].b.y).toBeCloseTo(360, 2);
+  await page.keyboard.press("Delete");
+  expect((await data()).tracks).toHaveLength(1);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  expect((await data()).tracks).toHaveLength(3);
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await expect(page.locator(".view-controls")).toContainText("125%");
+  await page.getByRole("button", { name: "Pan", exact: true }).click();
+  const before = await page.locator(".drawing svg").getAttribute("viewBox");
+  await drag(page, await at(page, 600, 400), await at(page, 650, 400));
+  expect(await page.locator(".drawing svg").getAttribute("viewBox")).not.toBe(
+    before,
+  );
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  p = await at(page, 300, 360);
+  await page.mouse.click(p.x, p.y);
+  await page
+    .locator(".story-tools")
+    .getByRole("button", { name: "Delete selected track", exact: true })
+    .click();
+  expect((await data()).tracks).toHaveLength(1);
+  await page.getByRole("button", { name: "Track", exact: true }).click();
+  await drag(page, await at(page, 200, 450), await at(page, 800, 470));
+  expect((await data()).tracks[1].a.y).toBe((await data()).tracks[1].b.y);
+  await page.getByRole("button", { name: "Fit", exact: true }).click();
+  await page.getByRole("button", { name: "Page", exact: true }).click();
+  await expect(page.locator(".drawing svg")).toHaveAttribute(
+    "viewBox",
+    "0 0 1200 700",
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("dialog", { name: "Quick start guide" }),
+  ).toHaveCount(0);
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "New", exact: true }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Quick start guide" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Skip guide", exact: true }).click();
+  expect((await data()).tracks).toHaveLength(0);
 });

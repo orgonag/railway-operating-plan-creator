@@ -1,45 +1,118 @@
 # Railway Operating Plan Creator
 
-An open research project. Build a rail operating plan on a canvas, play it step by step, and share it. You lay out the track to scale, place the customer's facility and the cars, and add the moves one at a time. A switching engine looks over every move as you go and points out anything worth a second look, such as cars that may not fit at the racks. It never stops you. The editor's commands are built so an AI agent could drive them later, with you able to undo anything. Then export the plan as JSON, a share link, an animated page or SVG.
+Draw a railway site, arrange the arriving train, and explain the service one animated step at a time. A slide canvas for the person writing the plan: no switching simulation, prescribed scale, or templates.
 
-If you already have a plan in PowerPoint, PDF, an image or another common format, an optional import gives you a rough first draft. It asks you about every assumption it made, so nothing goes into the plan without you seeing it.
+**[Open the live editor](https://orgonag.github.io/railway-operating-plan-creator/)**
 
-A small benchmark picks the free model the import uses, and measures how often it guesses wrong without asking.
+## Your first plan
 
-Status: Release 1 is built. The engine and player (P1) and the canvas editor with sharing (P2) are done: build track by dragging turnouts and stretching track ends, place facilities and cars, make steps by dragging the train, undo anything, and export the plan as JSON, a share link, a standalone HTML page or an SVG per step. The site is live at https://orgonag.github.io/railway-operating-plan-creator/ and redeploys from `main` through `.github/workflows/pages.yml`.
+### Step 1 — Draw the track layout
 
-How to run:
+Start from the blank page. Choose **Track**, then either click the start and click the end, or drag between them. A preview follows the pointer. With **Snap: on**, a line stays horizontal or vertical and snaps to the drawing grid and aligned connections. Press Escape to cancel an unfinished line. Hold Alt, or turn snapping off, for free-angle track.
 
-- `npm install`, then `npm run dev` for the editor at http://localhost:5173 (this also builds the standalone player bundle the exports inline).
-- `npm test` runs the unit tests and `npm run typecheck` the types.
-- `npm run test:e2e` runs the browser smoke tests in Chromium (once, before the first run: `npx playwright install chromium`). They start their own dev server on port 5181.
-- `npm run build` writes the site to `app/dist` with the GitHub Pages base path; `npm run preview` serves it at http://localhost:4173/railway-operating-plan-creator/.
-- Export from the editor's toolbar: Download (JSON), Share (a link that holds the whole plan), Export (standalone page, SVG of this step, SVG of every step).
+Choose **Turnout** to reveal four small diagrams: **Right up**, **Right down**, **Left up**, and **Left down**. The dot is the connection point; the branch shows exactly where the turnout will go. Select a direction, then click an existing track or drag the Turnout tool onto it. A dashed preview follows the pointer: gold means clear, red means it cannot be placed there. The branch and its short exit are one selectable turnout.
 
-The demo plan's state after every step is written out in [docs/reference/demo-expected-states.md](docs/reference/demo-expected-states.md).
+The editor rejects stacked/overlapping rails and crossings through the middle of two pieces. Connections at a track end, including an end touching the middle of another track, are allowed. These are drawing aids, not railway operating rules. To join two tracks, make their endpoints touch the intended connection.
 
-- [Research spec](docs/spec.md)
-- What the AI sends: [PlanReading schema](docs/schema/plan-reading.schema.json), with three synthetic examples: the [customer service demo](docs/schema/examples/customer-service-demo.reading.json) (one spur), a [spur with a runaround](docs/schema/examples/spur-with-runaround.reading.json) (a trailing-point spur and a passing siding; the engine expands the `runaround` step) and [two customers](docs/schema/examples/two-customers.reading.json) (two spurs, a cut split between them)
-- Research notes: [models](docs/research/models.md), [prior art](docs/research/prior-art.md), [canvas and ingestion](docs/research/canvas.md), [architecture review](docs/research/architecture-review.md)
+To change or remove a piece:
 
-All example plans are synthetic. The project uses no proprietary railway data.
+- Choose **Select**, then click the track or either part of a turnout. The selected piece turns gold.
+- Click **Delete selected track** in the toolbar or inspector, or press Delete/Backspace. A turnout deletes as one piece; its supporting track remains.
+- For a selected turnout, choose a different direction in the inspector. Changes that overlap another piece are rejected.
+- For a selected ordinary line, drag either endpoint to resize it. Connected ordinary endpoints move together. An endpoint attached to a turnout is protected; change/delete the turnout first.
+- **Undo** and **Redo** recover edits. Older saved turnouts without grouping remain individually selectable track sections.
 
-Licensed under the [Apache License 2.0](LICENSE).
+Add **End of track** markers at track ends, **Text** labels, and **Arrow** annotations. Double-click a text label to edit its wording; drag labels and arrows to reposition them. Remove last annotation removes the most recently added annotation.
 
-## Slide editor (new default)
+Finish the site before choosing **+ Next step**. The layout is shared by the whole plan and locks once the next step exists.
 
-The default app now starts with a blank drawing. Draw straight tracks, drop turnouts in four orientations, and add end markers or labels in Step 1. Drag endpoints to adjust the drawing. Step 2 sets the starting snapshot: drag locomotives, loaded cars and empty cars from the toolbar, then use +/- to build separate cuts on any track. Flip equipment as needed.
+### Step 2 — Arrange the starting snapshot
 
-From Step 3, click a cut, double-click an individual car, or drag a box around any subset of cars. Shift adds selections. Drag the equipment to its destination and preview one continuous track-following movement. Use Edit path to click through the intended tracks, then Finish path. Put reversals on separate slides. This editor uses geometric paths, not the switching simulation.
+Drag **Locomotive**, **Loaded car**, or **Empty car** onto a track. Each drop creates an independent cut, so you can put equipment on several tracks.
 
-Next step copies equipment positions. Each step has its own instructions, labels and arrows. Track layout and starting equipment become locked when later steps exist; remove later steps (or Undo) before revising setup. Earlier titles and instructions remain editable. Save locally, download the `.slides.json` file, or export a self-contained animated HTML presentation. Existing plan data is preserved; use **Older plans** (`?legacy=1`) for the previous editor. Old share links also open there. Automatic conversion and PowerPoint export are not included.
+Click a cut and use **+ / −** in the inspector to change its car count. **Flip** changes which way it faces. **Loaded** and **Empty** change the selected cars. Select equipment and drag to reposition it; **Delete selected** removes it. Locomotives can be placed independently of cars.
 
-On Node versions exposing experimental global web storage, use `NODE_OPTIONS=--no-experimental-webstorage npm test` so happy-dom supplies isolated browser storage. This is a runtime compatibility issue in the existing test stack, not a change to application storage.
+This is the initial situation: for example, loaded cars arriving with a locomotive while empties wait on a customer track. Choose **+ Next step** when it looks right.
 
-### Pauses, straight snapping and exports
+### Step 3 onward — One animation per step
 
-Each slide now has **Pause before next step (seconds)** and **Apply pause to all steps**. **Play plan** starts autoplay; movement duration stays automatic and fixed. Manual Preview/Next still waits for you. Older files default to a three-second pause. Pauses are saved in the editable plan and carried into animated HTML and video.
+The new slide copies the preceding equipment positions. Select the equipment that moves:
 
-**Snap: on** keeps new track lines horizontal or vertical and preserves turnout diagonals. Turn snapping off, or hold Alt while drawing, for a free-angle line.
+| Action | Selection |
+| --- | --- |
+| Click a car | Its cut |
+| Double-click a car | That individual car |
+| Drag a box | The individual cars inside it |
+| Hold Shift while selecting | Add to the existing selection, including a locomotive |
 
-**Export** offers editable JSON, offline animated HTML with autoplay, one-page-per-step PDF, static PowerPoint with editable titles/instructions, current-step PNG/SVG, all-step PNG/SVG ZIP archives, and video. The browser selects MP4 when supported or WebM otherwise. Video records in real time: keep the tab visible; closing the export dialog cancels recording. Exports are created on your device. Hosted share links and native PowerPoint animations are not included.
+For example, box-select five cars from a cut of ten, add the locomotive with Shift, and drag the selection to its destination. The editor suggests a path along connected tracks. Selected equipment moves together; unselected equipment stays put.
+
+Use **Preview step** to watch the movement. If the suggested route is wrong, choose **Edit path**, click the tracks along the route, and choose **Finish path**. **Reset path** restores the suggestion. **Clear movement** returns to the prior snapshot so you can start again.
+
+Each slide contains one continuous movement in one direction. **A reversal belongs on the next slide.** Add a title, instructions, arrows, or text to explain what happens. Continue adding steps until the service is complete.
+
+Earlier snapshots remain preserved. To revise the track layout or starting equipment, remove later steps or Undo back to the setup. Titles and written instructions remain editable. There is no automatic rewrite of later movements.
+
+## Zoom, pan and scale
+
+Use the **− / +** buttons above the canvas to zoom from 50% to 500%. **Ctrl/⌘ + scroll** zooms around the pointer. Choose **Pan** and drag to move the view, or hold Space while dragging the canvas. Choose Select or another tool to leave Pan mode.
+
+**Fit** frames the current layout and content. **Page** restores the entire 1200 × 700 drawing page. Zoom and pan only change your view: saved positions, snapping, and exports stay the same. Keep the drawing inside the page so it appears in all exports. The author decides the scale; the app does not simulate physical lengths or speeds.
+
+## Pauses and presentation
+
+Set **Pause before next step (seconds)** to control how long the completed slide stays visible. **Apply pause to all steps** copies that value throughout the plan. The default is three seconds; zero advances immediately after movement finishes. You can enter up to 3600 seconds.
+
+Movement duration is automatic. There is no movement-duration setting.
+
+**Play plan** starts at Step 1 and advances automatically, honoring each pause. **Present** provides a larger canvas with manual Previous/Next controls. **Preview step** plays only the current movement and then waits. Stop playback at any time.
+
+## Save and export
+
+The editor automatically saves in the current browser. **Download** saves an editable `.slides.json` backup; use **Open** to resume it on another browser or computer. Before **New**, download anything you want to keep as a separate plan.
+
+**Export** creates files on your device:
+
+| Format | Best for | What is included |
+| --- | --- | --- |
+| Editable JSON | Backups and continued editing | Layout, snapshots, paths, text and pauses |
+| Animated HTML | Sharing an offline presentation | Self-contained playback, manual controls and autoplay with pauses |
+| Video | Watching without the editor | MP4 where supported, otherwise WebM; animations and pauses |
+| PDF | Printing and review | One page per step |
+| PowerPoint | Putting the plan in a presentation | Static diagram images with editable titles and instructions |
+| PNG / SVG | Using a diagram elsewhere | Current step, or all steps in a ZIP archive |
+
+Video records in real time. Keep the tab visible while recording; closing the export dialog cancels it. PowerPoint export does not contain native railway shapes or native animations. Animated HTML and video preserve movement. Hosted sharing links are not part of the slide editor.
+
+## A short guide when you need it
+
+An arrow-guided introduction appears on the first visit and after **New**. It points out the drawing tools, the first two setup steps, later movement slides, pause settings, zoom, and Export. Skip it at any time; **Help** reopens it. Once dismissed, it stays dismissed on normal refreshes in that browser.
+
+## Older plans
+
+**Older plans** opens the previous editor at `?legacy=1`. Existing `#plan=` share links also open there. The slide editor uses a separate storage key and file format so it does not overwrite legacy plans. Automatic conversion is not included.
+
+The historical [research spec](docs/spec.md), [architecture review](docs/research/architecture-review.md), and [demo expected states](docs/reference/demo-expected-states.md) describe that earlier simulation-based editor; they are not the current authoring workflow.
+
+## Development
+
+```sh
+npm ci
+npm run dev
+```
+
+The app is TypeScript and Vite. `src/storyboard/` contains the default slide editor; the legacy engine/editor remain separate. Read [AGENTS.md](AGENTS.md) and the [slide-authoring maintenance guide](docs/skills/slide-authoring/SKILL.md) before changes.
+
+```sh
+npm test
+npm run typecheck
+npx playwright install chromium # once per machine
+npm run test:e2e
+npm run build
+```
+
+On Node 25+ use `NODE_OPTIONS=--no-experimental-webstorage npm test` so happy-dom supplies isolated browser storage. Run tests and builds sequentially: the player build regenerates files used by tests.
+
+There is no server build. `npm run build` first builds the standalone player through `prebuild`, then typechecks and builds the frontend into `app/dist`. GitHub Actions deploys `main` to GitHub Pages through `.github/workflows/pages.yml`. Browser tests start or reuse a dev server on port 5181.
+
+All example plans are synthetic. Licensed under [Apache 2.0](LICENSE).

@@ -1,3 +1,4 @@
+import { turnoutTracks, validateTracks } from "../../src/storyboard/model";
 import { describe, expect, it } from "vitest";
 import {
   blank,
@@ -133,13 +134,59 @@ describe("slide authoring contract", () => {
   });
 });
 
-it('a cut already spanning a turnout starts at its exact saved positions', () => {
- const d=blank();d.tracks=tracks;
- const rear:Unit={...cars[0]!,id:'rear',x:500,y:200};
- const lead:Unit={...cars[1]!,id:'lead',x:740,y:140};
- nextSlide(d).units=[rear,lead];nextSlide(d);
- moveSlide(d,2,['lead','rear'],route(tracks,lead,{x:900,y:140})!);
- const start=animatedUnits(d.slides[1]!.units,d.slides[2]!.motion!,0);
- expect(start.map(u=>({x:u.x,y:u.y}))).toEqual([{x:500,y:200},{x:740,y:140}]);
- const end=d.slides[2]!.units[0]!;expect(end.x).toBeCloseTo(648);expect(end.y).toBeCloseTo(164);
+it("a cut already spanning a turnout starts at its exact saved positions", () => {
+  const d = blank();
+  d.tracks = tracks;
+  const rear: Unit = { ...cars[0]!, id: "rear", x: 500, y: 200 };
+  const lead: Unit = { ...cars[1]!, id: "lead", x: 740, y: 140 };
+  nextSlide(d).units = [rear, lead];
+  nextSlide(d);
+  moveSlide(d, 2, ["lead", "rear"], route(tracks, lead, { x: 900, y: 140 })!);
+  const start = animatedUnits(d.slides[1]!.units, d.slides[2]!.motion!, 0);
+  expect(start.map((u) => ({ x: u.x, y: u.y }))).toEqual([
+    { x: 500, y: 200 },
+    { x: 740, y: 140 },
+  ]);
+  const end = d.slides[2]!.units[0]!;
+  expect(end.x).toBeCloseTo(648);
+  expect(end.y).toBeCloseTo(164);
+});
+
+describe("track authoring guards", () => {
+  it("rejects overlapping and crossing pieces but permits end connections", () => {
+    const base = { id: "main", a: { x: 100, y: 300 }, b: { x: 1000, y: 300 } };
+    expect(() =>
+      validateTracks(
+        [{ id: "overlap", a: { x: 200, y: 300 }, b: { x: 400, y: 300 } }],
+        [base],
+      ),
+    ).toThrow(/overlaps/);
+    expect(() =>
+      validateTracks(
+        [{ id: "cross", a: { x: 400, y: 200 }, b: { x: 400, y: 400 } }],
+        [base],
+      ),
+    ).toThrow(/crosses/);
+    expect(() =>
+      validateTracks(
+        [{ id: "join", a: { x: 400, y: 300 }, b: { x: 400, y: 400 } }],
+        [base],
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateTracks(turnoutTracks({ x: 400, y: 300 }, 0), [base]),
+    ).not.toThrow();
+  });
+  it("groups all four turnout orientations and rejects duplicate turnouts", () => {
+    for (let i = 0; i < 4; i++) {
+      const pieces = turnoutTracks({ x: 600, y: 350 }, i);
+      expect(pieces[0]!.turnout).toBe(pieces[1]!.turnout);
+      expect(pieces[0]!.b).toEqual(pieces[1]!.a);
+      expect(Math.sign(pieces[1]!.b.x - 600)).toBe(i < 2 ? 1 : -1);
+      expect(Math.sign(pieces[1]!.b.y - 350)).toBe(i % 2 === 0 ? -1 : 1);
+      expect(() =>
+        validateTracks(turnoutTracks({ x: 600, y: 350 }, i), pieces),
+      ).toThrow(/overlaps/);
+    }
+  });
 });

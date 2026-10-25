@@ -4,6 +4,7 @@ export interface Point {
 }
 export interface Track {
   id: string;
+  turnout?: string;
   a: Point;
   b: Point;
 }
@@ -309,7 +310,11 @@ export function parseDeck(text: string): Deck {
     !Array.isArray(d.tracks) ||
     d.tracks.length > 2000 ||
     !d.tracks.every(
-      (t) => typeof t.id === "string" && point(t.a) && point(t.b),
+      (t) =>
+        typeof t.id === "string" &&
+        (t.turnout === undefined || typeof t.turnout === "string") &&
+        point(t.a) &&
+        point(t.b),
     ) ||
     !Array.isArray(d.labels) ||
     !d.labels.every(annotation) ||
@@ -425,4 +430,66 @@ export function straightEnd(
   )
     return candidate.point;
   return end;
+}
+
+/** A turnout is one selectable object made of two connected segments. */
+export function turnoutTracks(
+  anchor: Point,
+  orientation: number,
+  group = id(),
+): Track[] {
+  const sx = orientation < 2 ? 1 : -1,
+    sy = orientation % 2 === 0 ? -1 : 1;
+  const bend = { x: anchor.x + sx * 80, y: anchor.y + sy * 60 };
+  return [
+    { id: id(), turnout: group, a: copy(anchor), b: bend },
+    {
+      id: id(),
+      turnout: group,
+      a: copy(bend),
+      b: { x: bend.x + sx * 120, y: bend.y },
+    },
+  ];
+}
+/** Reject stacked rails and interior crossings, but allow endpoint junctions. */
+export function validateTracks(added: Track[], existing: Track[]): void {
+  const cross = (a: Point, b: Point) => a.x * b.y - a.y * b.x;
+  const sub = (a: Point, b: Point) => ({ x: a.x - b.x, y: a.y - b.y });
+  for (let i = 0; i < added.length; i++) {
+    const a = added[i]!;
+    if (distance(a.a, a.b) < 2)
+      throw new Error("Track is too short. Choose an end farther away.");
+    if ([a.a, a.b].some((p) => p.x < 0 || p.x > 1200 || p.y < 0 || p.y > 700))
+      throw new Error(
+        "Keep tracks inside the drawing page. Zoom out to see its edges.",
+      );
+    for (const b of [...existing, ...added.slice(0, i)]) {
+      const r = sub(a.b, a.a),
+        s = sub(b.b, b.a),
+        q = sub(b.a, a.a),
+        den = cross(r, s);
+      if (Math.abs(den) < 0.001) {
+        if (Math.abs(cross(q, r)) > 0.01) continue;
+        const len = r.x * r.x + r.y * r.y;
+        const t = (q.x * r.x + q.y * r.y) / len,
+          v = sub(b.b, a.a),
+          u = (v.x * r.x + v.y * r.y) / len;
+        if (
+          (Math.min(1, Math.max(t, u)) - Math.max(0, Math.min(t, u))) *
+            Math.sqrt(len) >
+          0.5
+        )
+          throw new Error(
+            "That overlaps an existing track. Connect at an end or choose a clear spot.",
+          );
+      } else {
+        const t = cross(q, s) / den,
+          u = cross(q, r) / den;
+        if (t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999)
+          throw new Error(
+            "That crosses another track. Shorten the line or choose another turnout direction.",
+          );
+      }
+    }
+  }
 }

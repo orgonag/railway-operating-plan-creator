@@ -23,4 +23,11 @@ Node 25+ exposes experimental web storage that shadows happy-dom in this test st
 - Video uses capability-detected MP4 or WebM and records in real time. Stop and clean up streams when cancelled or hidden. Never label a WebM file MP4.
 - image-size is overridden to 2.0.4; pptxgenjs excludes it from browser builds. Only generated PNGs are fed to PowerPoint export. Do not remove the override without rechecking advisories.
 - Straight snapping constrains ordinary tracks to horizontal/vertical, not turnout diagonals. Alt temporarily bypasses; preserve snapped connection coordinates.
-- Run the unit suite and production build sequentially: build:player clears app/generated while rebuilding, and concurrent tests can briefly lose player.iife.js.
+- Run both unit/browser suites and production build sequentially: build:player clears app/generated while rebuilding. Concurrent unit tests can lose player.iife.js, and Vite hot reload can interrupt browser tests.
+
+## Canvas authoring and onboarding
+- Turnout segments share optional Track.turnout; select/delete/rotate the group. Old files without grouping remain valid individual segments. Do not infer legacy groups from proximity.
+- validateTracks prevents overlaps, interior crossings, zero-length pieces and off-page creation. Endpoint junctions are allowed. This is geometry validation, never operational simulation.
+- Track tool supports drag and click-start/click-end; it must not resize endpoints. Only Select exposes ordinary endpoint handles. Protect grouped turnout endpoints from partial resizing.
+- ViewBox zoom/pan is view-only. Always convert pointer coordinates through getScreenCTM; palette drops must also check screen bounds. Keep new geometry on the exported 1200x700 page.
+- First-visit/New tutorial uses railway-welcome-v1 separately from plan data, with Help replay. Browser authoring tests dismiss it explicitly; retain a first-visit/New test. Dialogs must not trigger editor Delete/Space handlers.

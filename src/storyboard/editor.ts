@@ -1,5 +1,7 @@
 import {
   blank,
+  turnoutTracks,
+  validateTracks,
   pauseSeconds,
   movementMs,
   durationMs,
@@ -21,6 +23,7 @@ import {
 } from "./model";
 import { scene, points } from "./render";
 import { openExports } from "./exports";
+import { welcome } from "./tutorial";
 const KEY = "railway-storyboard-v1";
 const NS = "http://www.w3.org/2000/svg";
 export function createStoryboard(root: HTMLElement): void {
@@ -33,6 +36,12 @@ export function createStoryboard(root: HTMLElement): void {
     snapping = true,
     presentation = false,
     token = 0;
+  let trackSelection: string[] = [];
+  let pendingStart: Point | null = null;
+  let hover: Point | null = null;
+  let view = { x: 0, y: 0, width: 1200, height: 700 };
+  let pan: { x: number; y: number; view: typeof view } | null = null;
+  let space = false;
   let lastPick: { id: string; time: number } | undefined;
   let history: string[] = [],
     redo: string[] = [],
@@ -68,6 +77,78 @@ export function createStoryboard(root: HTMLElement): void {
     )!,
     instructions = root.querySelector<HTMLTextAreaElement>("textarea")!,
     controls = root.querySelector<HTMLElement>(".play-controls")!;
+  const viewControls = document.createElement("div");
+  viewControls.className = "view-controls";
+  root.querySelector(".drawing")!.before(viewControls);
+  function updateView(): void {
+    svg.setAttribute(
+      "viewBox",
+      `${view.x} ${view.y} ${view.width} ${view.height}`,
+    );
+    zoomLabel.textContent = `${Math.round((1200 / view.width) * 100)}%`;
+  }
+  function zoom(
+    factor: number,
+    anchor = { x: view.x + view.width / 2, y: view.y + view.height / 2 },
+  ): void {
+    const width = Math.max(240, Math.min(2400, view.width / factor)),
+      ratio = width / view.width;
+    view = {
+      x: anchor.x - (anchor.x - view.x) * ratio,
+      y: anchor.y - (anchor.y - view.y) * ratio,
+      width,
+      height: (width * 700) / 1200,
+    };
+    updateView();
+  }
+  button(viewControls, "Zoom out", () => zoom(1 / 1.25)).textContent = "−";
+  viewControls.lastElementChild!.setAttribute("aria-label", "Zoom out");
+  const zoomLabel = document.createElement("span");
+  viewControls.append(zoomLabel);
+  button(viewControls, "Zoom in", () => zoom(1.25)).textContent = "+";
+  viewControls.lastElementChild!.setAttribute("aria-label", "Zoom in");
+  button(viewControls, "Fit", () => {
+    const ps = [
+      ...deck.tracks.flatMap((t) => [t.a, t.b]),
+      ...slide().units,
+      ...deck.labels.flatMap((a) => [a.a, a.b]),
+      ...slide().annotations.flatMap((a) => [a.a, a.b]),
+    ];
+    if (!ps.length) {
+      view = { x: 0, y: 0, width: 1200, height: 700 };
+      updateView();
+      return;
+    }
+    const xs = ps.map((p) => p.x),
+      ys = ps.map((p) => p.y),
+      minX = Math.min(...xs),
+      minY = Math.min(...ys),
+      maxX = Math.max(...xs),
+      maxY = Math.max(...ys);
+    const width = Math.max(
+      240,
+      maxX - minX + 100,
+      ((maxY - minY + 100) * 1200) / 700,
+    );
+    view = {
+      x: (minX + maxX - width) / 2,
+      y: (minY + maxY - (width * 700) / 1200) / 2,
+      width,
+      height: (width * 700) / 1200,
+    };
+    updateView();
+  });
+  button(viewControls, "Page", () => {
+    view = { x: 0, y: 0, width: 1200, height: 700 };
+    updateView();
+  });
+  const panButton = button(viewControls, "Pan", () => {
+    cancel();
+    tool = tool === "pan" ? "select" : "pan";
+    render();
+  });
+  panButton.title = "Drag to pan; or hold Space while dragging";
+  updateView();
   const timing = document.createElement("div");
   timing.className = "slide-timing";
   controls.before(timing);
@@ -97,6 +178,8 @@ export function createStoryboard(root: HTMLElement): void {
     playing = false;
     manual = null;
     drag = null;
+    pendingStart = null;
+    hover = null;
   }
   function change(fn: () => void): void {
     cancel();
@@ -146,7 +229,12 @@ export function createStoryboard(root: HTMLElement): void {
       deck = blank();
       index = 0;
       selected = [];
+      trackSelection = [];
+      tool = "select";
+      view = { x: 0, y: 0, width: 1200, height: 700 };
+      updateView();
     });
+    welcome(root, true);
   });
   button(files, "Open", () => {
     const input = document.createElement("input");
@@ -179,7 +267,7 @@ export function createStoryboard(root: HTMLElement): void {
     cancel();
     render();
     openExports(copy(deck), index, root);
-  });
+  }).dataset.tourExport = "true";
   button(files, "Present", () => {
     cancel();
     presentation = !presentation;
@@ -187,6 +275,7 @@ export function createStoryboard(root: HTMLElement): void {
     index = 0;
     render();
   });
+  button(files, "Help", () => welcome(root, true));
   const legacy = document.createElement("a");
   legacy.href = "?legacy=1";
   legacy.textContent = "Older plans";
@@ -213,6 +302,33 @@ export function createStoryboard(root: HTMLElement): void {
     );
     if (index === 0 && editable()) {
       for (const track of deck.tracks) {
+        const line = document.createElementNS(NS, "line");
+        for (const [k, v] of Object.entries({
+          x1: track.a.x,
+          y1: track.a.y,
+          x2: track.b.x,
+          y2: track.b.y,
+        }))
+          line.setAttribute(k, String(v));
+        line.dataset.track = track.id;
+        line.setAttribute(
+          "stroke",
+          trackSelection.includes(track.id) ? "#e0c580" : "transparent",
+        );
+        line.setAttribute(
+          "stroke-width",
+          trackSelection.includes(track.id) ? "7" : "18",
+        );
+        line.setAttribute("vector-effect", "non-scaling-stroke");
+        line.classList.toggle(
+          "track-chosen",
+          trackSelection.includes(track.id),
+        );
+        svg.append(line);
+      }
+      for (const track of deck.tracks.filter(
+        (t) => trackSelection.includes(t.id) && !t.turnout,
+      )) {
         for (const side of ["a", "b"] as const) {
           const c = document.createElementNS(NS, "circle");
           c.setAttribute("cx", String(track[side].x));
@@ -223,6 +339,33 @@ export function createStoryboard(root: HTMLElement): void {
           c.dataset.endpoint = track.id;
           c.dataset.side = side;
           svg.append(c);
+        }
+      }
+    }
+    if (index === 0 && editable() && tool === "turnout" && hover) {
+      const snapped = snap(hover, deck.tracks);
+      if (snapped && distance(snapped.point, hover) < 30) {
+        const preview = turnoutTracks(snapped.point, orientation);
+        let color = "#e0c580";
+        try {
+          validateTracks(preview, deck.tracks);
+        } catch {
+          color = "#ff7869";
+        }
+        for (const t of preview) {
+          const l = document.createElementNS(NS, "line");
+          for (const [k, v] of Object.entries({
+            x1: t.a.x,
+            y1: t.a.y,
+            x2: t.b.x,
+            y2: t.b.y,
+          }))
+            l.setAttribute(k, String(v));
+          l.setAttribute("stroke", color);
+          l.setAttribute("stroke-width", "5");
+          l.setAttribute("stroke-dasharray", "8 5");
+          l.setAttribute("pointer-events", "none");
+          svg.append(l);
         }
       }
     }
@@ -261,11 +404,18 @@ export function createStoryboard(root: HTMLElement): void {
     cancel();
     index = i;
     selected = [];
+    trackSelection = [];
     tool = "select";
     render();
   }
   function render(): void {
     shell.classList.toggle("presenting", presentation);
+    trackSelection = trackSelection.filter((id) =>
+      deck.tracks.some((t) => t.id === id),
+    );
+    panButton.classList.toggle("active", tool === "pan");
+    svg.style.cursor =
+      tool === "pan" ? "grab" : tool === "track" ? "crosshair" : "default";
     title.value = deck.title;
     heading.value = slide().title;
     instructions.value = slide().text;
@@ -418,6 +568,8 @@ export function createStoryboard(root: HTMLElement): void {
         names[t]!,
         () => {
           tool = t;
+          pendingStart = null;
+          trackSelection = [];
           manual = null;
           render();
         },
@@ -439,16 +591,11 @@ export function createStoryboard(root: HTMLElement): void {
         });
       }
     }
-    if (index === 0)
-      button(
-        tools,
-        `Turnout ↻ ${orientation + 1}/4`,
-        () => {
-          orientation = (orientation + 1) % 4;
-          render();
-        },
-        !editable(),
-      );
+    if (index === 0 && editable()) {
+      if (tool === "turnout") directionButtons(tools);
+      if (trackSelection.length)
+        button(tools, "Delete selected track", deleteTrack);
+    }
     button(
       tools,
       snapping ? "Snap: on" : "Snap: off",
@@ -502,6 +649,39 @@ export function createStoryboard(root: HTMLElement): void {
     status.textContent = message;
     paint();
   }
+  function deleteTrack(): void {
+    change(() => {
+      deck.tracks = deck.tracks.filter((t) => !trackSelection.includes(t.id));
+      trackSelection = [];
+    });
+  }
+  function directionButtons(parent: HTMLElement, selectedGroup?: string): void {
+    const row = document.createElement("div");
+    row.className = "turnout-directions";
+    row.setAttribute("aria-label", "Turnout direction");
+    parent.append(row);
+    ["Right up", "Right down", "Left up", "Left down"].forEach((name, i) => {
+      const b = button(row, name, () => {
+        orientation = i;
+        if (selectedGroup) {
+          change(() => {
+            const old = deck.tracks.filter((t) => t.turnout === selectedGroup);
+            const replacement = turnoutTracks(old[0]!.a, i, selectedGroup);
+            const rest = deck.tracks.filter((t) => t.turnout !== selectedGroup);
+            validateTracks(replacement, rest);
+            deck.tracks = [...rest, ...replacement];
+            trackSelection = replacement.map((t) => t.id);
+          });
+        } else render();
+      });
+      b.setAttribute("aria-label", name);
+      b.title = name;
+      const sx = i < 2 ? 1 : -1,
+        sy = i % 2 === 0 ? -1 : 1;
+      b.innerHTML = `<svg viewBox="0 0 64 40" aria-hidden="true"><path d="M2 20H62 M32 20L${32 + sx * 12} ${20 + sy * 13}H${32 + sx * 28}" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="20" r="3" fill="currentColor"/></svg><span>${name}</span>`;
+      b.classList.toggle("active", i === orientation);
+    });
+  }
   function inspector(): void {
     props.replaceChildren();
     const h = document.createElement("h2");
@@ -517,11 +697,25 @@ export function createStoryboard(root: HTMLElement): void {
       !editable() && !presentation
         ? "This snapshot is preserved. Remove later steps or undo to revise its geometry. Titles and instructions remain editable."
         : index === 0
-          ? "Choose Track and drag a line. Drop turnouts on tracks; rotate before placing. Endpoints snap."
+          ? "Choose Track: click a start and an end, or drag. Lines snap straight. Choose a turnout direction, then place it on a track. Select any track piece to delete it. Pan or zoom to work closer."
           : index === 1
             ? "Drag a locomotive, loaded car, or empty car from the toolbar onto any track. Each drop creates a separate cut."
             : "Click a cut, double-click one car, or box-select individual cars. Shift adds to your selection. Drag the selection to its destination.";
     props.append(help);
+    if (index === 0 && trackSelection.length && editable()) {
+      const t = deck.tracks.find((t) => t.id === trackSelection[0]);
+      const p = document.createElement("p");
+      p.textContent = t?.turnout
+        ? "Turnout selected. Both pieces delete together. Choose a direction to change it."
+        : "Track selected. Drag either end to resize; Delete removes only this section.";
+      props.append(p);
+      if (t?.turnout) directionButtons(props, t.turnout);
+      button(props, "Delete selected track", deleteTrack);
+      button(props, "Clear selection", () => {
+        trackSelection = [];
+        render();
+      });
+    }
     if (selected.length) {
       const p = document.createElement("p");
       p.textContent = `${selected.length} selected`;
@@ -636,12 +830,6 @@ export function createStoryboard(root: HTMLElement): void {
         });
       });
     }
-    if (index === 0 && editable() && deck.tracks.length)
-      button(props, "Remove last track", () =>
-        change(() => {
-          deck.tracks.pop();
-        }),
-      );
     const annotations = index === 0 ? deck.labels : slide().annotations;
     if (annotations.length && editable())
       button(props, "Remove last annotation", () =>
@@ -695,12 +883,11 @@ export function createStoryboard(root: HTMLElement): void {
         return;
       }
       change(() => {
-        const sx = orientation < 2 ? 1 : -1,
-          sy = orientation % 2 === 0 ? -1 : 1;
-        const a = s.point,
-          b = { x: a.x + sx * 80, y: a.y + sy * 60 },
-          c = { x: b.x + sx * 120, y: b.y };
-        deck.tracks.push({ id: id(), a, b }, { id: id(), a: b, b: c });
+        const tracks = turnoutTracks(s.point, orientation);
+        validateTracks(tracks, deck.tracks);
+        deck.tracks.push(...tracks);
+        trackSelection = tracks.map((t) => t.id);
+        tool = "select";
       });
       return;
     }
@@ -737,7 +924,12 @@ export function createStoryboard(root: HTMLElement): void {
     return index === 0 ? deck.labels : slide().annotations;
   }
   svg.addEventListener("pointerdown", (e) => {
-    if (!editable() || playing) return;
+    if (e.button === 1 || space || tool === "pan") {
+      e.preventDefault();
+      pan = { x: e.clientX, y: e.clientY, view: { ...view } };
+      return;
+    }
+    if (e.button !== 0 || !editable() || playing) return;
     const p = point(e);
     if (manual) {
       const s = snap(p, deck.tracks);
@@ -754,7 +946,7 @@ export function createStoryboard(root: HTMLElement): void {
       return;
     }
     const endpoint = (e.target as Element).closest("[data-endpoint]");
-    if (endpoint && index === 0) {
+    if (endpoint && index === 0 && tool === "select") {
       drag = {
         kind: "endpoint",
         start: p,
@@ -783,11 +975,31 @@ export function createStoryboard(root: HTMLElement): void {
     if (tool === "track" || tool === "arrow") {
       drag = {
         kind: tool,
-        start: grid(p, e.altKey),
+        start: pendingStart ?? grid(p, e.altKey),
         end: p,
         ids: [],
         add: false,
       };
+      return;
+    }
+    const trackId = (e.target as Element)
+      .closest("[data-track]")
+      ?.getAttribute("data-track");
+    if (index === 0 && tool === "select") {
+      const t = deck.tracks.find((t) => t.id === trackId);
+      trackSelection = t
+        ? deck.tracks
+            .filter(
+              (v) => v.id === t.id || (t.turnout && v.turnout === t.turnout),
+            )
+            .map((v) => v.id)
+        : [];
+      if (t?.turnout) {
+        const branch = deck.tracks.find((v) => v.turnout === t.turnout)!;
+        orientation =
+          (branch.b.x > branch.a.x ? 0 : 2) + (branch.b.y > branch.a.y ? 1 : 0);
+      }
+      render();
       return;
     }
     const unit = (e.target as Element)
@@ -852,7 +1064,39 @@ export function createStoryboard(root: HTMLElement): void {
     }
   });
   window.addEventListener("pointermove", (e) => {
-    if (!drag || drag.kind === "palette") return;
+    if (pan) {
+      const matrix = svg.getScreenCTM();
+      if (!matrix) return;
+      view = {
+        ...pan.view,
+        x: pan.view.x - (e.clientX - pan.x) / matrix.a,
+        y: pan.view.y - (e.clientY - pan.y) / matrix.d,
+      };
+      updateView();
+      return;
+    }
+    hover = point(e);
+    if (pendingStart && !drag) {
+      drag = {
+        kind: "track",
+        start: pendingStart,
+        end: straightEnd(
+          pendingStart,
+          hover,
+          deck.tracks,
+          snapping && !e.altKey,
+        ),
+        ids: [],
+        add: false,
+      };
+      paint();
+      drag = null;
+      return;
+    }
+    if (!drag || drag.kind === "palette") {
+      if (tool === "turnout") paint();
+      return;
+    }
     drag.end =
       drag.kind === "track"
         ? straightEnd(drag.start, point(e), deck.tracks, snapping && !e.altKey)
@@ -868,12 +1112,27 @@ export function createStoryboard(root: HTMLElement): void {
     } else paint();
   });
   window.addEventListener("pointerup", (e) => {
+    if (pan) {
+      pan = null;
+      return;
+    }
     if (!drag) return;
     const d = drag;
     drag = null;
     if (d.kind === "palette") {
       const p = point(e);
-      if (p.x >= 0 && p.x <= 1200 && p.y >= 0 && p.y <= 700) place(p);
+      const bounds = svg.getBoundingClientRect();
+      if (
+        e.clientX >= bounds.left &&
+        e.clientX <= bounds.right &&
+        e.clientY >= bounds.top &&
+        e.clientY <= bounds.bottom &&
+        p.x >= 0 &&
+        p.x <= 1200 &&
+        p.y >= 0 &&
+        p.y <= 700
+      )
+        place(p);
       return;
     }
     const p = point(e);
@@ -882,6 +1141,12 @@ export function createStoryboard(root: HTMLElement): void {
       selected = d.add ? [...new Set([...selected, ...ids])] : ids;
       paint();
       inspector();
+      return;
+    }
+    if (d.kind === "track" && distance(d.start, p) < 4) {
+      pendingStart = d.start;
+      tell("Start set. Click the other end; Escape cancels.");
+      paint();
       return;
     }
     if (distance(d.start, p) < 4) {
@@ -911,9 +1176,18 @@ export function createStoryboard(root: HTMLElement): void {
           distance(projected.point, candidate) < 12
             ? projected.point
             : candidate;
+        if (
+          deck.tracks.some(
+            (t) => t.turnout && [t.a, t.b].some((p) => distance(p, old) < 0.1),
+          )
+        )
+          throw new Error(
+            "This end joins a turnout. Delete or change the turnout first.",
+          );
         for (const t of deck.tracks)
           for (const side of ["a", "b"] as const)
             if (distance(t[side], old) < 0.1) t[side] = copy(end);
+        validateTracks(deck.tracks, []);
       });
       return;
     }
@@ -929,13 +1203,15 @@ export function createStoryboard(root: HTMLElement): void {
       return;
     }
     if (d.kind === "track") {
-      change(() =>
-        deck.tracks.push({
+      change(() => {
+        const track = {
           id: id(),
           a: d.start,
           b: straightEnd(d.start, p, deck.tracks, snapping && !e.altKey),
-        }),
-      );
+        };
+        validateTracks([track], deck.tracks);
+        deck.tracks.push(track);
+      });
       return;
     }
     if (d.kind === "arrow") {
@@ -1012,11 +1288,51 @@ export function createStoryboard(root: HTMLElement): void {
       }
     }
   });
+  svg.addEventListener(
+    "wheel",
+    (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, point(e));
+    },
+    { passive: false },
+  );
+  window.addEventListener("keyup", (e) => {
+    if (e.code === "Space") space = false;
+  });
+  window.addEventListener("blur", () => {
+    space = false;
+    pan = null;
+  });
   window.addEventListener("keydown", (e) => {
+    if (root.querySelector("dialog[open]")) return;
+    const typing =
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement;
+    if (
+      e.code === "Space" &&
+      !typing &&
+      !(e.target instanceof HTMLButtonElement)
+    ) {
+      e.preventDefault();
+      space = true;
+    }
+    if (
+      !typing &&
+      index === 0 &&
+      editable() &&
+      trackSelection.length &&
+      ["Backspace", "Delete"].includes(e.key)
+    ) {
+      e.preventDefault();
+      deleteTrack();
+      return;
+    }
     if (e.key === "Escape") {
       cancel();
       tool = "select";
       selected = [];
+      trackSelection = [];
       render();
     }
     if (
@@ -1072,4 +1388,5 @@ export function createStoryboard(root: HTMLElement): void {
     requestAnimationFrame(frame);
   }
   render();
+  welcome(root);
 }
