@@ -25,3 +25,13 @@ The demo plan's state after every step is written out in [docs/reference/demo-ex
 All example plans are synthetic. The project uses no proprietary railway data.
 
 Licensed under the [Apache License 2.0](LICENSE).
+
+## Slide editor (new default)
+
+The default app now starts with a blank drawing. Draw straight tracks, drop turnouts in four orientations, and add end markers or labels in Step 1. Drag endpoints to adjust the drawing. Step 2 sets the starting snapshot: drag locomotives, loaded cars and empty cars from the toolbar, then use +/- to build separate cuts on any track. Flip equipment as needed.
+
+From Step 3, click a cut, double-click an individual car, or drag a box around any subset of cars. Shift adds selections. Drag the equipment to its destination and preview one continuous track-following movement. Use Edit path to click through the intended tracks, then Finish path. Put reversals on separate slides. This editor uses geometric paths, not the switching simulation.
+
+Next step copies equipment positions. Each step has its own instructions, labels and arrows. Track layout and starting equipment become locked when later steps exist; remove later steps (or Undo) before revising setup. Earlier titles and instructions remain editable. Save locally, download the `.slides.json` file, or export a self-contained animated HTML presentation. Existing plan data is preserved; use **Older plans** (`?legacy=1`) for the previous editor. Old share links also open there. Automatic conversion and PowerPoint export are not included.
+
+On Node versions exposing experimental global web storage, use `NODE_OPTIONS=--no-experimental-webstorage npm test` so happy-dom supplies isolated browser storage. This is a runtime compatibility issue in the existing test stack, not a change to application storage.

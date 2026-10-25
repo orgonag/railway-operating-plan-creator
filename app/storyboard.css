@@ -1,0 +1,306 @@
+.storyboard {
+  height: 100%;
+  min-height: 600px;
+  display: grid;
+  grid-template-columns: 205px minmax(350px, 1fr) 225px;
+  grid-template-rows: 66px 56px minmax(0, 1fr) 30px;
+  grid-template-areas: "header header header" "tools tools tools" "steps main inspector" "status status status";
+  font-family: var(--mono);
+}
+.story-header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--rail);
+  background: var(--panel);
+}
+.brand {
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.brand span {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  color: var(--steel);
+}
+.storyboard input,
+.storyboard textarea {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--paper);
+  font: inherit;
+  padding: 8px;
+  border-radius: 5px;
+}
+.storyboard input:hover,
+.storyboard textarea:hover {
+  border-color: var(--rail);
+}
+.storyboard input:focus,
+.storyboard textarea:focus {
+  outline: 1px solid var(--gold);
+  background: var(--panel);
+}
+.plan-title {
+  min-width: 100px;
+  flex: 1;
+}
+.file-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.file-actions a {
+  font-size: 10px;
+  color: var(--steel);
+  margin-left: 8px;
+}
+.storyboard button {
+  background: var(--panel);
+  border: 1px solid var(--rail);
+  border-radius: 6px;
+  padding: 9px 12px;
+  color: var(--paper);
+  font: inherit;
+  cursor: pointer;
+}
+.storyboard button:hover:not(:disabled),
+.storyboard button.active {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.storyboard button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.story-tools {
+  grid-area: tools;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--rail);
+}
+.story-tools button[data-tool="loaded"] {
+  color: var(--loaded);
+}
+.story-tools button[data-tool="loco"] {
+  color: #ff7869;
+}
+.story-tools button[data-tool="loaded"],
+.story-tools button[data-tool="empty"],
+.story-tools button[data-tool="loco"] {
+  cursor: grab;
+  touch-action: none;
+}
+.story-steps {
+  grid-area: steps;
+  padding: 12px;
+  overflow: auto;
+  border-right: 1px solid var(--rail);
+  background: var(--panel);
+}
+.story-steps button {
+  width: 100%;
+  margin-bottom: 10px;
+}
+.story-steps .slide-card {
+  text-align: left;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.slide-card svg {
+  display: block;
+  width: 100%;
+  border-radius: 3px;
+  margin-bottom: 6px;
+  pointer-events: none;
+}
+.story-steps .current {
+  border-color: var(--gold);
+  background: #26251f;
+}
+.story-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 20px 24px 12px;
+  gap: 12px;
+}
+.slide-heading .phase {
+  display: block;
+  color: var(--gold);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+}
+.slide-heading input {
+  font-size: 23px;
+  width: 100%;
+  padding-left: 0;
+}
+.drawing {
+  flex: 1;
+  min-height: 180px;
+  background: var(--ink);
+  border: 1px solid var(--rail);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.drawing svg {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+}
+.drawing .equipment {
+  cursor: grab;
+}
+.drawing .ghost {
+  opacity: 0.2;
+  pointer-events: none;
+}
+.drawing .motion-path {
+  pointer-events: none;
+}
+.story-main textarea {
+  width: 100%;
+  height: 75px;
+  resize: vertical;
+  background: var(--panel);
+  border: 1px solid var(--rail);
+  font-size: 14px;
+}
+.play-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+.story-inspector {
+  grid-area: inspector;
+  border-left: 1px solid var(--rail);
+  padding: 20px 16px;
+  background: var(--panel);
+  overflow: auto;
+}
+.story-inspector h2 {
+  font-size: 13px;
+  color: var(--gold);
+}
+.story-inspector p {
+  font-size: 12px;
+  color: var(--steel);
+  line-height: 1.8;
+}
+.story-inspector > button {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+}
+.quantity {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: center;
+  margin: 15px 0;
+}
+.story-status {
+  grid-area: status;
+  border-top: 1px solid var(--rail);
+  padding: 6px 16px;
+  font-size: 11px;
+  color: var(--gold);
+  background: var(--panel);
+}
+.presenting {
+  grid-template-columns: 1fr;
+  grid-template-rows: 66px 1fr 30px;
+  grid-template-areas: "header" "main" "status";
+}
+.presenting .story-steps,
+.presenting .story-tools,
+.presenting .story-inspector {
+  display: none;
+}
+.presenting .file-actions > *:not(:nth-child(5)) {
+  display: none;
+}
+@media (max-width: 1050px) {
+  .storyboard {
+    grid-template-columns: 155px minmax(300px, 1fr) 180px;
+  }
+  .brand {
+    display: none;
+  }
+  .story-header {
+    gap: 8px;
+  }
+  .storyboard button {
+    padding: 7px;
+    font-size: 11px;
+  }
+  .story-main {
+    padding: 12px;
+  }
+  .story-tools {
+    gap: 5px;
+    padding: 8px;
+  }
+  .file-actions a {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .storyboard {
+    grid-template-columns: 140px minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "header header" "tools tools" "steps main" "status status";
+  }
+  .story-header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+  .plan-title {
+    flex-basis: 100%;
+  }
+  .file-actions {
+    flex-wrap: wrap;
+  }
+  .story-tools {
+    flex-wrap: wrap;
+  }
+  .story-inspector {
+    position: absolute;
+    right: 12px;
+    top: 170px;
+    max-width: 220px;
+    max-height: 55vh;
+    z-index: 5;
+    box-shadow: 0 6px 20px #0008;
+    display: none;
+  }
+  .storyboard:has(.chosen) .story-inspector {
+    display: block;
+  }
+  .slide-heading input {
+    font-size: 18px;
+  }
+  .story-main {
+    gap: 8px;
+  }
+  .story-status {
+    white-space: normal;
+  }
+  .presenting {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "header" "main" "status";
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+}

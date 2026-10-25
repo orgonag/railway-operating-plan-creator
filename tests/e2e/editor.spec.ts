@@ -25,7 +25,7 @@ interface PlanView {
 }
 
 async function openTemplate(page: Page, label: "Single spur" | "Customer service demo"): Promise<void> {
-  await page.goto("/");
+  await page.goto("/?legacy=1");
   await page.locator('button.tool[data-tool="new"]').click();
   await page.locator("dialog.new-plan button.choice", { hasText: label }).click();
   await expect(page.locator("svg.plan g.sprites g.unit").first()).toBeVisible();
