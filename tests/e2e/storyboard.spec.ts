@@ -495,7 +495,7 @@ test("expanded canvas and large yards preserve remote tracks in exports", async 
     page.getByRole("button", { name: /^SVG — current/ }).click(),
   ]);
   expect(readFileSync((await svg.path())!, "utf8")).toContain(
-    `viewBox="${frame}"`,
+    `viewBox="${ax - 80} ${ay - 80} 960 160"`,
   );
   const [png] = await Promise.all([
     page.waitForEvent("download"),

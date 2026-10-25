@@ -68,6 +68,10 @@ async function seed(page: Page, d: Deck | string) {
   await page.goto("/");
 }
 async function data(page: Page) {
+  await page.waitForFunction(
+    () =>
+      document.querySelector<HTMLElement>("#app")?.dataset.saving !== "true",
+  );
   return page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), KEY);
 }
 async function at(page: Page, x: number, y: number) {
@@ -415,4 +419,34 @@ test("quota failures expose session recovery and never replace an unreadable ori
     ),
   ).toContain("Session fallback work");
   await expect(page.locator(".save-notice")).toContainText("protected");
+});
+
+test("one rebuild repairs all later steps and one Undo restores the review state", async ({
+  page,
+}) => {
+  await seed(page, plan());
+  await page
+    .getByRole("button", { name: "2 Starting snapshot", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Revise this step", exact: true })
+    .click();
+  await drag(page, 100, 160);
+  const prior = await data(page);
+  await page.getByRole("button", { name: /^3 .*Review needed/ }).click();
+  await page
+    .getByRole("button", { name: "Rebuild remaining steps", exact: true })
+    .click();
+  let d = await data(page);
+  expect(d.slides.some((s: any) => s.needsReview)).toBe(false);
+  expect(d.slides[3].annotations).toEqual(prior.slides[3].annotations);
+  expect(d.slides[2].text).toBe(prior.slides[2].text);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  expect((await data(page)).slides).toEqual(prior.slides);
+  await page
+    .getByRole("button", { name: "Rebuild remaining steps", exact: true })
+    .click();
+  await data(page);
+  await page.reload();
+  expect((await data(page)).slides.some((s: any) => s.needsReview)).toBe(false);
 });

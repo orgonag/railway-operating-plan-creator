@@ -354,6 +354,36 @@ export function moveSlide(
   delete slide.needsReview;
   deck.slides.slice(index + 1).forEach((s) => (s.needsReview = true));
 }
+/** Explicit bulk rebuild; work on a copy so a missing unit never partly updates the plan. */
+export function rebuildRemaining(deck: Deck): number {
+  const draft = copy(deck);
+  let count = 0;
+  for (let i = 2; i < draft.slides.length; i++) {
+    const s = draft.slides[i]!;
+    if (!s.needsReview) continue;
+    const previous = draft.slides[i - 1]!.units;
+    if (s.motion) {
+      const m = s.motion;
+      const anchor = previous.find((u) => u.id === m.ids[0]);
+      if (!anchor || m.ids.some((id) => !previous.some((u) => u.id === id)))
+        throw new Error(
+          `Step ${i + 1} needs your attention: some equipment was removed. Use previous snapshot or redraw that movement, then rebuild the remaining steps. Nothing was changed.`,
+        );
+      moveSlide(
+        draft,
+        i,
+        m.ids,
+        movementRoute(draft.tracks, anchor, m.path[m.path.length - 1]!),
+      );
+    } else {
+      s.units = copy(previous);
+      delete s.needsReview;
+    }
+    count++;
+  }
+  deck.slides = draft.slides;
+  return count;
+}
 export function parseDeck(text: string): Deck {
   const d = JSON.parse(text) as Deck;
   const point = (p: Point): boolean =>
@@ -624,7 +654,10 @@ export function pageSize(deck: Pick<Deck, "canvasWidth">): {
   return { width, height: (width * 700) / 1200 };
 }
 /** One content frame for every slide/export; the editor itself has no page edges. */
-export function drawingBounds(deck: Deck): {
+export function drawingBounds(
+  deck: Deck,
+  compact = false,
+): {
   x: number;
   y: number;
   width: number;
@@ -657,6 +690,13 @@ export function drawingBounds(deck: Deck): {
     maxX = Math.max(maxX, p.x);
     maxY = Math.max(maxY, p.y);
   }
+  if (compact)
+    return {
+      x: minX - 80,
+      y: minY - 80,
+      width: maxX - minX + 160,
+      height: maxY - minY + 160,
+    };
   const width = Math.max(
     1200,
     maxX - minX + 160,

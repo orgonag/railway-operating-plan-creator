@@ -137,3 +137,7 @@ On Node 25+ use `NODE_OPTIONS=--no-experimental-webstorage npm test` so happy-do
 There is no server build. `npm run build` first builds the standalone player through `prebuild`, then typechecks and builds the frontend into `app/dist`. GitHub Actions deploys `main` to GitHub Pages through `.github/workflows/pages.yml`. Browser tests start or reuse a dev server on port 5181.
 
 All example plans are synthetic. Licensed under [Apache 2.0](LICENSE).
+
+After an early correction, choose **Rebuild remaining steps** on any flagged step to update the later movements together. Destinations and notes are preserved; paths are suggested again. Preview the result, or Undo once to restore the previous version. Individual step review remains available.
+
+Static PDF, PNG and SVG exports fit the yard's shape; PowerPoint uses the available slide area without stretching the diagram. Video export shows its expected recording time. Choose animated HTML for a quick offline animated presentation.

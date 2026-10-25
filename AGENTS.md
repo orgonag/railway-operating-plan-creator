@@ -67,3 +67,7 @@ Performance: pass a precomputed frame to scene for thumbnails, standalone and vi
 - Off-track movement destinations use rigid selection translation: a short perpendicular connector at the route end must never extrapolate cars into a vertical tail. Preserve spacing and orientation throughout the animation.
 - PDF PNG pages must use jsPDF compression (FAST); uncompressed full-resolution RGB pages can turn a modest 18-step plan into a 165 MiB file. Verify output size with a realistic plan.
 - Clear equipment double-click history after a drag and when clicking outside the canvas. A fast Next step followed by dragging the same car must select the cut, not silently select only one car.
+
+## Fast revision and fitted exports
+- Rebuild remaining steps is explicit and atomic: rebuild a copied deck in order, retain each destination and all notes/annotations, then replace slides only if all steps succeed. Missing equipment reports its step without partial writes. Paths are suggested again; individual review stays available. The editor change transaction must suppress downstream reflagging for this operation; one Undo restores all original snapshots/review flags.
+- drawingBounds(deck, true) returns padded content bounds for static exports. Keep the default framing for editor/HTML/video. Static SVG diagram height follows those bounds, including instructions below it. Raster exports cap both dimensions at 4800; PowerPoint fits the image proportionally inside its available area.

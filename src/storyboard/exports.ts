@@ -35,20 +35,23 @@ export function slideSvg(
   index: number,
   progress = 1,
   includeText = true,
-  frame = drawingBounds(deck),
+  frame = drawingBounds(deck, true),
 ): { svg: string; height: number } {
   const s = deck.slides[index]!,
     lines = wrap(s.text),
     titles = wrap(`${index + 1}. ${s.title}`, 65),
     head = includeText ? 35 + titles.length * 32 : 0;
-  const height = includeText ? head + 730 + lines.length * 25 : 700;
+  const diagramHeight = (1200 * frame.height) / frame.width;
+  const height = includeText
+    ? head + diagramHeight + 30 + lines.length * 25
+    : diagramHeight;
   const units =
     s.motion && index > 1
       ? animatedUnits(deck.slides[index - 1]!.units, s.motion, progress)
       : s.units;
   return {
     height,
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}"><rect width="1200" height="${height}" fill="#0e1013"/>${includeText ? titles.map((l, i) => `<text x="24" y="${35 + i * 32}" fill="#d9c48c" font-family="sans-serif" font-size="26">${escape(l)}</text>`).join("") : ""}<svg y="${head}" width="1200" height="700" viewBox="${frame.x} ${frame.y} ${frame.width} ${frame.height}">${scene(deck, index, units, [], false, frame)}</svg>${includeText ? lines.map((l, i) => `<text x="24" y="${head + 730 + i * 25}" fill="#f2efe6" font-family="sans-serif" font-size="20">${escape(l)}</text>`).join("") : ""}</svg>`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}"><rect width="1200" height="${height}" fill="#0e1013"/>${includeText ? titles.map((l, i) => `<text x="24" y="${35 + i * 32}" fill="#d9c48c" font-family="sans-serif" font-size="26">${escape(l)}</text>`).join("") : ""}<svg y="${head}" width="1200" height="${diagramHeight}" viewBox="${frame.x} ${frame.y} ${frame.width} ${frame.height}">${scene(deck, index, units, [], false, frame)}</svg>${includeText ? lines.map((l, i) => `<text x="24" y="${head + diagramHeight + 30 + i * 25}" fill="#f2efe6" font-family="sans-serif" font-size="20">${escape(l)}</text>`).join("") : ""}</svg>`,
   };
 }
 export function saveBlob(name: string, blob: Blob): void {
@@ -81,8 +84,17 @@ async function raster(
   const { svg, height } = slideSvg(deck, index, 1, includeText);
   const img = await loadSvg(svg),
     canvas = document.createElement("canvas");
-  canvas.width = Math.min(4800, drawingBounds(deck).width);
-  canvas.height = Math.ceil((height * canvas.width) / 1200);
+  canvas.width = Math.max(
+    1,
+    Math.floor(
+      Math.min(
+        4800,
+        Math.max(1200, drawingBounds(deck, true).width),
+        (4800 * 1200) / height,
+      ),
+    ),
+  );
+  canvas.height = Math.max(1, Math.ceil((height * canvas.width) / 1200));
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas rendering is unavailable.");
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -292,7 +304,11 @@ export function openExports(
         if (controller.signal.aborted) return;
         const canvas = await raster(deck, i);
         const imageHeight = (canvas.height * 1200) / canvas.width;
-        const dimensions: [number, number] = [1200, imageHeight];
+        const pdfScale = Math.min(1, 10000 / imageHeight);
+        const dimensions: [number, number] = [
+          1200 * pdfScale,
+          imageHeight * pdfScale,
+        ];
         if (!pdf)
           pdf = new jsPDF({
             unit: "px",
@@ -311,8 +327,8 @@ export function openExports(
           "PNG",
           0,
           0,
-          1200,
-          imageHeight,
+          dimensions[0],
+          dimensions[1],
           undefined,
           "FAST",
         );
@@ -343,12 +359,16 @@ export function openExports(
           color: "D9C48C",
           fit: "shrink",
         });
+        const diagram = await raster(deck, i, false);
+        const scale = Math.min(12.7 / diagram.width, 5.2 / diagram.height);
+        const w = diagram.width * scale,
+          h = diagram.height * scale;
         out.addImage({
-          data: (await raster(deck, i, false)).toDataURL("image/png"),
-          x: 2.2,
-          y: 0.8,
-          w: 8.9,
-          h: 5.2,
+          data: diagram.toDataURL("image/png"),
+          x: (13.333 - w) / 2,
+          y: 0.8 + (5.2 - h) / 2,
+          w,
+          h,
         });
         out.addText(s.text, {
           x: 0.3,
@@ -405,7 +425,7 @@ export function openExports(
   const video = videoType();
   option(
     video ? `Video (${video.extension.toUpperCase()})` : "Video unavailable",
-    "Animated plan with pauses. Records in real time; keep this tab visible.",
+    `Takes about ${Math.ceil(totalMs(deck) / 1000)} seconds. Keep this tab visible. For a quick animated export, choose HTML.`,
     () =>
       recordVideo(deck, controller.signal, (text) => {
         status.textContent = text;

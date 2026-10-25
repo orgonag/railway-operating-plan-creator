@@ -33,6 +33,24 @@ it("uses the entire large yard in presentation and exported slide images", () =>
     `width="${drawingBounds(d).width}" height="${drawingBounds(d).height}"`,
   );
   expect(standalone(d)).toContain(`viewBox="${drawingViewBox(d)}"`);
-  expect(slideSvg(d, 0).svg).toContain(`viewBox="${drawingViewBox(d)}"`);
+  const b = drawingBounds(d, true);
+  expect(slideSvg(d, 0).svg).toContain(
+    `viewBox="${b.x} ${b.y} ${b.width} ${b.height}"`,
+  );
+  expect(slideSvg(d, 0, 1, false).height).toBeLessThan(200);
   expect(slideSvg(d, 0).svg).toContain('x2="4600"');
+});
+
+it("fits tall and wide exports without clipping labels or instructions", () => {
+  const d = blank();
+  d.tracks = [{ id: "long", a: { x: -4000, y: 100 }, b: { x: 4000, y: 100 } }];
+  d.slides[0]!.text = "First instruction\nSecond instruction";
+  const wide = slideSvg(d, 0);
+  expect(wide.height).toBeLessThan(250);
+  expect(wide.svg).toContain("Second instruction");
+  const bounds = drawingBounds(d, true);
+  expect(bounds.x).toBeLessThan(-4000);
+  expect(bounds.x + bounds.width).toBeGreaterThan(4000);
+  d.tracks[0]!.b = { x: -4000, y: 8100 };
+  expect(slideSvg(d, 0).height).toBeGreaterThan(700);
 });

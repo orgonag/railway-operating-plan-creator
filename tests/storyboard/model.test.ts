@@ -13,6 +13,7 @@ import {
   nextSlide,
   route,
   moveSlide,
+  rebuildRemaining,
   movementRoute,
   animatedUnits,
   selectedInBox,
@@ -408,4 +409,35 @@ it("whole-track dragging snaps a rigid group without changing its dimensions", (
   expect(
     translateTracks(selected, rest, { x: -190, y: -96 }, false).tracks[0]!.a,
   ).toEqual({ x: 510, y: 204 });
+});
+
+it("rebuilds later movements atomically while keeping notes, annotations and destinations", () => {
+  const d = blank();
+  d.tracks = tracks;
+  nextSlide(d).units = structuredClone(cars);
+  for (const x of [550, 800]) {
+    nextSlide(d);
+    const i = d.slides.length - 1;
+    moveSlide(
+      d,
+      i,
+      ["c0"],
+      movementRoute(tracks, d.slides[i - 1]!.units[0]!, { x, y: 200 }),
+    );
+    d.slides[i]!.text = "Keep these instructions";
+  }
+  d.slides[1]!.units[0]!.x = 150;
+  d.slides.slice(2).forEach((s) => (s.needsReview = true));
+  expect(rebuildRemaining(d)).toBe(2);
+  expect(d.slides.slice(2).map((s) => s.units[0]!.x)).toEqual([550, 800]);
+  expect(
+    d.slides
+      .slice(2)
+      .every((s) => !s.needsReview && s.text === "Keep these instructions"),
+  ).toBe(true);
+  d.slides[3]!.motion!.ids = ["missing"];
+  d.slides.slice(2).forEach((s) => (s.needsReview = true));
+  const before = JSON.stringify(d);
+  expect(() => rebuildRemaining(d)).toThrow("Step 4");
+  expect(JSON.stringify(d)).toBe(before);
 });

@@ -18,6 +18,7 @@ import {
   animatedUnits,
   selectedInBox,
   moveSlide,
+  rebuildRemaining,
   parseDeck,
   type Deck,
   type Point,
@@ -333,7 +334,7 @@ export function createStoryboard(root: HTMLElement): void {
     hover = null;
     trackPreview = null;
   }
-  function change(fn: () => void): void {
+  function change(fn: () => void, propagate = true): void {
     cancel();
     const previous = JSON.stringify(deck);
     try {
@@ -349,7 +350,7 @@ export function createStoryboard(root: HTMLElement): void {
             JSON.stringify(prior.slides[index]!.units) ||
           JSON.stringify(slide().motion) !==
             JSON.stringify(prior.slides[index]!.motion);
-        if (geometryChanged)
+        if (geometryChanged && propagate)
           deck.slides
             .slice(Math.max(2, index + 1))
             .forEach((s) => (s.needsReview = true));
@@ -1139,6 +1140,18 @@ export function createStoryboard(root: HTMLElement): void {
       p.textContent =
         "An earlier step changed. Review in order: rebuild this movement or keep the previous snapshot. Your notes remain.";
       props.append(p);
+      button(props, "Rebuild remaining steps", () =>
+        change(() => {
+          const count = rebuildRemaining(deck);
+          tell(
+            `${count} steps rebuilt. Destinations and notes kept; paths suggested again. Preview the plan to check it. Undo restores all changes.`,
+          );
+        }, false),
+      );
+      const hint = document.createElement("p");
+      hint.textContent =
+        "Rebuild remaining keeps destinations and notes, and suggests paths again. One Undo restores everything. Or review each step below.";
+      props.append(hint);
       const blocked = deck.slides.slice(0, index).some((s) => s.needsReview);
       if (slide().motion)
         button(
