@@ -27,9 +27,9 @@ Node 25+ exposes experimental web storage that shadows happy-dom in this test st
 
 ## Canvas authoring and onboarding
 - Turnout segments share optional Track.turnout; select/delete/rotate the group. Old files without grouping remain valid individual segments. Do not infer legacy groups from proximity.
-- validateTracks prevents overlaps, interior crossings, zero-length pieces and off-page creation. Endpoint junctions are allowed. This is geometry validation, never operational simulation.
+- validateTracks prevents overlaps, interior crossings, zero-length pieces . Endpoint junctions are allowed. This is geometry validation, never operational simulation.
 - Track tool supports drag and click-start/click-end; it must not resize endpoints. Only Select exposes ordinary endpoint handles. Protect grouped turnout endpoints from partial resizing.
-- ViewBox zoom/pan is view-only. Always convert pointer coordinates through getScreenCTM; palette drops must also check screen bounds. Keep new geometry on pageSize(deck), not a hard-coded 1200x700 boundary.
+- ViewBox zoom/pan is view-only. Always convert pointer coordinates through getScreenCTM; palette drops must also check screen bounds. The editor has no page boundary: negative coordinates and positions beyond legacy page dimensions are valid.
 - First-visit/New tutorial uses railway-welcome-v1 separately from plan data, with Help replay. Browser authoring tests dismiss it explicitly; retain a first-visit/New test. Dialogs must not trigger editor Delete/Space handlers.
 
 ## Annotation interactions
@@ -37,7 +37,11 @@ Node 25+ exposes experimental web storage that shadows happy-dom in this test st
 - Annotation editing is independent of geometry locks: earlier slide annotations and Step 1 shared labels remain editable. Shared labels on later steps direct the author to Step 1; never look them up in slide.annotations.
 - Distinguish text double-click from drag on pointerup, and clear click history on other controls. Keep Delete/Backspace inactive in inputs and dialogs. Check narrow inspector visibility, arrow handles, save/open and Undo/Redo.
 
-## Large yards
-- Optional Deck.canvasWidth is 1200, 2400, 4800 or 9600; height is width*700/1200. New plans explicitly use 9600; missing width preserves old 1200x700 plans. Initial/New view stays 1200x700 at 100% zoom. UI page sizing is expansion-only and does not move any geometry.
-- Every renderer, thumbnail, placement boundary and exporter must use pageSize. Export raster images at page width capped at 4800; PDF image dimensions must retain aspect ratio. Video remains 1200x900 while fitting the entire diagram.
+## Endless canvas and movement
+- The editor is an unbounded plane, not a wrapping surface. Keep authored coordinates unchanged. canvasWidth/pageSize remain legacy import metadata only; no drawing-size UI or editor bounds checks.
+- drawingBounds/drawingViewBox frame content across every slide, annotations and sampled animation for exports/thumbnails. Use the same frame across slides; cap raster width at 4800. Editor background grid follows the view, not export bounds.
+- Ordinary wheel pans, Shift-wheel pans horizontally, Ctrl/Meta-wheel zooms around pointer. Space-drag/middle-drag/Pan remain available. Fit frames current slide; Whole plan frames all content.
+- Step 1 Select supports enclosure box selection, Shift-click toggle/add, Shift-box add, and Ctrl/Meta+A. Turnout pieces select/delete as a group. Keyboard shortcuts must ignore inputs/dialogs. Undo restores bulk deletion.
+- movementRoute preserves actual endpoints, using track suggestions where possible and a direct path otherwise. moveSlide detects snapshot distortion and uses Motion.translate for rigid group movement. Never project off-track units back onto rails or collapse their spacing. Keep one direction per slide.
+- Verify overhanging locomotive/car cuts move again from an off-track car, reverse on a later slide, survive reload and animate correctly in HTML. Validate negative/far-away geometry, wheel/zoom, box/Shift selection, bulk Delete/Undo, and content-framed exports.
 - Expand canvas is view-only: hides steps/notes/timing, retains selection controls below the canvas. Help restores panels so tutorial arrows have visible targets.

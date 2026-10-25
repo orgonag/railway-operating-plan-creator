@@ -16,7 +16,7 @@ The editor rejects stacked/overlapping rails and crossings through the middle of
 
 To change or remove a piece:
 
-- Choose **Select**, then click the track or either part of a turnout. The selected piece turns gold.
+- Choose **Select**, then click a track or turnout, or drag a box around several pieces. Selected pieces turn gold. Shift-click adds/removes pieces; Ctrl/⌘+A selects all track pieces.
 - Click **Delete selected track** in the toolbar or inspector, or press Delete/Backspace. A turnout deletes as one piece; its supporting track remains.
 - For a selected turnout, choose a different direction in the inspector. Changes that overlap another piece are rejected.
 - For a selected ordinary line, drag either endpoint to resize it. Connected ordinary endpoints move together. An endpoint attached to a turnout is protected; change/delete the turnout first.
@@ -45,9 +45,9 @@ The new slide copies the preceding equipment positions. Select the equipment tha
 | Drag a box | The individual cars inside it |
 | Hold Shift while selecting | Add to the existing selection, including a locomotive |
 
-For example, box-select five cars from a cut of ten, add the locomotive with Shift, and drag the selection to its destination. The editor suggests a path along connected tracks. Selected equipment moves together; unselected equipment stays put.
+For example, box-select five cars from a cut of ten, add the locomotive with Shift, and drag the selection to its destination. The editor suggests a path along connected tracks. Selected equipment moves together; unselected equipment stays put. Cars and locomotives may extend beyond track ends or move off track. Their actual positions and spacing carry into the next step. Track geometry suggests a route but never blocks a movement; when track-following would distort the selection, it moves intact along the path.
 
-Use **Preview step** to watch the movement. If the suggested route is wrong, choose **Edit path**, click the tracks along the route, and choose **Finish path**. **Reset path** restores the suggestion. **Clear movement** returns to the prior snapshot so you can start again.
+Use **Preview step** to watch the movement. If the suggested route is wrong, choose **Edit path**, click waypoints on or off track along the route, and choose **Finish path**. **Reset path** restores the suggestion. **Clear movement** returns to the prior snapshot so you can start again.
 
 Each slide contains one continuous movement in one direction. **A reversal belongs on the next slide.** Add a title, instructions, arrows, or text to explain what happens. Continue adding steps until the service is complete.
 
@@ -57,11 +57,15 @@ Earlier track and equipment snapshots remain preserved. To revise the track layo
 
 Choose **Expand canvas** to hide the step list, notes and timing controls while drawing. Selection controls remain below the canvas so they do not cover your work. **Restore panels** brings the normal editor back. The normal editor also uses tighter spacing to leave more room for the drawing.
 
-**New plans start at Extra large (9600 × 5600), 64 times the original drawing area.** The starting view stays at 100% zoom; pan to use more room, Fit to frame your work, or Page to see the entire canvas. Existing plans keep their saved dimensions. **Drawing size** also lists Standard (1200 × 700), Yard (2400 × 1400), and Large yard (4800 × 2800), and lets older plans expand to Extra large. Expand at any point, even after creating steps: equipment and tracks stay at their original coordinates. Sizes only expand, so existing content cannot be cropped by accidentally shrinking the page.
+**The drawing canvas has no fixed edges.** Keep drawing left, right, up or down—even if you started near the old page boundary. Existing drawings keep their coordinates. There is no drawing-size setting to manage.
+
+Use the mouse wheel or two-finger scroll to pan. **Shift-wheel** scrolls sideways; **Ctrl/⌘ + wheel** zooms around the pointer. You can also hold Space and drag, use Pan, or use the zoom buttons. **Fit** frames the current step; **Whole plan** frames all tracks, annotations and equipment across every step. New plans start at a comfortable 100% view.
+
+Exports automatically frame the whole plan with padding, including negative coordinates and movement paths. Every exported step uses the same frame so the yard stays still during playback. Raster images are capped at 4800 pixels wide; SVG retains vector detail.
 
 Use the **− / +** buttons above the canvas to zoom; larger pages allow more zoom-out range. **Ctrl/⌘ + scroll** zooms around the pointer. Choose **Pan** and drag to move the view, or hold Space while dragging the canvas. Choose Select or another tool to leave Pan mode.
 
-**Fit** frames the current layout and content. **Page** shows the entire selected drawing page. Zoom and pan only change your view: saved positions, snapping, and exports stay the same. Keep the drawing inside the selected page. Every export includes the entire page, regardless of the current zoom or pan. PNG diagrams use the selected page width, capped at 4800 pixels to keep browser memory manageable. SVG remains vector-based. The author decides the scale; the app does not simulate physical lengths or speeds.
+**Fit** frames the current layout and content. **Whole plan** shows the entire selected drawing page. Zoom and pan only change your view: saved positions, snapping, and exports stay the same. Keep the drawing inside the selected page. Every export includes the entire page, regardless of the current zoom or pan. PNG diagrams use the selected page width, capped at 4800 pixels to keep browser memory manageable. SVG remains vector-based. The author decides the scale; the app does not simulate physical lengths or speeds.
 
 ## Pauses and presentation
 

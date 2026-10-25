@@ -253,11 +253,13 @@ test("welcome, click-to-draw, grouped turnouts, deletion and zoom", async ({
   await drag(page, await at(page, 200, 450), await at(page, 800, 470));
   expect((await data()).tracks[1].a.y).toBe((await data()).tracks[1].b.y);
   await page.getByRole("button", { name: "Fit", exact: true }).click();
-  await page.getByRole("button", { name: "Page", exact: true }).click();
-  await expect(page.locator(".drawing svg")).toHaveAttribute(
-    "viewBox",
-    "0 0 9600 5600",
-  );
+  await page.getByRole("button", { name: "Whole plan", exact: true }).click();
+  expect(
+    (await page.locator(".drawing svg").getAttribute("viewBox"))!
+      .split(" ")
+      .map(Number)
+      .every(Number.isFinite),
+  ).toBe(true);
   await page.reload();
   await expect(
     page.getByRole("dialog", { name: "Quick start guide" }),
@@ -466,57 +468,68 @@ test("expanded canvas and large yards preserve remote tracks in exports", async 
   const expanded = (await canvas.boundingBox())!;
   expect(expanded.width).toBeGreaterThan(normal.width + 200);
   expect(expanded.height).toBeGreaterThan(normal.height);
-  await expect(page.getByLabel("Drawing size", { exact: true })).toHaveValue(
-    "9600",
-  );
   await expect(page.locator(".drawing svg")).toHaveAttribute(
     "viewBox",
     "0 0 1200 700",
   );
-  await page.getByRole("button", { name: "Page", exact: true }).click();
-  await expect(page.locator(".drawing svg")).toHaveAttribute(
-    "viewBox",
-    "0 0 9600 5600",
-  );
+  // Navigate beyond the former right and top edges using ordinary wheel events.
+  const middle = await at(page, 600, 350);
+  await page.mouse.move(middle.x, middle.y);
+  await page.mouse.wheel(12000, -10000);
+  await expect
+    .poll(async () =>
+      Number(
+        (await page.locator(".drawing svg").getAttribute("viewBox"))!.split(
+          " ",
+        )[0],
+      ),
+    )
+    .toBeGreaterThan(9600);
+  const [vx, vy] = (await page.locator(".drawing svg").getAttribute("viewBox"))!
+    .split(" ")
+    .map(Number);
+  const ax = Math.round((vx! + 100) / 20) * 20,
+    ay = Math.round((vy! + 300) / 20) * 20,
+    bx = ax + 800;
   await page.getByRole("button", { name: "Track", exact: true }).click();
-  await drag(page, await at(page, 7000, 4600), await at(page, 9000, 4600));
+  await drag(page, await at(page, ax, ay), await at(page, bx, ay + 7));
   let data = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
   );
-  expect(data.tracks[0].b.x).toBeCloseTo(9000, 1);
+  expect(data.tracks[0].b.x).toBeCloseTo(bx, 1);
+  expect(data.tracks[0].b.y).toBe(data.tracks[0].a.y);
+  expect(data.tracks[0].a.y).toBeLessThan(0);
   await page
     .getByRole("button", { name: "Restore panels", exact: true })
     .click();
   await expect(page.locator(".story-steps")).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel("Drawing size", { exact: true })).toHaveValue(
-    "9600",
-  );
-  await page.getByRole("button", { name: "Fit", exact: true }).click();
+  await page.getByRole("button", { name: "Whole plan", exact: true }).click();
+  const frame = (await page.locator(".drawing svg").getAttribute("viewBox"))!;
   await page.getByRole("button", { name: "Export", exact: true }).click();
   const [svg] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: /^SVG — current/ }).click(),
   ]);
   expect(readFileSync((await svg.path())!, "utf8")).toContain(
-    'viewBox="0 0 9600 5600"',
+    `viewBox="${frame}"`,
   );
   const [png] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: /^PNG — current/ }).click(),
   ]);
-  expect(readFileSync((await png.path())!).readUInt32BE(16)).toBe(4800);
+  expect(readFileSync((await png.path())!).readUInt32BE(16)).toBe(1200);
   const [html] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: /^Animated HTML/ }).click(),
   ]);
   await page.setContent(readFileSync((await html.path())!, "utf8"));
-  await expect(page.locator("svg")).toHaveAttribute("viewBox", "0 0 9600 5600");
+  await expect(page.locator("svg")).toHaveAttribute("viewBox", frame);
   const inside = await page.locator("[data-track]").evaluate((line) => {
     const svg = (line as SVGLineElement).ownerSVGElement!,
       p = svg.createSVGPoint();
-    p.x = 9000;
-    p.y = 4600;
+    p.x = Number(line.getAttribute("x2"));
+    p.y = Number(line.getAttribute("y2"));
     const q = p.matrixTransform(svg.getScreenCTM()!),
       r = svg.getBoundingClientRect();
     return q.x >= r.left && q.x <= r.right && q.y >= r.top && q.y <= r.bottom;
@@ -525,4 +538,137 @@ test("expanded canvas and large yards preserve remote tracks in exports", async 
   await page.screenshot({
     path: test.info().outputPath("large-yard-export.png"),
   });
+});
+
+test("an overhanging locomotive and cut can move again from an off-track car and reverse next slide", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Skip guide", exact: true }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).click();
+  await drag(page, await at(page, 100, 300), await at(page, 500, 300));
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drop(page, "loaded", 350, 300);
+  for (let i = 0; i < 4; i++)
+    await page.getByRole("button", { name: "+", exact: true }).click();
+  await drop(page, "loco", 300, 300);
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drag(page, await at(page, 260, 270), await at(page, 560, 330));
+  await expect(page.locator(".drawing .chosen")).toHaveCount(6);
+  await drag(page, await at(page, 350, 300), await at(page, 500, 300));
+  const data = () =>
+    page.evaluate(() =>
+      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
+    );
+  let d = await data();
+  const car = d.slides[2].units[4];
+  expect(car.x).toBeCloseTo(684, 1);
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drag(page, await at(page, 420, 270), await at(page, 710, 330));
+  await expect(page.locator(".drawing .chosen")).toHaveCount(6);
+  await drag(page, await at(page, car.x, 300), await at(page, 900, 300));
+  d = await data();
+  expect(d.slides[3].motion.path[0].x).toBeCloseTo(684, 1);
+  expect(d.slides[3].motion.path.at(-1).x).toBeCloseTo(900, 1);
+  for (let i = 0; i < 6; i++)
+    expect(d.slides[3].units[i].x - d.slides[2].units[i].x).toBeCloseTo(216, 1);
+  await page.getByRole("button", { name: "+ Next step", exact: true }).click();
+  await drag(page, await at(page, 640, 270), await at(page, 930, 330));
+  await expect(page.locator(".drawing .chosen")).toHaveCount(6);
+  await drag(page, await at(page, 900, 300), await at(page, 400, 300));
+  d = await data();
+  for (let i = 0; i < 6; i++)
+    expect(d.slides[4].units[i].x - d.slides[3].units[i].x).toBeCloseTo(
+      -500,
+      1,
+    );
+  const saved = d.slides[4].units;
+  await page.reload();
+  await page.locator(".slide-card").nth(4).click();
+  expect((await data()).slides[4].units).toEqual(saved);
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: /^Animated HTML/ }).click(),
+  ]);
+  await page.setContent(readFileSync((await download.path())!, "utf8"));
+  for (let i = 0; i < 4; i++) await page.locator("#next").click();
+  const transforms = await page.locator("[data-unit]").evaluateAll((els) =>
+    els.map((el) => {
+      const m = (el as SVGGraphicsElement).transform.baseVal.consolidate()!
+        .matrix;
+      return { x: m.e, y: m.f };
+    }),
+  );
+  for (let i = 1; i < 5; i++)
+    expect(transforms[i]!.x - transforms[i - 1]!.x).toBeCloseTo(46, 1);
+  expect(transforms[4]!.x).toBeGreaterThanOrEqual(399.99);
+  expect(transforms[4]!.x).toBeLessThanOrEqual(900.01);
+  expect(errors).toEqual([]);
+});
+
+test("track box selection, additive selection, wheel navigation and deletion", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Skip guide", exact: true }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).click();
+  for (const y of [200, 300, 400])
+    await drag(page, await at(page, 100, y), await at(page, 600, y + 8));
+  const data = () =>
+    page.evaluate(() =>
+      JSON.parse(localStorage.getItem("railway-storyboard-v1")!),
+    );
+  expect((await data()).tracks).toHaveLength(3);
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await drag(page, await at(page, 70, 170), await at(page, 630, 330));
+  await expect(page.locator(".track-chosen")).toHaveCount(2);
+  await page.keyboard.press("Delete");
+  expect((await data()).tracks).toHaveLength(1);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  expect((await data()).tracks).toHaveLength(3);
+  const one = await at(page, 300, 200),
+    two = await at(page, 300, 400);
+  await page.mouse.click(one.x, one.y);
+  await page.keyboard.down("Shift");
+  await page.mouse.click(two.x, two.y);
+  await page.keyboard.up("Shift");
+  await expect(page.locator(".track-chosen")).toHaveCount(2);
+  await page.keyboard.press("Control+a");
+  await expect(page.locator(".track-chosen")).toHaveCount(3);
+  const middle = await at(page, 600, 350);
+  await page.mouse.move(middle.x, middle.y);
+  await page.mouse.wheel(-1000, -1000);
+  await expect
+    .poll(async () =>
+      Number(
+        (await page.locator(".drawing svg").getAttribute("viewBox"))!.split(
+          " ",
+        )[0],
+      ),
+    )
+    .toBeLessThan(0);
+  let v = (await page.locator(".drawing svg").getAttribute("viewBox"))!
+    .split(" ")
+    .map(Number);
+  expect(v[1]).toBeLessThan(0);
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -100);
+  await page.keyboard.up("Control");
+  await expect
+    .poll(async () =>
+      Number(
+        (await page.locator(".drawing svg").getAttribute("viewBox"))!.split(
+          " ",
+        )[2],
+      ),
+    )
+    .toBeLessThan(1200);
+  await page.getByRole("button", { name: "Whole plan", exact: true }).click();
+  await page.keyboard.press("Delete");
+  expect((await data()).tracks).toHaveLength(0);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  expect((await data()).tracks).toHaveLength(3);
 });

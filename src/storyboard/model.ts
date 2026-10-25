@@ -23,6 +23,7 @@ export interface Annotation {
   text: string;
 }
 export interface Motion {
+  translate?: boolean;
   ids: string[];
   path: Point[];
   approaches?: Record<string, Point[]>;
@@ -175,6 +176,41 @@ export function route(
   }
   return result.length > 1 ? result : [from.point, to.point];
 }
+/** Track geometry is a suggestion, never a constraint on authored equipment positions. */
+export function movementRoute(
+  tracks: Track[],
+  start: Point,
+  end: Point,
+): Point[] {
+  const suggested = route(tracks, start, end);
+  if (!suggested)
+    return [
+      { x: start.x, y: start.y },
+      { x: end.x, y: end.y },
+    ];
+  const path: Point[] = [];
+  for (const p of [start, ...suggested, end]) {
+    if (path.length && near(path[path.length - 1]!, p)) continue;
+    path.push({ x: p.x, y: p.y });
+    // Endpoint projections can add a pointless out-and-back along a straight line.
+    while (path.length >= 3) {
+      const [a, b, c] = path.slice(-3) as [Point, Point, Point];
+      const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+      if (
+        Math.abs(cross) >
+        0.001 * Math.max(1, distance(a, b) * distance(b, c))
+      )
+        break;
+      path.splice(path.length - 2, 1);
+    }
+  }
+  if (path.length < 2 || reverses(path))
+    return [
+      { x: start.x, y: start.y },
+      { x: end.x, y: end.y },
+    ];
+  return path;
+}
 export const pathLength = (path: Point[]): number =>
   path.slice(1).reduce((sum, p, i) => sum + distance(path[i]!, p), 0);
 export function along(path: Point[], at: number): Point & { angle: number } {
@@ -221,6 +257,14 @@ export function animatedUnits(
     len = pathLength(motion.path);
   return before.map((u) => {
     if (!motion.ids.includes(u.id)) return copy(u);
+    if (motion.translate) {
+      const p = along(motion.path, len * progress);
+      return {
+        ...u,
+        x: u.x + p.x - motion.path[0]!.x,
+        y: u.y + p.y - motion.path[0]!.y,
+      };
+    }
     const offset =
       motion.offsets?.[u.id] ??
       (u.x - anchor.x) * Math.cos(r) + (u.y - anchor.y) * Math.sin(r);
@@ -232,7 +276,9 @@ export function animatedUnits(
     const initialAngle = along(travel, approach ? 0 : offset).angle;
     const direction =
       Math.cos(((u.angle - initialAngle) * Math.PI) / 180) < 0 ? 180 : 0;
-    return { ...u, ...p, angle: p.angle + direction };
+    const turn =
+      ((((p.angle + direction - u.angle + 180) % 360) + 360) % 360) - 180;
+    return { ...u, ...p, angle: u.angle + turn };
   });
 }
 export function selectedInBox(units: Unit[], a: Point, b: Point): string[] {
@@ -275,9 +321,7 @@ export function moveSlide(
     r = (initial.angle * Math.PI) / 180;
   for (const uid of ids) {
     const unit = before.find((u) => u.id === uid)!;
-    const approach = route(deck.tracks, unit, path[0]!);
-    if (!approach)
-      throw new Error("Selected equipment must share a connected track route.");
+    const approach = movementRoute(deck.tracks, unit, path[0]!);
     const last = approach[approach.length - 1]!,
       prev = approach[approach.length - 2]!;
     const behind =
@@ -287,6 +331,20 @@ export function moveSlide(
     else motion.offsets![uid] = pathLength(approach);
   }
 
+  // Curved cuts can follow tracks, but arbitrary/off-track arrangements must not
+  // collapse onto a projected route. Translate the selection intact in that case.
+  const initialUnits = animatedUnits(before, motion, 0);
+  if (
+    initialUnits.some(
+      (u, i) =>
+        distance(u, before[i]!) > 0.1 ||
+        Math.cos(((u.angle - before[i]!.angle) * Math.PI) / 180) < 0.99999,
+    )
+  ) {
+    motion.translate = true;
+    delete motion.approaches;
+    delete motion.offsets;
+  }
   slide.units = animatedUnits(before, motion, 1);
   slide.motion = motion;
 }
@@ -359,6 +417,11 @@ export function parseDeck(text: string): Deck {
       new Set(s.units.map((u) => u.id)).size !== s.units.length
     )
       throw new Error("Invalid slide data.");
+    if (
+      s.motion?.translate !== undefined &&
+      typeof s.motion.translate !== "boolean"
+    )
+      throw new Error("Invalid movement mode.");
     if (
       s.motion?.approaches &&
       !Object.values(s.motion.approaches).every(
@@ -466,10 +529,61 @@ export function pageSize(deck: Pick<Deck, "canvasWidth">): {
   const width = deck.canvasWidth ?? 1200;
   return { width, height: (width * 700) / 1200 };
 }
+/** One content frame for every slide/export; the editor itself has no page edges. */
+export function drawingBounds(deck: Deck): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const ps: Point[] = deck.tracks.flatMap((t) => [t.a, t.b]);
+  for (const a of [
+    ...deck.labels,
+    ...deck.slides.flatMap((s) => s.annotations),
+  ]) {
+    ps.push(a.a, a.b);
+    if (a.kind === "text") ps.push({ x: a.a.x + a.text.length * 12, y: a.a.y });
+  }
+  deck.slides.forEach((s, i) => {
+    ps.push(...s.units);
+    if (s.motion && i > 1) {
+      ps.push(...s.motion.path);
+      for (let n = 0; n <= 60; n++)
+        ps.push(...animatedUnits(deck.slides[i - 1]!.units, s.motion, n / 60));
+    }
+  });
+  if (!ps.length) return { x: 0, y: 0, width: 1200, height: 700 };
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const p of ps) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  const width = Math.max(
+    1200,
+    maxX - minX + 160,
+    ((maxY - minY + 160) * 1200) / 700,
+  );
+  const height = (width * 700) / 1200;
+  return {
+    x: (minX + maxX - width) / 2,
+    y: (minY + maxY - height) / 2,
+    width,
+    height,
+  };
+}
+export function drawingViewBox(deck: Deck): string {
+  const b = drawingBounds(deck);
+  return `${b.x} ${b.y} ${b.width} ${b.height}`;
+}
 export function validateTracks(
   added: Track[],
   existing: Track[],
-  page = { width: 1200, height: 700 },
+  page?: { width: number; height: number },
 ): void {
   const cross = (a: Point, b: Point) => a.x * b.y - a.y * b.x;
   const sub = (a: Point, b: Point) => ({ x: a.x - b.x, y: a.y - b.y });
@@ -478,6 +592,7 @@ export function validateTracks(
     if (distance(a.a, a.b) < 2)
       throw new Error("Track is too short. Choose an end farther away.");
     if (
+      page &&
       [a.a, a.b].some(
         (p) => p.x < 0 || p.x > page.width || p.y < 0 || p.y > page.height,
       )

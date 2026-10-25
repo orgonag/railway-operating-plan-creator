@@ -11,10 +11,11 @@ Checked in Chromium, including a 760px-wide viewport for annotation controls. Th
 | End markers | Placement, selection, exact deletion |
 | Earlier slides | Edit/delete shared labels from Step 1 without unlocking geometry; later slides preserve ownership of shared labels |
 | Equipment | Independent cuts, locomotive placement, car count +/−, loaded/empty, flip, selection, deletion and Undo |
-| Movement | Five of ten cars, suggested route, manual path, reset path, preview/stop, clear movement |
+| Track selection | Enclosure box, Shift-click, Select All, bulk Delete and Undo |
+| Movement | Off-track/overhanging cuts, next-slide movement and reversal, HTML animation; Five of ten cars, suggested route, manual path, reset path, preview/stop, clear movement |
 | Navigation | Add/remove steps, reload, presentation, autoplay |
-| View | Zoom, pan, Fit and Page recovery; narrow selection panel does not cover canvas; expanded canvas increases drawing width and height |
-| Large yards | Default 9600x5600 at 100% zoom, draw beyond old bounds, reload, export full-page SVG/HTML and 4800px-wide PNG |
+| View | Zoom, pan, Fit and Whole plan recovery; narrow selection panel does not cover canvas; expanded canvas increases drawing width and height |
+| Large yards | Unbounded drawing, negative coordinates, wheel navigation, content-framed SVG/HTML/PNG, reload |
 | Documents | Plan/step titles, instructions, Download, New confirmation, Open and saved annotation round-trip |
 | Timing | Pause persistence, apply to all, autoplay |
 | Exports | Actual PDF/PPTX/PNG/SVG/ZIP/HTML/video downloads, HTML playback and video decoding |

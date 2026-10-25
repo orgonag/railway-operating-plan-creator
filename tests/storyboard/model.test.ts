@@ -2,6 +2,7 @@ import {
   turnoutTracks,
   validateTracks,
   pageSize,
+  drawingBounds,
 } from "../../src/storyboard/model";
 import { describe, expect, it } from "vitest";
 import {
@@ -9,6 +10,7 @@ import {
   nextSlide,
   route,
   moveSlide,
+  movementRoute,
   animatedUnits,
   selectedInBox,
   parseDeck,
@@ -200,7 +202,9 @@ it("larger yard dimensions survive saving and permit tracks beyond the old page"
   deck.canvasWidth = 4800;
   const track = { id: "far", a: { x: 3500, y: 1500 }, b: { x: 4600, y: 1500 } };
   expect(() => validateTracks([track], [], pageSize(deck))).not.toThrow();
-  expect(() => validateTracks([track], [])).toThrow(/drawing page/);
+  expect(() =>
+    validateTracks([track], [], { width: 1200, height: 700 }),
+  ).toThrow(/drawing page/);
   expect(pageSize(parseDeck(JSON.stringify(deck)))).toEqual({
     width: 4800,
     height: 2800,
@@ -218,4 +222,103 @@ it("larger yard dimensions survive saving and permit tracks beyond the old page"
   });
   deck.canvasWidth = 90000;
   expect(() => parseDeck(JSON.stringify(deck))).toThrow(/drawing size/);
+});
+
+describe("movement beyond drawn track", () => {
+  it("preserves an overhanging cut when dragging its off-track car on later slides", () => {
+    const d = blank();
+    d.tracks = [{ id: "short", a: { x: 100, y: 200 }, b: { x: 500, y: 200 } }];
+    nextSlide(d).units = [
+      { ...cars[0]!, id: "loco", kind: "loco", x: 400 },
+      { ...cars[1]!, id: "car", x: 446 },
+    ];
+    nextSlide(d);
+    moveSlide(
+      d,
+      2,
+      ["loco", "car"],
+      movementRoute(d.tracks, d.slides[1]!.units[0]!, { x: 500, y: 200 }),
+    );
+    expect(d.slides[2]!.units.map((u) => u.x)).toEqual([500, 546]);
+    for (const destination of [700, 300]) {
+      const s = nextSlide(d),
+        i = d.slides.length - 1,
+        prior = d.slides[i - 1]!.units;
+      moveSlide(
+        d,
+        i,
+        ["car", "loco"],
+        movementRoute(d.tracks, prior[1]!, { x: destination, y: 200 }),
+      );
+      expect(animatedUnits(prior, s.motion!, 0)).toEqual(prior);
+      for (const t of [0.001, 0.25, 0.5, 0.75, 1]) {
+        const frame = animatedUnits(prior, s.motion!, t);
+        expect(frame[1]!.x - frame[0]!.x).toBeCloseTo(46, 8);
+        expect(frame[1]!.x).toBeCloseTo(
+          prior[1]!.x + (destination - prior[1]!.x) * t,
+          8,
+        );
+      }
+      expect(s.units.map((u) => u.x)).toEqual([destination - 46, destination]);
+    }
+    expect(parseDeck(JSON.stringify(d))).toEqual(d);
+  });
+  it("moves arbitrary off-track selections intact instead of projecting them onto rails", () => {
+    const d = blank();
+    d.tracks = tracks;
+    const units = [
+      { ...cars[0]!, x: 1100, y: 250, angle: 30 },
+      { ...cars[1]!, x: 1150, y: 280, angle: 30 },
+      { ...cars[2]!, id: "stationary" },
+    ];
+    nextSlide(d).units = structuredClone(units);
+    const s = nextSlide(d);
+    moveSlide(
+      d,
+      2,
+      ["c0", "c1"],
+      movementRoute(d.tracks, units[0]!, { x: 1400, y: 400 }),
+    );
+    expect(s.motion!.translate).toBe(true);
+    expect(animatedUnits(units, s.motion!, 0)).toEqual(units);
+    expect(s.units[0]).toMatchObject({ x: 1400, y: 400, angle: 30 });
+    expect(s.units[1]).toMatchObject({ x: 1450, y: 430, angle: 30 });
+    expect(s.units[2]).toEqual(units[2]);
+    expect(parseDeck(JSON.stringify(d))).toEqual(d);
+  });
+  it("offers a direct movement when tracks are disconnected and preserves exact endpoints", () => {
+    const separate = [
+      { id: "a", a: { x: 0, y: 0 }, b: { x: 100, y: 0 } },
+      { id: "b", a: { x: 0, y: 500 }, b: { x: 100, y: 500 } },
+    ];
+    expect(movementRoute(separate, { x: 50, y: 0 }, { x: 50, y: 500 })).toEqual(
+      [
+        { x: 50, y: 0 },
+        { x: 50, y: 500 },
+      ],
+    );
+    expect(movementRoute([], { x: 800, y: 100 }, { x: 900, y: 200 })).toEqual([
+      { x: 800, y: 100 },
+      { x: 900, y: 200 },
+    ]);
+  });
+});
+
+it("unbounded drawings preserve negative coordinates and frame all slides", () => {
+  const d = blank();
+  d.tracks = [
+    {
+      id: "negative",
+      a: { x: -20000, y: -15000 },
+      b: { x: -10000, y: -15000 },
+    },
+  ];
+  expect(() => validateTracks(d.tracks, [])).not.toThrow();
+  nextSlide(d).units = [{ ...cars[0]!, x: 30000, y: 20000 }];
+  const b = drawingBounds(d);
+  expect(b.x).toBeLessThan(-20000);
+  expect(b.y).toBeLessThan(-15000);
+  expect(b.x + b.width).toBeGreaterThan(30000);
+  expect(b.y + b.height).toBeGreaterThan(20000);
+  expect(parseDeck(JSON.stringify(d)).tracks).toEqual(d.tracks);
 });

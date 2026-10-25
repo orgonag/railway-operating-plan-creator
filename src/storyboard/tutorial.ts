@@ -15,7 +15,7 @@ export function welcome(root: HTMLElement, force = false): void {
     [
       ".story-tools",
       "Straight tracks, simple turnouts",
-      "Choose Track, then click a start and an end, or drag. Lines snap straight. Choose one of four turnout pictures, then place it on a track. Select a piece to delete it.",
+      "Choose Track, then click a start and an end, or drag. Lines snap straight. Choose one of four turnout pictures, then place it on a track. Choose Select, drag a box around pieces, and press Delete. Shift-click adds to your selection.",
     ],
     [
       ".story-steps .slide-card",
@@ -35,7 +35,7 @@ export function welcome(root: HTMLElement, force = false): void {
     [
       ".view-controls",
       "Zoom and explore",
-      "Expand canvas hides panels for more room. Drawing size adds space for a large yard. Use − / +, Fit or Page to adjust the view, and Pan to look around.",
+      "There are no drawing edges. Wheel to pan, Shift-wheel to pan sideways, Ctrl/⌘ + wheel to zoom. Fit shows this step; Whole plan frames everything. Expand canvas hides panels for more room.",
     ],
     [
       "[data-tour-export]",

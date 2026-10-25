@@ -1,3 +1,4 @@
+import { drawingBounds, drawingViewBox } from "../../src/storyboard/model";
 import { slideSvg } from "../../src/storyboard/exports";
 import { expect, it } from "vitest";
 import { blank } from "../../src/storyboard/model";
@@ -28,8 +29,10 @@ it("uses the entire large yard in presentation and exported slide images", () =>
     a: { x: 3000, y: 2000 },
     b: { x: 4600, y: 2000 },
   });
-  expect(scene(d, 0)).toContain('width="4800" height="2800"');
-  expect(standalone(d)).toContain('viewBox="0 0 4800 2800"');
-  expect(slideSvg(d, 0).svg).toContain('viewBox="0 0 4800 2800"');
+  expect(scene(d, 0)).toContain(
+    `width="${drawingBounds(d).width}" height="${drawingBounds(d).height}"`,
+  );
+  expect(standalone(d)).toContain(`viewBox="${drawingViewBox(d)}"`);
+  expect(slideSvg(d, 0).svg).toContain(`viewBox="${drawingViewBox(d)}"`);
   expect(slideSvg(d, 0).svg).toContain('x2="4600"');
 });

@@ -1,6 +1,7 @@
 import {
   blank,
-  pageSize,
+  drawingBounds,
+  drawingViewBox,
   turnoutTracks,
   validateTracks,
   pauseSeconds,
@@ -11,7 +12,7 @@ import {
   id,
   nextSlide,
   snap,
-  route,
+  movementRoute,
   distance,
   animatedUnits,
   selectedInBox,
@@ -89,16 +90,17 @@ export function createStoryboard(root: HTMLElement): void {
       "viewBox",
       `${view.x} ${view.y} ${view.width} ${view.height}`,
     );
+    for (const background of svg.querySelectorAll("[data-background]")) {
+      for (const [key, value] of Object.entries(view))
+        background.setAttribute(key, String(value));
+    }
     zoomLabel.textContent = `${Math.round((1200 / view.width) * 100)}%`;
   }
   function zoom(
     factor: number,
     anchor = { x: view.x + view.width / 2, y: view.y + view.height / 2 },
   ): void {
-    const width = Math.max(
-        240,
-        Math.min(pageSize(deck).width * 2, view.width / factor),
-      ),
+    const width = Math.max(240, Math.min(1000000, view.width / factor)),
       ratio = width / view.width;
     view = {
       x: anchor.x - (anchor.x - view.x) * ratio,
@@ -122,7 +124,7 @@ export function createStoryboard(root: HTMLElement): void {
       ...slide().annotations.flatMap((a) => [a.a, a.b]),
     ];
     if (!ps.length) {
-      view = { x: 0, y: 0, ...pageSize(deck) };
+      view = drawingBounds(deck);
       updateView();
       return;
     }
@@ -145,45 +147,19 @@ export function createStoryboard(root: HTMLElement): void {
     };
     updateView();
   });
-  button(viewControls, "Page", () => {
-    view = { x: 0, y: 0, ...pageSize(deck) };
+  button(viewControls, "Whole plan", () => {
+    view = drawingBounds(deck);
     updateView();
   });
   const focusButton = button(viewControls, "Expand canvas", () => {
     canvasFocus = !canvasFocus;
     render();
   });
-  const sizeLabel = document.createElement("label");
-  sizeLabel.className = "drawing-size";
-  sizeLabel.textContent = "Drawing size ";
-  const sizeSelect = document.createElement("select");
-  sizeSelect.setAttribute("aria-label", "Drawing size");
-  for (const [value, label] of [
-    [1200, "Standard · 1200 × 700"],
-    [2400, "Yard · 2400 × 1400"],
-    [4800, "Large yard · 4800 × 2800"],
-    [9600, "Extra large · 9600 × 5600"],
-  ] as const) {
-    const option = document.createElement("option");
-    option.value = String(value);
-    option.textContent = label;
-    sizeSelect.append(option);
-  }
-  sizeLabel.append(sizeSelect);
-  viewControls.append(sizeLabel);
-  sizeSelect.onchange = () => {
-    const width = Number(sizeSelect.value);
-    if (width < pageSize(deck).width) {
-      render();
-      return;
-    }
-    change(() => {
-      deck.canvasWidth = width;
-    });
-    tell(
-      "Drawing expanded. Pan to use the extra space, or choose Page to see it all. Existing objects stay in place.",
-    );
-  };
+  const navigationHint = document.createElement("span");
+  navigationHint.textContent =
+    "Endless canvas · Wheel to pan · Ctrl/⌘ + wheel to zoom";
+  navigationHint.className = "canvas-hint";
+  viewControls.append(navigationHint);
   const panButton = button(viewControls, "Pan", () => {
     cancel();
     tool = tool === "pan" ? "select" : "pan";
@@ -477,7 +453,7 @@ export function createStoryboard(root: HTMLElement): void {
         const preview = turnoutTracks(snapped.point, orientation);
         let color = "#e0c580";
         try {
-          validateTracks(preview, deck.tracks, pageSize(deck));
+          validateTracks(preview, deck.tracks);
         } catch {
           color = "#ff7869";
         }
@@ -528,6 +504,7 @@ export function createStoryboard(root: HTMLElement): void {
       p.setAttribute("pointer-events", "none");
       svg.append(p);
     }
+    updateView();
   }
   function choose(i: number): void {
     cancel();
@@ -544,10 +521,6 @@ export function createStoryboard(root: HTMLElement): void {
     focusButton.textContent = canvasFocus ? "Restore panels" : "Expand canvas";
     focusButton.setAttribute("aria-pressed", String(canvasFocus));
     focusButton.disabled = presentation || playing;
-    sizeSelect.value = String(pageSize(deck).width);
-    sizeSelect.disabled = playing || presentation;
-    for (const option of Array.from(sizeSelect.options))
-      option.disabled = Number(option.value) < pageSize(deck).width;
     if (!annotations().some((a) => a.id === annotationSelection))
       annotationSelection = null;
     trackSelection = trackSelection.filter((id) =>
@@ -610,10 +583,7 @@ export function createStoryboard(root: HTMLElement): void {
       const b = button(steps, `${i + 1}  ${s.title}`, () => choose(i));
       b.className = i === index ? "slide-card current" : "slide-card";
       const thumb = document.createElementNS(NS, "svg");
-      thumb.setAttribute(
-        "viewBox",
-        `0 0 ${pageSize(deck).width} ${pageSize(deck).height}`,
-      );
+      thumb.setAttribute("viewBox", drawingViewBox(deck));
       thumb.innerHTML = scene(deck, i);
       b.prepend(thumb);
     });
@@ -840,7 +810,7 @@ export function createStoryboard(root: HTMLElement): void {
             const old = deck.tracks.filter((t) => t.turnout === selectedGroup);
             const replacement = turnoutTracks(old[0]!.a, i, selectedGroup);
             const rest = deck.tracks.filter((t) => t.turnout !== selectedGroup);
-            validateTracks(replacement, rest, pageSize(deck));
+            validateTracks(replacement, rest);
             deck.tracks = [...rest, ...replacement];
             trackSelection = replacement.map((t) => t.id);
           });
@@ -869,7 +839,7 @@ export function createStoryboard(root: HTMLElement): void {
       !editable() && !presentation
         ? "Track and equipment positions are preserved. Text, arrows, titles and instructions remain editable. Remove later steps or undo to revise geometry."
         : index === 0
-          ? "Choose Track: click a start and an end, or drag. Lines snap straight. Choose a turnout direction, then place it on a track. Select any track piece to delete it. Pan or zoom to work closer."
+          ? "Choose Track: click a start and an end, or drag. Lines snap straight. Choose a turnout direction, then place it on a track. Choose Select and drag a box around several pieces, then press Delete. Shift-click adds pieces. Wheel to pan; Ctrl/⌘ + wheel to zoom. Keep drawing in any direction."
           : index === 1
             ? "Drag a locomotive, loaded car, or empty car from the toolbar onto any track. Each drop creates a separate cut."
             : "Click a cut, double-click one car, or box-select individual cars. Shift adds to your selection. Drag the selection to its destination.";
@@ -889,11 +859,15 @@ export function createStoryboard(root: HTMLElement): void {
     if (index === 0 && trackSelection.length && editable()) {
       const t = deck.tracks.find((t) => t.id === trackSelection[0]);
       const p = document.createElement("p");
-      p.textContent = t?.turnout
-        ? "Turnout selected. Both pieces delete together. Choose a direction to change it."
-        : "Track selected. Drag either end to resize; Delete removes only this section.";
+      p.textContent =
+        trackSelection.length > (t?.turnout ? 2 : 1)
+          ? `${trackSelection.length} track pieces selected. Delete removes the selection; Undo restores it.`
+          : t?.turnout
+            ? "Turnout selected. Both pieces delete together. Choose a direction to change it."
+            : "Track selected. Drag either end to resize; Delete removes only this section.";
       props.append(p);
-      if (t?.turnout) directionButtons(props, t.turnout);
+      if (t?.turnout && trackSelection.length === 2)
+        directionButtons(props, t.turnout);
       button(props, "Delete selected track", deleteTrack);
       button(props, "Clear selection", () => {
         trackSelection = [];
@@ -982,7 +956,7 @@ export function createStoryboard(root: HTMLElement): void {
       button(props, "Edit path", () => {
         manual = [copy(slide().motion!.path[0]!)];
         tell(
-          "Click tracks to choose the route, then Finish path. Reversals need another slide.",
+          "Click along the intended path, on or off track, then Finish path. Reversals need another slide.",
         );
         paint();
         inspector();
@@ -991,19 +965,23 @@ export function createStoryboard(root: HTMLElement): void {
         button(props, "Finish path", () => {
           const m = slide().motion!,
             end = m.path[m.path.length - 1]!,
-            tail = route(deck.tracks, manual![manual!.length - 1]!, end);
-          if (!tail) {
-            tell("No connected track route. Choose another track.");
-            return;
-          }
+            tail = movementRoute(
+              deck.tracks,
+              manual![manual!.length - 1]!,
+              end,
+            );
           const path = [...manual!, ...tail.slice(1)];
           manual = null;
           change(() => moveSlide(deck, index, m.ids, path));
         });
       button(props, "Reset path", () => {
         const m = slide().motion!,
-          path = route(deck.tracks, m.path[0]!, m.path[m.path.length - 1]!);
-        if (path) change(() => moveSlide(deck, index, m.ids, path));
+          path = movementRoute(
+            deck.tracks,
+            m.path[0]!,
+            m.path[m.path.length - 1]!,
+          );
+        change(() => moveSlide(deck, index, m.ids, path));
       });
       button(props, "Clear movement", () => {
         cancel();
@@ -1062,7 +1040,7 @@ export function createStoryboard(root: HTMLElement): void {
       }
       change(() => {
         const tracks = turnoutTracks(s.point, orientation);
-        validateTracks(tracks, deck.tracks, pageSize(deck));
+        validateTracks(tracks, deck.tracks);
         deck.tracks.push(...tracks);
         trackSelection = tracks.map((t) => t.id);
         tool = "select";
@@ -1108,12 +1086,15 @@ export function createStoryboard(root: HTMLElement): void {
     const p = point(e);
     if (manual) {
       const s = snap(p, deck.tracks);
-      const segment =
-        s && route(deck.tracks, manual[manual.length - 1]!, s.point);
-      if (segment) {
-        manual.push(...segment.slice(1));
-        paint();
-      } else tell("Choose a connected track.");
+      const target =
+        snapping && !e.altKey && s && distance(s.point, p) < 24 ? s.point : p;
+      const segment = movementRoute(
+        deck.tracks,
+        manual[manual.length - 1]!,
+        target,
+      );
+      manual.push(...segment.slice(1));
+      paint();
       return;
     }
     if (["loco", "loaded", "empty", "turnout", "end", "text"].includes(tool)) {
@@ -1182,13 +1163,21 @@ export function createStoryboard(root: HTMLElement): void {
       ?.getAttribute("data-track");
     if (index === 0 && tool === "select") {
       const t = deck.tracks.find((t) => t.id === trackId);
-      trackSelection = t
-        ? deck.tracks
-            .filter(
-              (v) => v.id === t.id || (t.turnout && v.turnout === t.turnout),
-            )
-            .map((v) => v.id)
-        : [];
+      if (!t) {
+        if (!e.shiftKey) trackSelection = [];
+        drag = { kind: "box", start: p, end: p, ids: [], add: e.shiftKey };
+        paint();
+        inspector();
+        return;
+      }
+      const group = deck.tracks
+        .filter((v) => v.id === t.id || (t.turnout && v.turnout === t.turnout))
+        .map((v) => v.id);
+      trackSelection = e.shiftKey
+        ? group.every((id) => trackSelection.includes(id))
+          ? trackSelection.filter((id) => !group.includes(id))
+          : [...new Set([...trackSelection, ...group])]
+        : group;
       if (t?.turnout) {
         const branch = deck.tracks.find((v) => v.turnout === t.turnout)!;
         orientation =
@@ -1311,16 +1300,30 @@ export function createStoryboard(root: HTMLElement): void {
         e.clientX >= bounds.left &&
         e.clientX <= bounds.right &&
         e.clientY >= bounds.top &&
-        e.clientY <= bounds.bottom &&
-        p.x >= 0 &&
-        p.x <= pageSize(deck).width &&
-        p.y >= 0 &&
-        p.y <= pageSize(deck).height
+        e.clientY <= bounds.bottom
       )
         place(p);
       return;
     }
     const p = point(e);
+    if (d.kind === "box" && index === 0) {
+      const inside = (q: Point) =>
+        q.x >= Math.min(d.start.x, p.x) &&
+        q.x <= Math.max(d.start.x, p.x) &&
+        q.y >= Math.min(d.start.y, p.y) &&
+        q.y <= Math.max(d.start.y, p.y);
+      const contained = deck.tracks.filter((t) => inside(t.a) && inside(t.b));
+      const groups = new Set(contained.map((t) => t.turnout).filter(Boolean));
+      const ids = deck.tracks
+        .filter(
+          (t) => contained.includes(t) || (t.turnout && groups.has(t.turnout)),
+        )
+        .map((t) => t.id);
+      trackSelection = d.add ? [...new Set([...trackSelection, ...ids])] : ids;
+      paint();
+      inspector();
+      return;
+    }
     if (d.kind === "box") {
       const ids = selectedInBox(slide().units, d.start, p);
       selected = d.add ? [...new Set([...selected, ...ids])] : ids;
@@ -1383,7 +1386,7 @@ export function createStoryboard(root: HTMLElement): void {
         for (const t of deck.tracks)
           for (const side of ["a", "b"] as const)
             if (distance(t[side], old) < 0.1) t[side] = copy(end);
-        validateTracks(deck.tracks, [], pageSize(deck));
+        validateTracks(deck.tracks, []);
       });
       return;
     }
@@ -1413,7 +1416,7 @@ export function createStoryboard(root: HTMLElement): void {
           a: d.start,
           b: straightEnd(d.start, p, deck.tracks, snapping && !e.altKey),
         };
-        validateTracks([track], deck.tracks, pageSize(deck));
+        validateTracks([track], deck.tracks);
         deck.tracks.push(track);
       });
       return;
@@ -1424,16 +1427,33 @@ export function createStoryboard(root: HTMLElement): void {
     }
     if (d.kind === "units") {
       const anchor = slide().units.find((u) => u.id === d.unit)!;
-      const destination = snap(
-        { x: anchor.x + p.x - d.start.x, y: anchor.y + p.y - d.start.y },
-        deck.tracks,
-      );
-      if (!destination) {
-        paint();
-        return;
-      }
+      const target = {
+        x: anchor.x + p.x - d.start.x,
+        y: anchor.y + p.y - d.start.y,
+      };
+      const nearest = snap(target, deck.tracks);
+      const onTrack =
+        snapping &&
+        !e.altKey &&
+        nearest &&
+        distance(nearest.point, target) < 24;
+      const destination = onTrack
+        ? nearest!
+        : { point: target, angle: anchor.angle };
       if (index === 1) {
         change(() => {
+          if (!onTrack) {
+            slide().units = slide().units.map((u) =>
+              d.ids.includes(u.id)
+                ? {
+                    ...u,
+                    x: u.x + target.x - anchor.x,
+                    y: u.y + target.y - anchor.y,
+                  }
+                : u,
+            );
+            return;
+          }
           const a = (destination.angle * Math.PI) / 180,
             old = (anchor.angle * Math.PI) / 180;
           slide().units = slide().units.map((u) => {
@@ -1465,14 +1485,7 @@ export function createStoryboard(root: HTMLElement): void {
           paint();
           return;
         }
-        const path = route(deck.tracks, before, destination.point);
-        if (!path) {
-          tell(
-            "No connected path found. Check the track connections in Step 1.",
-          );
-          paint();
-          return;
-        }
+        const path = movementRoute(deck.tracks, before, destination.point);
         change(() =>
           moveSlide(
             deck,
@@ -1487,9 +1500,17 @@ export function createStoryboard(root: HTMLElement): void {
   svg.addEventListener(
     "wheel",
     (e) => {
-      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, point(e));
+      if (e.ctrlKey || e.metaKey) {
+        zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, point(e));
+      } else {
+        const scale = view.width / svg.getBoundingClientRect().width;
+        const unit =
+          e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? svg.clientHeight : 1;
+        view.x += (e.shiftKey ? e.deltaY : e.deltaX) * scale * unit;
+        view.y += (e.shiftKey ? 0 : e.deltaY) * scale * unit;
+        updateView();
+      }
     },
     { passive: false },
   );
@@ -1510,6 +1531,20 @@ export function createStoryboard(root: HTMLElement): void {
     const typing =
       e.target instanceof HTMLInputElement ||
       e.target instanceof HTMLTextAreaElement;
+    if (
+      !typing &&
+      index === 0 &&
+      editable() &&
+      (e.ctrlKey || e.metaKey) &&
+      e.key.toLowerCase() === "a"
+    ) {
+      e.preventDefault();
+      trackSelection = deck.tracks.map((t) => t.id);
+      annotationSelection = null;
+      paint();
+      inspector();
+      return;
+    }
     if (
       e.code === "Space" &&
       !typing &&
