@@ -554,3 +554,55 @@ describe("turnout playback with small placement offsets", () => {
     }
   });
 });
+
+it("cars ahead of a dragged rear car turn onto connected track beyond its destination", () => {
+  const d = blank();
+  d.tracks = tracks;
+  const units = cars
+    .slice(0, 6)
+    .map((u, i) => ({ ...u, x: 700 + i * 46, y: 140 }));
+  nextSlide(d).units = units;
+  const s = nextSlide(d);
+  const ids = ["c5", "c0", "c1", "c2", "c3", "c4"];
+  moveSlide(d, 2, ids, movementRoute(tracks, units[5]!, { x: 640, y: 170 }));
+  expect(s.motion!.translate).not.toBe(true);
+  expect(animatedUnits(units, s.motion!, 0)).toEqual(units);
+  expect(s.units[0]!.x).toBeCloseTo(420);
+  expect(s.units[0]!.y).toBe(200);
+  expect(s.units[0]!.angle).toBe(0);
+  expect(s.units[4]!.x).toBeCloseTo(603.2);
+  expect(s.units[4]!.y).toBeCloseTo(197.6);
+  expect(s.units[5]!.x).toBe(640);
+  expect(s.units[5]!.y).toBe(170);
+  for (let n = 0; n <= 100; n++) {
+    for (const u of animatedUnits(units, s.motion!, n / 100)) {
+      expect(
+        Math.min(
+          ...tracks.map((t) => {
+            const dx = t.b.x - t.a.x,
+              dy = t.b.y - t.a.y;
+            const f = Math.max(
+              0,
+              Math.min(
+                1,
+                ((u.x - t.a.x) * dx + (u.y - t.a.y) * dy) / (dx * dx + dy * dy),
+              ),
+            );
+            return Math.hypot(u.x - t.a.x - f * dx, u.y - t.a.y - f * dy);
+          }),
+        ),
+      ).toBeLessThan(1e-8);
+    }
+  }
+  const reopened = parseDeck(JSON.stringify(d));
+  expect(
+    animatedUnits(reopened.slides[1]!.units, reopened.slides[2]!.motion!, 1),
+  ).toEqual(s.units);
+  nextSlide(d);
+  moveSlide(d, 3, ids, movementRoute(tracks, s.units[5]!, { x: 950, y: 140 }));
+  expect(d.slides[3]!.motion!.translate).not.toBe(true);
+  expect(animatedUnits(s.units, d.slides[3]!.motion!, 0)).toEqual(s.units);
+  const bad = JSON.parse(JSON.stringify(d));
+  bad.slides[2].motion.continuation[0].x += 10;
+  expect(() => parseDeck(JSON.stringify(bad))).toThrow(/continuation/);
+});
