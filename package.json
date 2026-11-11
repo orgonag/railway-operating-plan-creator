@@ -30,7 +30,7 @@
   "dependencies": {
     "fflate": "^0.8.3",
     "jspdf": "^4.2.1",
-    "pptxgenjs": "4.0.0"
+    "pptxgenjs": "4.0.1"
   },
   "overrides": {
     "image-size": "2.0.4"
